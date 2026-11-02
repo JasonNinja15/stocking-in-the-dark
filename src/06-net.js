@@ -64,7 +64,7 @@ const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
 function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S.inter),q:S.quota,sh:S.shelved,lo:S.lost,sc:S.score,to:S.total,ai:S.aidLeft,la:S.lamps,bv:S.bver,ov:S.over,
   pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry,p.inv||{},p.up||{},p.stack||[],p.can?1:0,p.wu|0]),
   tr:S.trucks.map(t=>[t.st,r2(t.z),r2(t.door),Math.round(t.t),t.warn?1:0,t.claw?1:0,t.left,t.n,t.reject?1:0,t.kg||0,t.extra||0,r2(t.stuck||0)]),
-  mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0]),
+  mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0,m.tg||'']),
   // the additions' moving parts
   x:{cash:Math.round(S.cash||0),adds:S.adds,fixed:S.fixed,ab:S.aidBonus|0,ex:S.extra|0,shopT:Math.round(S.shopT||0),mouths:S.mouths||[],
     par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1]),
@@ -83,7 +83,7 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
     if(id!==NET.myId)Object.assign(p,{x,z,yaw,pitch,light:!!light});else if(!p.init){p.init=1;p.x=x;p.z=z}}
   for(const id in S.players)if(!seen.has(id))delete S.players[id];
   m.tr.forEach((a,i)=>Object.assign(S.trucks[i],{st:a[0],z:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]}));
-  S.mons=m.mo.map(a=>({id:a[0],ty:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],a:a[6],k:a[7],v:a[8],f:!!a[9]}));
+  S.mons=m.mo.map(a=>({id:a[0],ty:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],a:a[6],k:a[7],v:a[8],f:!!a[9],tg:a[10]||''}));
   const x=m.x||{};const addsChanged=JSON.stringify(x.adds||[])!==JSON.stringify(S.adds||[]);
   Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,mouths:x.mouths||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1]}:null,
     parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8]})),

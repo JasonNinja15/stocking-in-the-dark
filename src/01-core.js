@@ -31,6 +31,8 @@ const MAX_BULBS=3;
 const COLD={x0:21,x1:WH.x1,z0:WH.z0,z1:-12.5,dx0:24.6,dx1:26.0};           // freezer room, door in its south wall
 const CONV={z:18.4,x0:-12.6,x1:-2.75,y:.85,bx:-2.2,bins:[17.25,18.4,19.55],lever:{x:-5.2,z:16.95},jam:{x:-3.05,z:17.7}};
 const CAR_UP={x0:-30,x1:-27.5,z0:-10.5,z1:-8.1}, CAR_DN={x0:70,x1:72.5,z0:-1.2,z1:1.2}, BASE={x0:70,x1:84,z0:-6,z1:6};
+// the basement shredder by the returns cage, and the corner something sits in
+const SHRED={x:76.6,z:-5.25}, HUNCH={x:83.2,z:5.2}, STRUGGLE_N=14;
 const CAR_OFF={x:CAR_DN.x0-CAR_UP.x0,z:CAR_DN.z0-CAR_UP.z0};
 const GEN={x:-28.6,z:11.9}, FUELR={x:-25.2,z:13.2}, FORK_HOME={x:7.6,z:-15.2,ry:-Math.PI/2}, SHRINK_HOME={x:25.4,z:13.4}, OFFICE_DOOR={x:-23.65,z:12.8};
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
@@ -98,6 +100,9 @@ TEX.ribsClaw=ctex(256,256,(g,w,h)=>{g.drawImage(TEX.ribs.image,0,0);
   for(let s=0;s<4;s++){const x0=rand(20,200),y0=rand(10,90),dx=rand(-20,20);for(let k=0;k<4;k++){g.strokeStyle='rgba(15,8,6,.85)';g.lineWidth=3;g.beginPath();g.moveTo(x0+k*11,y0);g.quadraticCurveTo(x0+k*11+dx*.5,y0+70,x0+k*13+dx,y0+140);g.stroke();g.strokeStyle='rgba(210,200,180,.5)';g.lineWidth=1;g.stroke()}}
   for(let i=0;i<5;i++)stain(g,rand(0,w),rand(100,h),rand(10,30),'60,10,6',.55)},{rep:[1,1]});
 TEX.hazard=ctex(128,128,(g,w,h)=>{g.fillStyle='#151513';g.fillRect(0,0,w,h);g.fillStyle='#c79a16';for(let i=-4;i<8;i++){g.beginPath();g.moveTo(i*32,0);g.lineTo(i*32+16,0);g.lineTo(i*32+16+h,h);g.lineTo(i*32+h,h);g.fill()}speckle(g,w,h,900,'0,0,0',.5,2)},{rep:[1,1]});
+// worn yellow safety paint, the same yellow as the hazard stripes: door frames, guard rails
+TEX.paint=ctex(128,256,(g,w,h)=>{g.fillStyle='#c79a16';g.fillRect(0,0,w,h);for(let x=0;x<w;x+=2){g.fillStyle=`rgba(70,50,10,${rand(0,.12)})`;g.fillRect(x,0,1,h)}
+  for(let i=0;i<14;i++)wstain(g,w,h,rand(0,w),rand(0,h),rand(8,26),'60,40,12',rand(.15,.35));for(let i=0;i<40;i++){g.fillStyle=`rgba(40,40,42,${rand(.4,.8)})`;g.fillRect(rand(0,w),rand(0,h),rand(2,9),rand(1,3))}speckle(g,w,h,900,'0,0,0',.35,2)},{rep:[1,1]});
 TEX.pallet=ctex(128,128,(g,w,h)=>{g.fillStyle='#7d6037';g.fillRect(0,0,w,h);for(let y=0;y<h;y+=3){g.fillStyle=`rgba(40,26,10,${rand(.05,.3)})`;g.fillRect(0,y,w,1)}speckle(g,w,h,600,'0,0,0',.5,2)});
 TEX.vest=ctex(64,64,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);g.fillStyle='#c9cdd2';g.fillRect(0,22,w,7);g.fillRect(0,42,w,7);g.fillRect(12,0,7,h);g.fillRect(45,0,7,h)});
 
@@ -170,7 +175,7 @@ for(const k of BOX_KINDS)k.geo=new THREE.BoxGeometry(k.w,k.h,k.d).translate(0,k.
 const MAT={
   floor:toon(0xffffff,{map:TEX.concrete}),wall:toon(0x9aa0a6,{map:TEX.wall}),ceil:toon(0x15161a),
   rackBlue:toon(0x27457e),rackOrange:toon(0xc4581b),deck:toon(0x5d5a54),steel:toon(0x4a4c50),dark:toon(0x1b1c1f),rubber:toon(0x0f0f10),
-  hazard:toon(0xffffff,{map:TEX.hazard}),yellow:toon(0xb78f19),ply:toon(0xffffff,{map:TEX.ply}),ribs:toon(0xffffff,{map:TEX.ribs}),ribsClaw:toon(0xffffff,{map:TEX.ribsClaw}),
+  hazard:toon(0xffffff,{map:TEX.hazard}),yellow:toon(0xffffff,{map:TEX.paint}),ply:toon(0xffffff,{map:TEX.ply}),ribs:toon(0xffffff,{map:TEX.ribs}),ribsClaw:toon(0xffffff,{map:TEX.ribsClaw}),
   pallet:toon(0xffffff,{map:TEX.pallet}),blanket:toon(0x2d3a4e),tarp:toon(0x23402f),barrelB:toon(0x1f4f8c),barrelR:toon(0x8c231c),
   desk:toon(0x5a4630),door:toon(0x3d4147),forkY:toon(0xb8901a),wood:toon(0x6e5333),paper:toon(0xd8d2c0),
   box:TEX.box.map(t=>toon(0xffffff,{map:t})),fragile:toon(0xffffff,{map:TEX.fragile}),old:toon(0xffffff,{map:TEX.old}),

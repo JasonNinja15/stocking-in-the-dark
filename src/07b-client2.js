@@ -17,6 +17,9 @@ const shown=o=>{for(let p=o.parent;p;p=p.parent)if(!p.visible)return false;retur
 
 // ---------------------------------------------------------------- per-frame sync of the additions' moving parts
 function syncExtras(dt,time){if(!S)return;const t=time;
+  // the shredder's rollers turn while it eats something; its lamp glows red while the thing in the corner is up
+  if(ADDV.shredRolls){ADDV.shredSpin=(ADDV.shredSpin||0)-dt;const sp=ADDV.shredSpin>0?16:0;ADDV.shredRolls.forEach((r,i)=>r.rotation.x+=(i?-1:1)*sp*dt);
+    const up=S.mons.some(m=>m.ty===14&&m.a!==0);ADDV.shredLamp.material.color.set(up?(Math.sin(t*10)>0?0xff2010:0x300404):0x3a0a0a)}
   // cold storage door swings out on its hinge
   if(S.cold)ADDV.coldDoor.rotation.y=-S.cold.door*1.7;
   // sorting: arm points at the selected bin, lever lamp shows its colour, the jam button flashes
@@ -111,7 +114,8 @@ function onKey2(code,me){
     case 'elevIn':doAct({a:'elevIn',lvl:t.lvl});return true;
     case 'elevCall':doAct({a:'elevCall',lvl:t.lvl});return true;
     case 'gen':if(me.can)doAct({a:'fuel'});else toast('Bring a jerry can from the fuel rack.',2.5);return true;
-    case 'fuelrack':if(me.can)toast('You already have a can.',2);else if(me.carry>=0)toast('Your hands are full.',2);else doAct({a:'can'});return true}}
+    case 'fuelrack':if(me.can)toast('You already have a can.',2);else if(me.carry>=0)toast('Your hands are full.',2);else doAct({a:'can'});return true;
+    case 'shred':if(me.carry<0)toast('Bring a box to feed it.',2);else doAct({a:'shred'});return true}}
   if(code==='KeyQ'&&ME.target&&ME.target.kind==='parcel'){if(ME.kickCD>0)return true;ME.kickCD=.8;ME.kickA=.35;doAct({a:'kick',pc:ME.target.id});return true}
   return false}
 // held E on the jam button for a moment clears it
@@ -129,7 +133,7 @@ function findTarget2(me,hit){const ud=hit.object.userData;
 function syncScanner(){let i=0;const put=(x,y,z,s)=>{if(i>=SCAN.length)return;const sp=SCAN[i++];sp.visible=true;sp.position.set(x,y,z);sp.scale.set(s,s*1.6,1)};
   if(ME.scan&&S){const near=(x,z)=>Math.hypot(x-ME.x,z-ME.z)<15;
     for(const m of S.mons){if(!near(m.x,m.z))continue;
-      if(m.ty===1)put(m.x,1.1,m.z,1.6);else if(m.ty===3)put(m.x,m.y+(m.k===2?-.3:.4),m.z,1);else if(m.ty===0)put(m.x,m.y+.4,m.z,.7);else if(m.ty===11)put(m.x,.9,m.z,.9)}
+      if(m.ty===1)put(m.x,1.1,m.z,1.6);else if(m.ty===3)put(m.x,m.y+(m.k===2?-.3:.4),m.z,1);else if(m.ty===0)put(m.x,m.y+.4,m.z,.7);else if(m.ty===11)put(m.x,.9,m.z,.9);else if(m.ty===13)put(m.x,1.6,m.z,1.5);else if(m.ty===14)put(m.x,.5,m.z,1.1)}
     for(const b of S.boxes)if(b.m&&(b.st===0||b.st===3)){const w=boxWorld(b);if(near(w.x,w.z))put(w.x,w.y+.3,w.z,.7)}
     for(const p of S.parcels||[])if(p.m&&near(p.x,CONV.z))put(p.x,CONV.y+.2,CONV.z,.6);
     for(const p of Object.values(S.players))if(p.id!==NET.myId&&!p.dead&&near(p.x,p.z))put(p.x,1.1,p.z,1.2);
@@ -137,13 +141,13 @@ function syncScanner(){let i=0;const put=(x,y,z,s)=>{if(i>=SCAN.length)return;co
   for(;i<SCAN.length;i++)SCAN[i].visible=false}
 
 // ---------------------------------------------------------------- monsters added later
-function makeMonster2(m){if(m.ty===4)return makeManager();if(m.ty===5)return makeShrink();if(m.ty===6)return makeFrost();if(m.ty===12)return makeMoth();
+function makeMonster2(m){if(m.ty===13)return makeBlind();if(m.ty===14)return makeHunch();if(m.ty===4)return makeManager();if(m.ty===5)return makeShrink();if(m.ty===6)return makeFrost();if(m.ty===12)return makeMoth();
   if(m.ty===7){const g=makeDriver();const others=Object.values(S.players).filter(p=>p.id!==NET.myId);
     // in a crew it wears one of your crewmates' names
     if(others.length){const o=others[m.k%others.length],tag=makeTag(o.name,o.col||'#ccc');tag.position.y=2.1;g.add(tag)}return g}
   return null}
 function coldify(g){g.traverse(o=>{if(o.isMesh&&o.material===MAT.lurkSkin)o.material=MAT.coldSkin})}
-function loopFor(m){return m.ty===5?['crinkle',1.2]:m.ty===6?['ice',1]:m.ty===12?['flutter',.6]:null}
+function loopFor(m){return m.ty===13?['breath',.9]:m.ty===14?['whisper',.5]:m.ty===5?['crinkle',1.2]:m.ty===6?['ice',1]:m.ty===12?['flutter',.6]:null}
 function animMonster2(v,dt,time){const u=v.g.userData,t=time+v.ph,a=v.a;
   if(v.ty===4){const mv=a===2||a===4,sp=a===4?7:4.2;const p0=v.gp||0;v.gp=p0+(mv?dt*sp:0);
     u.legs.forEach((l,i)=>l.rotation.x=mv?Math.sin(v.gp+i*Math.PI)*.4:0);
@@ -159,12 +163,21 @@ function animMonster2(v,dt,time){const u=v.g.userData,t=time+v.ph,a=v.a;
   else if(v.ty===7){const mv=a===2;v.gp=(v.gp||0)+(mv?dt*5:0);u.legs[0].rotation.x=mv?Math.sin(v.gp)*.5:0;u.legs[1].rotation.x=mv?-Math.sin(v.gp)*.5:0;
     u.arms[0].rotation.x=mv?-Math.sin(v.gp)*.4:0;u.arms[1].rotation.x=a===1?-.2:-.9;u.torch.rotation.x=.25;u.beam.visible=true;v.g.rotation.y+=Math.PI*0;
     u.head.rotation.z=.85+(a===1?Math.sin(t*20)*.1:0)}
-  else if(v.ty===12){u.wings.forEach(w=>w.w.rotation.z=w.s*Math.sin(t*22)*.9);u.body.rotation.x=Math.sin(t*3)*.2}}
+  else if(v.ty===12){u.wings.forEach(w=>w.w.rotation.z=w.s*Math.sin(t*22)*.9);u.body.rotation.x=Math.sin(t*3)*.2}
+  else if(v.ty===13){const mv=a===2||a===4;v.gp=(v.gp||0)+(mv?dt*(a===4?6.5:2.6):0);u.legs.forEach((l,i)=>l.rotation.x=mv?Math.sin(v.gp+i*Math.PI)*(a===4?.55:.3):0);
+    u.arms.forEach((s,i)=>s.rotation.x=mv?-Math.sin(v.gp+i*Math.PI)*.35-(a===4?.5:0):Math.sin(t*.7+i)*.05);u.torso.rotation.x=damp(u.torso.rotation.x,a===4?.35:.12,4,dt);
+    u.head.rotation.x=.25;u.head.rotation.z=.4+Math.sin(t*(a===0?1.6:.6))*(a===0?.25:.08)} // listening, it rolls its head from side to side
+  else if(v.ty===14){const k=a===0?0:a===2?1:2;v.gp=(v.gp||0)+(a===2?dt*3.5:0);
+    u.body.position.y=damp(u.body.position.y,[-.28,-.18,-.05][k],5,dt);u.torso.rotation.x=damp(u.torso.rotation.x,[.5,1.05,.45][k],4,dt);u.head.rotation.x=damp(u.head.rotation.x,[.9,-.5,-.15][k],4,dt);
+    u.legs.forEach((l,i)=>l.rotation.x=damp(l.rotation.x,k===0?-2.0:k===1?-1.2+Math.sin(v.gp+i*Math.PI)*.3:-.5,6,dt));u.knees.forEach(n=>n.rotation.x=damp(n.rotation.x,k===0?1.85:k===1?1.9:.9,6,dt));
+    u.elbows.forEach(n=>n.rotation.x=damp(n.rotation.x,k===0?.15:k===1?-.2:-.3,6,dt));
+    u.arms.forEach((s,i)=>s.rotation.x=damp(s.rotation.x,k===0?-.9+Math.sin(t*.5+i)*.04:k===1?-1.0+Math.sin(v.gp+i*Math.PI)*.45:-1.55+Math.sin(t*14)*.05,7,dt))}}
 function fearOf(v,d){if(v.ty===4)return v.a===4?clamp(1-d/9,0,1)*1.2:clamp(1-d/7,0,1)*.35;if(v.ty===5)return v.a===2?clamp(1-d/9,0,1)*.8:0;
+  if(v.ty===13)return clamp(1-d/10,0,1)*(v.a===4?1.1:.6);if(v.ty===14)return v.a===0?clamp(1-d/4,0,1)*.2:clamp(1-d/8,0,1)*1.1;
   if(v.ty===6)return clamp(1-d/6,0,1)*(v.a===2?.9:.3);if(v.ty===7)return clamp(1-d/8,0,1)*.8;if(v.ty===12)return clamp(1-d/5,0,1)*.25;return null}
 
 // ---------------------------------------------------------------- jumpscares for the new ones
-function makeScare2(ty){return ty===4?makeManager():ty===5?makeShrink():ty===6?makeFrost():ty===7?makeDriver():ty===9?makeGiant():ty===10?makeRoofThing():ty===11?makePassenger():null}
+function makeScare2(ty){return ty===13?makeBlind():ty===14?makeHunch():ty===4?makeManager():ty===5?makeShrink():ty===6?makeFrost():ty===7?makeDriver():ty===9?makeGiant():ty===10?makeRoofThing():ty===11?makePassenger():null}
 function updScare2(s,k,lunge){const g=s.g,u=g.userData;
   if(s.ty===4){g.position.set(rand(-.01,.01),-2.36,lerp(-1.9,-.78,lunge(.18)));g.rotation.y=Math.PI*0;u.clip.position.y=.3;u.clip.rotation.x=1.35;u.head.rotation.set(-.2,0,Math.sin(k*17)*.05+.15);u.arms.forEach(a=>{a.rotation.x=-1.6;a.rotation.z=0})}
   else if(s.ty===5){g.position.set(rand(-.02,.02),-1.9,lerp(-1.4,-.6,lunge(.2)));u.head.rotation.set(-.15,0,Math.sin(k*25)*.2);u.torso.rotation.x=.25}
@@ -172,6 +185,8 @@ function updScare2(s,k,lunge){const g=s.g,u=g.userData;
   else if(s.ty===7){g.position.set(rand(-.02,.02),-1.66,lerp(-1.4,-.58,lunge(.16)));g.rotation.y=Math.PI;u.head.rotation.set(-.2,0,.85+Math.sin(k*30)*.15);u.arms.forEach(a=>a.rotation.x=-1.7);u.beam.visible=false;u.tag.visible=false}
   else if(s.ty===9){g.position.set(0,lerp(-14.8,-13.75,lunge(.5)),-1.5);u.arms[0].rotation.x=lerp(0,-1.1,lunge(.6))}
   else if(s.ty===10){g.position.set(rand(-.01,.01),lerp(1.2,.12,lunge(.14)),-.5);g.rotation.set(0,0,Math.PI);u.arms.forEach((a,i)=>a.rotation.z=(i?-1:1)*.8)}
+  else if(s.ty===13){g.position.set(rand(-.02,.02),-2.2,lerp(-1.5,-.6,lunge(.16)));u.head.rotation.set(-.2,0,.4+Math.sin(k*22)*.12);u.arms.forEach(a=>a.rotation.x=-1.6)}
+  else if(s.ty===14){g.position.set(rand(-.02,.02),-1.1,lerp(-1.2,-.45,lunge(.22)));u.body.position.y=0;u.torso.rotation.x=.3;u.head.rotation.x=-.2;u.arms.forEach(a=>a.rotation.x=-1.5)}
   else if(s.ty===11){g.position.set(rand(-.01,.01),-.95,lerp(-1.2,-.5,lunge(.12)));g.rotation.y=Math.PI;u.head.rotation.x=-.35;u.torso.rotation.x=-.1}}
 
 // ---------------------------------------------------------------- events
@@ -180,6 +195,13 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'bought':SFX.buy();if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);if(ADDS[e.k])renderShop(true);break;
   case 'stuck':toast(`Bay ${BAYS[e.b].name}'s door jammed open. Don't look out at the yard.`,4.5);break;
   case 'slam':SFX.slam(P(e.x,e.z,2));break;
+  case 'shake':if(e.p!==me)SFX.shake({x:e.x,y:1.2,z:e.z});break;
+  case 'blindHear':SFX.clicks(P(e.x,e.z,2.2));break;
+  case 'hunchWarn':if(e.p===me){SFX.growl(P(e.x,e.z,.6));toast('Something in the corner lifts its head. Find something to do.',4.5)}break;
+  case 'hunchGo':SFX.skitter(P(e.x,e.z,.4));break;
+  case 'grab':if(e.p===me){ME.grab=true;ME.strug=0;ME.shake=.6;SFX.hurt()}break;
+  case 'freed':if(e.p===me){ME.grab=false;toast('You tore free. Get back to work.',3)}SFX.growl(P(e.x,e.z,.8));break;
+  case 'shred':SFX.shred(P(e.x,e.z,1));ADDV.shredSpin=1.4;break;
   case 'item':if(e.p===me){if(e.k==='batt'){ME.bat=100;SFX.battery();toast('Fresh battery.',2)}else if(e.k==='drink'){ME.drinkT=20;ME.stam=100;ME.exh=false;SFX.drink()}}break;
   case 'flare':SFX.flare(P(e.x,e.z,.2));break;
   case 'strobe':if(e.p!==me){SFX.strobe();if(Math.hypot(e.x-ME.x,e.z-ME.z)<12)ME.flash=Math.max(ME.flash,.4)}break;
@@ -235,6 +257,7 @@ function promptFor(t,me){switch(t.kind){
   case 'elevCall':return S.elev.st!=='idle'?'Elevator moving&hellip;':S.elev.lvl===t.lvl?'Elevator is here':'<kbd>E</kbd> Call the elevator';
   case 'gen':return me.can?'<kbd>E</kbd> Refuel the generator':`Generator: ${Math.round(S.gen.fuel)}% fuel`;
   case 'fuelrack':return me.can?'':'<kbd>E</kbd> Take a jerry can';
+  case 'shred':{const b=me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;return!b?'Shredder':b.ret?'<kbd>E</kbd> Shred the damaged return (counts toward quota)':'<kbd>E</kbd> Shred it <span class="warn">(good stock: counts as lost)</span>'}
   case 'fslot':return t.ok?'<kbd>E</kbd> Set the pallet on the shelf':'Shelf is full';
   case 'fpal':return'<kbd>E</kbd> Lift the pallet';}return null}
 // stuck in the elevator: shown in the middle of the screen, how long the light has been on the hatch and how long before it opens
@@ -285,3 +308,17 @@ function shopTick(){if(!GAME.on||!S)return;const want=S.phase==='shop'&&!GAME.ov
   if(shopShown)renderShop(false)}
 function bindShop(){$('shop').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b){auInit();doAct({a:'buy',k:b.dataset.buy});return}});
   $('bShopGo').onclick=()=>{auInit();doAct({a:'start'});reqLock()}}
+
+// ---------------------------------------------------------------- held by the thing in the basement
+// It drags you to the shredder: you can't move, only mash E (or Q, Space, click) to break its grip.
+function grabber(){return S.mons.find(m=>m.ty===14&&m.a===5&&m.tg===NET.myId)}
+function grabUpdate(dt,me){const m=grabber();if(!m){ME.grab=false;return false}
+  if(!ME.grab){ME.grab=true;ME.strug=0}
+  const v=MV.get(m.id),gx=v?v.g.position.x:m.x,gz=v?v.g.position.z:m.z,ry=v?v.g.rotation.y:m.ry;
+  ME.x=gx+Math.sin(ry)*.85;ME.z=gz+Math.cos(ry)*.85;ME.vx=ME.vz=0;
+  ME.yaw=angLerp(ME.yaw,Math.atan2(-(SHRED.x-ME.x),-(SHRED.z-ME.z)),dt*4);ME.pitch=damp(ME.pitch,-.3,4,dt);
+  const t=performance.now()*.001;camera.position.set(ME.x,1.35+Math.sin(t*9)*.03,ME.z);camera.rotation.set(ME.pitch,ME.yaw+Math.sin(t*7)*.04,Math.sin(t*5)*.08);
+  me.x=ME.x;me.z=ME.z;return true}
+function struggle(){ME.strug=(ME.strug||0)+1;ME.shake=Math.max(ME.shake,.25);doAct({a:'struggle'})}
+function grabNote(){if(!ME.grab)return'';const k=clamp((ME.strug||0)/STRUGGLE_N,0,1);
+  return`<span class="warnline">IT HAS YOU</span><br>Mash <kbd>E</kbd> to break free <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}

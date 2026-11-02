@@ -46,8 +46,10 @@ function buildWorld(){
     sbox(MAT.hazard,DOOR_HW*2+.6,.012,3,b.x,.006,WH.z0+1.5,{cast:false,uv:[6,1]});
     sbox(MAT.yellow,.1,.012,6,b.x-DOOR_HW-.4,.007,WH.z0+3,{cast:false});sbox(MAT.yellow,.1,.012,6,b.x+DOOR_HW+.4,.007,WH.z0+3,{cast:false});
     // frame, bumpers, seals (the seals also close the gap beside a docked trailer)
-    sbox(MAT.yellow,.18,DOOR_H,.5,b.x-DOOR_HW-.09,DOOR_H/2,WH.z0-.15);sbox(MAT.yellow,.18,DOOR_H,.5,b.x+DOOR_HW+.09,DOOR_H/2,WH.z0-.15);
-    sbox(MAT.dark,DOOR_HW*2+.4,.5,.6,b.x,DOOR_H+.25,WH.z0-.2); // door drum housing
+    // the posts stand 2 cm proud of the opening's edge and the wall face, so no face of theirs lies on the wall's;
+    // painted like the dock columns, hazard stripes below and worn yellow above
+    for(const s of[-1,1]){const x=b.x+s*(DOOR_HW+.08);sbox(MAT.hazard,.2,1.2,.54,x,.6,WH.z0-.15,{uv:[.6,1]});sbox(MAT.yellow,.2,DOOR_H-1.2,.54,x,1.2+(DOOR_H-1.2)/2,WH.z0-.15,{uv:[.4,3]})}
+    sbox(MAT.dark,DOOR_HW*2+.4,.5,.6,b.x,DOOR_H+.24,WH.z0-.2); // door drum housing, its underside just below the lintel's
     for(const s of[-1,1]){sbox(MAT.rubber,.42,DOOR_H,.9,b.x+s*1.5,DOOR_H/2,WH.z0-.85);col(b.x+s*1.25,WH.z0-1.3,b.x+s*1.75,WH.z0-.4);
       sbox(MAT.rubber,.3,.35,.22,b.x+s*(DOOR_HW+.05),.55,WH.z0+.11)} // bumpers sit on the wall face, clear of the trailer
     // roll door

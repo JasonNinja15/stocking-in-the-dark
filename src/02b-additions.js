@@ -96,6 +96,18 @@ function buildAdditions(){
     for(let x=72;x<84;x+=2.5)scyl(MAT.steel,.08,.08,B.z1-B.z0,x,bh-.25,0,{rx:Math.PI/2,seg:8,cast:false});
     addSign([{t:'RETURNS',size:80,bold:true},{t:'DAMAGED · DO NOT RESELL',size:30}],83.85,2.3,0,-Math.PI/2,1.8,.7,g);
     const bb=new THREE.Mesh(GEO.sph,MAT.bulbOn.clone());bb.scale.setScalar(.1);bb.position.set(77,bh-.3,0);g.add(bb);ADDV.baseBulb=bb;
+    // the shredder against the wall just outside the cage: a steel cabinet with a hopper on top and two toothed rollers in its throat
+    {const X=SHRED.x,Z=SHRED.z,cab=toon(0x4a5058);sbox(cab,1.3,1.0,.9,X,.5,Z);sbox(MAT.hazard,1.32,.16,.92,X,.9,Z,{uv:[2.6,.3]});
+     sbox(cab,1.5,.08,1.06,X,1.04,Z);for(const s of[-1,1]){sbox(cab,.08,.32,1.06,X+s*.71,1.22,Z);sbox(cab,1.5,.32,.08,X,1.22,Z+s*.49)}
+     sbox(MAT.dark,1.34,.02,.9,X,1.08,Z,{cast:false});sbox(MAT.dark,.6,.25,.04,X,.45,Z+.46,{cast:false}); // the throat, the bin hatch
+     ADDV.shredRolls=[];for(const dz of[-.13,.13]){const r=new THREE.Group();r.position.set(X,1.12,Z+dz);g.add(r);
+       const c=new THREE.Mesh(GEO.cyl,MAT.steel);c.scale.set(.1,1.2,.1);c.rotation.z=Math.PI/2;r.add(c);
+       for(let i=0;i<9;i++)for(let a=0;a<4;a++){const t=new THREE.Mesh(GEO.box,MAT.steel);t.scale.set(.03,.05,.05);const ang=a*Math.PI/2+i*.4;t.position.set(-.52+i*.13,Math.cos(ang)*.1,Math.sin(ang)*.1);t.rotation.x=ang;r.add(t)}
+       ADDV.shredRolls.push(r)}
+     const lamp=new THREE.Mesh(GEO.sph,MAT.red.clone());lamp.scale.setScalar(.07);lamp.position.set(X+.55,1.45,Z-.3);g.add(lamp);ADDV.shredLamp=lamp;
+     inter(new THREE.Mesh(GEO.box,cab),{kind:'shred'},g).scale.set(1.5,1.4,1.1);INTER[INTER.length-1].position.set(X,.7,Z);INTER[INTER.length-1].visible=false;
+     acol('base',X-.76,Z-.55,X+.76,Z+.55);
+     addSign([{t:'SHREDDER',size:70,bold:true},{t:'RETURNS ONLY · KEEP HANDS CLEAR',size:28}],X,1.95,BASE.z0+.02,0,1.4,.5,g)}
     flushStatics(g)}
 
   // ---------------------------------------------------------------- generator (west wall, by the office)

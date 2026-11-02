@@ -57,25 +57,26 @@ addEventListener('resize',applyQuality);
 
 // ===================================================================== local player
 const GAME={on:false,paused:false,overShown:false,overT:0,wasLocked:false,hints:{},hudT:0};
-const ME={x:0,z:-15.5,yaw:0,pitch:0,vx:0,vz:0,stam:100,exh:false,bat:100,light:true,bob:0,stepPh:0,kickCD:0,kickA:0,scare:null,shake:0,hurt:0,flash:0,fear:0,spec:0,lastHp:100,target:null,deathT:0,charging:false,beatT:0,flick:1,
+const ME={x:0,z:-15.5,yaw:0,pitch:0,vx:0,vz:0,stam:100,exh:false,bat:100,light:true,bob:0,stepPh:0,kickCD:0,kickA:0,scare:null,shake:0,hurt:0,flash:0,fear:0,specId:'',lastHp:100,target:null,deathT:0,charging:false,beatT:0,flick:1,
   lightOn(){return this.light&&this.bat>0}};
 const K={};
 const locked=()=>document.pointerLockElement===canvas;
 function reqLock(){try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}}
 addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;K[e.code]=true;
-  if(GAME.on&&!GAME.paused&&!e.repeat)onKey(e.code);
+  if(GAME.on&&!GAME.paused&&!e.repeat){const me=S&&S.players[NET.myId];if(me&&me.dead&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(e.code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(e.code))specCycle(-1)}else onKey(e.code)}
   if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(e.code))e.preventDefault()});
 addEventListener('keyup',e=>{K[e.code]=false});
 addEventListener('blur',()=>{for(const k in K)K[k]=false});
 document.addEventListener('mousemove',e=>{if(!GAME.on||!locked()||GAME.paused)return;const s=.0021*SET.sens;ME.yaw-=e.movementX*s;ME.pitch=clamp(ME.pitch-e.movementY*s,-1.45,1.45)});
 canvas.addEventListener('mousedown',e=>{auInit();if(!GAME.on)return;if(!locked()){reqLock();return}
-  const me=S&&S.players[NET.myId];if(me&&me.dead){ME.spec++;return}
+  const me=S&&S.players[NET.myId];if(me&&me.dead){specCycle(e.button===2?-1:1);return}
   if(e.button===0)onKey('KeyE');else if(e.button===2)onKey('KeyQ')});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('pointerlockchange',()=>{if(locked()){GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
   else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')){showPause()}});
 
 function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||S.phase!=='play')return;
+  if(ME.grab){if(['KeyE','KeyQ','Space'].includes(code))struggle();return}
   if(code!=='KeyF'&&onKey2(code,me))return;
   if(code==='KeyF'){if(ME.bat>0)ME.light=!ME.light;SFX.click();return}
   if(code==='KeyE'){const t=ME.target;if(!t)return;
@@ -110,7 +111,7 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   ME.hurt=Math.max(0,ME.hurt-dt*.7);ME.flash=Math.max(0,ME.flash-dt*2.2);ME.kickCD-=dt;ME.kickA=Math.max(0,ME.kickA-dt);
   if(ME.scare)updScare(dt);else ME.shake=Math.max(0,ME.shake-dt*1.4);
   if(me.dead){ME.deathT+=dt;spectate(dt);findTarget(null);return}
-  ME.deathT=0;localUpdate2(dt,me);
+  ME.deathT=0;localUpdate2(dt,me);if(grabUpdate(dt,me)){findTarget(null);return}
   const busy=!!ME.scare||S.phase!=='play';
   if(ME.driving){driveUpdate(dt,me);batteryUpdate(dt,busy,me);findTarget(me);return}
   const fw=busy?0:(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),st=busy?0:(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0);
@@ -140,21 +141,42 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   const bobY=Math.sin(ME.stepPh*2)*.045*ME.bob*(run?1.4:1),bobX=Math.cos(ME.stepPh)*.03*ME.bob;
   camera.position.set(ME.x+rx*bobX,1.62+bobY-(carry?.03:0),ME.z+rz*bobX);
   const sh=ME.shake*ME.shake;camera.rotation.set(ME.pitch-ME.kickA*.25+rand(-1,1)*sh*.05,ME.yaw+rand(-1,1)*sh*.05,rand(-1,1)*sh*.06);
-  VM.g.position.set(bobX*.3,bobY*.4-ME.kickA*.15,0);
+  const shk=ME.shaking?Math.sin(performance.now()*.045)*.05:0; // pumping the shake flashlight
+  VM.g.position.set(bobX*.3,bobY*.4-ME.kickA*.15+shk,0);
   me.x=ME.x;me.z=ME.z;me.yaw=ME.yaw;me.pitch=ME.pitch;me.light=ME.lightOn();
   findTarget(me);updGhost(me);}
 function batteryUpdate(dt,busy,me){
-  ME.charging=false;
+  ME.charging=false;ME.shaking=false;
+  // the shake flashlight: hold R to charge it anywhere, loudly
+  if(K.KeyR&&!busy&&me.up&&me.up.shake&&!ME.driving){ME.charging=ME.shaking=true;ME.bat=Math.min(100,ME.bat+dt*7);ME.shakeT=(ME.shakeT||0)-dt;if(ME.shakeT<=0){ME.shakeT=.45;SFX.shake();doAct({a:'shake'})}}
   // holding E at the charger counts as charging even when full, so the battery never drains there
-  if(ME.target&&ME.target.kind==='charger'&&K.KeyE&&!busy){ME.charging=true;if(ME.bat<100){ME.bat=Math.min(100,ME.bat+dt*(mainsDown()?2.4:24)); /* a tenth of the speed in an outage */if(Math.random()<dt*6)SFX.charge()}}
+  else if(ME.target&&ME.target.kind==='charger'&&K.KeyE&&!busy){ME.charging=true;if(ME.bat<100){ME.bat=Math.min(100,ME.bat+dt*(mainsDown()?2.4:24)); /* a tenth of the speed in an outage */if(Math.random()<dt*6)SFX.charge()}}
   if(ME.lightOn()&&!ME.charging){ME.bat=Math.max(0,ME.bat-dt*(me.up&&me.up.fl2?.3:.6));if(ME.bat<=0){ME.light=false;SFX.click();toast('Your flashlight died.')}}
   if(ME.bat<25&&!GAME.hints.bat){GAME.hints.bat=1;toast('Battery low. Hold E at the charging dock between the bays.',5)}}
 
-function spectate(dt){
-  if(ME.deathT<2.2||!Object.values(S.players).some(p=>!p.dead&&p.id!==NET.myId)){ // fall to the floor
+// ---- spectating: a third-person camera behind a crewmate who's still alive. The mouse orbits it;
+// click, Space or the arrow keys switch to the next one. If they go down, it moves on to someone else.
+const specList=()=>Object.values(S.players).filter(p=>!p.dead&&p.id!==NET.myId);
+function specTarget(){const a=specList();return a.find(p=>p.id===ME.specId)||a[0]||null}
+function specCycle(d){const a=specList();if(!a.length)return;const i=a.findIndex(p=>p.id===ME.specId);ME.specId=a[((i<0?0:i+d)%a.length+a.length)%a.length].id;ME.specSnap=true}
+// can the camera sit here? (inside the walls, out of the racks, in a docked trailer or the basement)
+function camFree(x,y,z){if(y<.25||insideAny(x,z,.18))return false;
+  if(x>60)return x>BASE.x0+.2&&x<BASE.x1-.2&&z>BASE.z0+.2&&z<BASE.z1-.2&&y<3;
+  if(x<WH.x0+.2||x>WH.x1-.2||z>WH.z1-.2||y>WH.h-.3)return false;
+  if(z<WH.z0+.2)return BAYS.some((b,i)=>(S.trucks[i].st===2||S.trucks[i].st===3)&&Math.abs(x-b.x)<TRAIL_HW-.2&&z>S.trucks[i].z-TRAIL_LEN+.3&&y<TRAIL_H-.2);
+  return true}
+function spectate(dt){const p=specTarget();
+  if(ME.deathT<2.2||!p){ // fall to the floor
     const k=Math.min(1,ME.deathT/1.2);camera.position.set(ME.x,lerp(1.62,.25,easeOut(k)),ME.z);camera.rotation.set(lerp(ME.pitch,-.2,k),ME.yaw,lerp(0,1.2,easeOut(k)));return}
-  const alive=Object.values(S.players).filter(p=>!p.dead&&p.id!==NET.myId);const p=alive[ME.spec%alive.length],v=AV.get(p.id);if(!v)return;
-  camera.position.set(v.x,1.62,v.z);camera.rotation.set(v.pitch,v.yaw,0)}
+  if(p.id!==ME.specId){ME.specId=p.id;ME.specSnap=true}
+  const v=AV.get(p.id);if(!v)return;
+  if(ME.specSnap){ME.specSnap=false;ME.yaw=v.yaw;ME.pitch=-.3;ME.specD=.5}
+  ME.pitch=clamp(ME.pitch,-1.1,.5);
+  const fx=v.x,fy=(S.fork&&S.fork.drv===p.id?2.1:1.45),fz=v.z,cp=Math.cos(ME.pitch),bx=Math.sin(ME.yaw)*cp,by=-Math.sin(ME.pitch),bz=Math.cos(ME.yaw)*cp;
+  // pull in toward them wherever a wall or shelf is in the way
+  let d=.4;while(d<3.4&&camFree(fx+bx*(d+.1),fy+by*(d+.1),fz+bz*(d+.1)))d+=.1;
+  ME.specD=d<(ME.specD||0)?d:damp(ME.specD||d,d,3,dt);
+  camera.position.set(fx+bx*ME.specD,fy+by*ME.specD,fz+bz*ME.specD);camera.lookAt(fx,fy,fz)}
 
 // ---- jumpscares
 function startScare(ty){if(ME.scare){camera.remove(ME.scare.g)}
@@ -345,7 +367,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?' &nbsp; <kbd>G</kbd> Set the pallet down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
-    const hn=hatchNote();if(hn)pr=hn;}
+    const hn=hatchNote()||grabNote();if(hn)pr=hn;}
   if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
   $('cross').className=t&&(t.kind!=='slot'||t.ok)?'on':'';
   // a clock ticks through the last minute and overtime, only while the quota isn't met; double time for the final 10 s
@@ -369,7 +391,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   $('tr').innerHTML=h;
   const ps=Object.values(S.players);
   $('plist').innerHTML=ps.length>1?ps.map(p=>`<div style="color:${p.dead?'#666':p.col}">${p.dead?'&#10013; ':''}${esc(p.name)} ${p.dead?'':'&middot; '+Math.ceil(p.hp)}</div>`).join(''):'';
-  const sp=$('spect');if(me&&me.dead&&ps.some(p=>!p.dead)){const alive=ps.filter(p=>!p.dead&&p.id!==NET.myId);sp.classList.remove('hide');sp.textContent=alive.length?`You're down. Watching ${alive[ME.spec%alive.length].name} (click to switch). Back on shift next night.`:''}else sp.classList.add('hide');
+  const sp=$('spect'),wt=me&&me.dead?specTarget():null;if(wt){const n=specList().length;sp.classList.remove('hide');sp.textContent=`You're down. Watching ${wt.name}${n>1?' · click or ← → to switch':''} · move the mouse to look around. Back on shift next night.`}else sp.classList.add('hide');
   if(SET.fps)$('fps').textContent=GAME.fps+' fps';}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -410,7 +432,7 @@ function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document
 function checkOver(dt){if(!S.over||GAME.overShown)return;if(ME.scare)return;GAME.overT+=dt;if(GAME.overT>1.8)showOver(S.over)}
 
 function enterGame(){clearVisuals();hideScreens();$('hud').classList.remove('hide');GAME.on=true;GAME.paused=false;GAME.overShown=false;GAME.overT=0;GAME.lastPr=null;
-  Object.assign(ME,{vx:0,vz:0,stam:100,exh:false,bat:100,light:true,kickCD:0,scare:null,shake:0,hurt:0,flash:0,fear:0,deathT:0,lastHp:100,spec:0,red:false,drinkT:0,driving:false,scan:false});shopShown=false;
+  Object.assign(ME,{vx:0,vz:0,stam:100,exh:false,bat:100,light:true,kickCD:0,scare:null,shake:0,hurt:0,flash:0,fear:0,deathT:0,lastHp:100,specId:'',red:false,drinkT:0,driving:false,scan:false});shopShown=false;
   const me=S.players[NET.myId];if(me){ME.x=me.x;ME.z=me.z;ME.yaw=me.yaw||0;ME.pitch=0}
   auInit();reqLock();setTimeout(()=>{if(GAME.on&&!locked()&&!GAME.overShown)$('lockmsg').classList.remove('hide')},600)}
 function startSolo(){netClose();NET.mode='solo';NET.myId='me';S=newState();addPlayer('me',myName(),VEST[0]);startNight();enterGame()}
@@ -469,7 +491,7 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
     REDL.intensity=ME.red&&me&&me.up&&me.up.red&&!me.dead&&!ME.scare?10:0;VM.can.visible=!!(me&&me.can);
     SCARE_L.intensity=ME.scare?(Math.random()<.3?.6:4):0;
     VM.g.visible=!!(me&&!me.dead);VM.lens.material.color.setScalar(ME.lightOn()?ME.flick:.15);
-    BAYV.chargeLed.material.color.set(ME.charging?(Math.sin(time*12)>0?0x37ff8a:0x0a3a1a):0x37ff8a);
+    BAYV.chargeLed.material.color.set(ME.charging&&!ME.shaking?(Math.sin(time*12)>0?0x37ff8a:0x0a3a1a):0x37ff8a);
   }else{ // title screen: drift through the dark dock
     const t=time*.05;camera.position.set(Math.sin(t)*7,2.1+Math.sin(t*1.7)*.2,-8+Math.cos(t*.8)*2);camera.rotation.set(-.08,Math.sin(t*.9)*.6,0);
     FL.intensity=0;SCARE_L.intensity=0;REDL.intensity=0;VM.g.visible=false;ME.fear=0;ME.scan=false;

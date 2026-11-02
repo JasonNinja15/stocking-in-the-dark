@@ -127,6 +127,10 @@ const SFX={
     else if(ty===10){ // the elevator roof: the hatch bangs open and something screams down through it
       tone(d,{type:'square',f:110,f2:60,dur:.25,a:.002,g:.4});nz(d,{dur:.2,a:.002,g:.5,f:1500,q:1});
       voice(d,{t:.12,dur:1.2,a:.02,rel:.4,f0:560,f1:880,v:'ee',v2:'ah',rasp:66,raspD:.6,jit:.08,noise:.2,sub:0,g:.55,drive:7});screech(d,{t:.15,dur:.9,f0:900,f1:1500,g:.14})}
+    else if(ty===13){ // the blind one: a burst of clicks and a dry, rattling breath pulled in through the open mouth
+      for(let i=0;i<9;i++)tone(d,{t:i*.035,type:'triangle',f:rand(1800,2600),dur:.02,a:.001,g:.3});voice(d,{t:.2,dur:1.3,a:.05,rel:.5,f0:120,f1:85,v:'aw',v2:'oo',rasp:60,raspD:.9,jit:.1,noise:.7,sub:.2,g:.55,drive:6})}
+    else if(ty===14){ // the basement thing: the shredder motor and a low groan right in your ear
+      tone(d,{type:'sawtooth',f:62,f2:40,dur:1.6,a:.02,g:.35});nz(d,{dur:1.4,a:.02,g:.5,type:'lowpass',f:900});voice(d,{t:.05,dur:1.4,a:.08,rel:.5,f0:85,f1:60,v:'oo',v2:'aw',rasp:22,raspD:.8,jit:.05,noise:.4,sub:.7,g:.55,drive:4})}
     else if(ty===11){ // the passenger: a dry, hoarse scream from a throat that hasn't been used in years
       nz(d,{dur:1.2,a:.04,g:.5,f:1400,f2:2400,q:2});voice(d,{t:.05,dur:1.1,a:.04,rel:.4,f0:260,f1:200,v:'ah',v2:'eh',rasp:70,raspD:.9,jit:.1,noise:.8,sub:0,g:.45,drive:6})}
     else{ // the mimic: cardboard tears, it chitters, then snarls in your face
@@ -170,6 +174,12 @@ const SFX={
   cut(pos){if(!AU.ready)return;const d=dest(pos,{rev:.2});nz(d,{dur:.25,a:.002,g:.45,f:2400,f2:1200,q:2})},
   squeal(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:1});chitter(d,{n:10,g:.2});voice(d,{t:.05,dur:.7,a:.01,rel:.3,f0:700,f1:1200,v:'ee',rasp:50,raspD:.5,noise:.2,sub:0,g:.35,drive:6})},
   battery(){if(!AU.ready)return;const d=dest(null,{rev:0});tone(d,{type:'square',f:600,dur:.04,g:.06});tone(d,{type:'square',f:1400,dur:.05,g:.06,t:.12})},
+  // the shake flashlight: a magnet sliding through the coil, rattling the batteries
+  shake(pos){if(!AU.ready)return;const d=dest(pos,{rev:.15,gain:pos?1.2:.6});for(let i=0;i<3;i++){nz(d,{t:i*.07,dur:.05,g:.3,f:rand(1400,2200),q:3});tone(d,{type:'triangle',f:rand(300,380),dur:.04,g:.06,t:i*.07+.02})}},
+  // the basement shredder: a motor straining, cardboard torn to strips
+  shred(pos){if(!AU.ready)return;const d=dest(pos,{rev:.35,gain:1.3,ref:2});tone(d,{type:'sawtooth',f:58,f2:46,dur:1.3,a:.05,g:.22});nz(d,{dur:1.2,a:.04,g:.45,type:'lowpass',f:700});for(let i=0;i<12;i++)nz(d,{t:i*.09+rand(0,.03),dur:.06,g:.3,f:rand(1200,2600),q:2})},
+  // the blind one placing a sound: dry tongue clicks, quick then slow
+  clicks(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:1.3,ref:2.5});for(let i=0;i<7;i++){const t=i<4?i*.07:.28+(i-4)*.22;tone(d,{type:'triangle',f:rand(1700,2300),dur:.018,a:.001,g:.35,t});nz(d,{t,dur:.012,a:.001,g:.25,type:'highpass',f:2500})}},
   drink(){if(!AU.ready)return;const d=dest(null,{rev:0});nz(d,{dur:.15,a:.002,g:.4,f:4000,q:1});for(let i=0;i<4;i++)tone(d,{t:.3+i*.22,f:180,f2:120,dur:.12,g:.15})},
   slam(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.3,ref:4});impact(d,.9);for(let i=0;i<5;i++)nz(d,{t:i*.03,dur:.1,g:.25,f:rand(400,1200),q:2})},
   bulb(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3});for(let i=0;i<4;i++)nz(d,{t:i*.08,dur:.06,g:.15,f:3000,q:5});tone(d,{t:.4,type:'sine',f:2200,dur:.4,g:.06})},

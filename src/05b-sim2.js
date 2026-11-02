@@ -10,6 +10,7 @@ const ADDS={
   bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'}};
 const SHOP={
   fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam. The battery lasts twice as long.'},
+  shake:{name:'Shake flashlight',price:100,once:true,key:'R',desc:'Hold R to shake your flashlight and charge it anywhere. Anything listening hears it.'},
   batt:{name:'Spare batteries',price:20,give:2,key:1,desc:'Two batteries. Swap one in for a full charge.'},
   flare:{name:'Flares',price:25,give:2,key:2,desc:'Two road flares. Each lights the floor for 35 s, and most things won\'t cross one.'},
   cutter:{name:'Box cutter',price:60,once:true,key:3,desc:'Cut open the box you\'re looking at. Kills a mimic; ruins a real box.'},
@@ -44,10 +45,11 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   HOST.outageAt=S.night>=3&&Math.random()<Math.min(.6,.22+.07*S.night)*diffEv()?rand(SHIFT_END*.12,SHIFT_END*.8):1e9;
   S.fork={x:FORK_HOME.x,z:FORK_HOME.z,ry:FORK_HOME.ry,lift:0,drv:'',pal:-1,pass:null};
   Object.assign(HOST,{nextPA:rand(70,120),nextMoth:rand(30,50),palDue:owned('fork')?3:0,mgr:false,noise:[]});
-  for(const p of Object.values(S.players))Object.assign(p,{can:false,stack:[],wu:0,idleT:0,wuCD:0,binT:0,spd:0,px:undefined});
+  for(const p of Object.values(S.players))Object.assign(p,{can:false,stack:[],wu:0,idleT:0,wuCD:0,binT:0,spd:0,px:undefined,baseIdle:0,baseWarn:false,strug:0});
   // a few of the empty lower slots are mouths tonight
   if(S.night>=5){const c=SLOTS.filter(s=>!s.old&&!s.add&&s.y<2);for(let i=0;i<Math.round(2*diffEv())&&c.length;i++)S.mouths.push(c.splice(randi(0,c.length-1),1)[0].id)}
-  if(owned('base'))for(let i=0;i<10;i++)S.boxes.push({id:boxSeq++,st:3,x:rand(79.6,83.5),y:0,z:rand(-5,5),ry:rand(-.4,.4),k:randi(0,1),f:false,v:randi(0,3),h:'',s:-1,m:false,ret:true});
+  if(owned('base'))S.mons.push({id:monSeq++,ty:14,x:HUNCH.x,z:HUNCH.z,y:0,ry:-2.4,st:'sit',a:0,t:0,cd:0,tg:''});
+  if(owned('base'))for(let i=0;i<10;i++)S.boxes.push({id:boxSeq++,st:3,x:rand(79.6,83.5),y:0,z:rand(-5,4),ry:rand(-.4,.4),k:randi(0,1),f:false,v:randi(0,3),h:'',s:-1,m:false,ret:true});
   if(owned("cold"))for(const [x,z] of[[21.6,-13.6],[28.9,-13.3],[22.3,-18.4]]) // each hidden behind a stack of frozen stock
    S.mons.push({id:monSeq++,ty:6,x,z,y:0,hx:x,hz:z,ry:rand(-3,3),st:'still',a:0,cd:0});
   if(S.night>=4)S.mons.push({id:monSeq++,ty:5,x:SHRINK_HOME.x,z:SHRINK_HOME.z,y:0,ry:-2.4,st:'home',a:0,heard:-99,cd:0,path:null,rep:0});
@@ -77,7 +79,7 @@ function extrasUpdate(dt){
     p.wuCD=Math.max(0,(p.wuCD||0)-dt);p.tpT=Math.max(0,(p.tpT||0)-dt)}
   S.flares=S.flares.filter(f=>(f.t-=dt)>0);
   // a power outage, once it happens, lasts until morning
-  if(!S.outage&&!S.ot&&S.t>=HOST.outageAt){S.outage=true;if(!genPowered())S.lamps=S.lamps.map(()=>0);emit({e:'outage',gen:genPowered()})}
+  if(!S.outage&&!S.ot&&S.t>=HOST.outageAt){S.outage=true;if(!genPowered())S.lamps=S.lamps.map(()=>0);emit({e:'outage',gen:genPowered()});spawnBlind()}
   coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);
   if(!HOST.mgr&&S.night>=3&&S.t>=-S.extra+50){HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:OFFICE_DOOR.x,z:OFFICE_DOOR.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0})}
   if(owned('gen')){HOST.nextMoth-=dt;if(HOST.nextMoth<=0){HOST.nextMoth=rand(40,70);spawnMoth()}}}
@@ -309,6 +311,9 @@ function act2(pid,p,a){
   case 'jam':{if(!owned('conv')||!S.conv.jam||!nearPos(p,CONV.jam.x,CONV.jam.z,2.5))return true;S.conv.jam=false;const e=S.parcels.find(x=>x.jam&&x.x>=CONV.x1-.3);if(e)e.jam=false;emit({e:'unjam'});return true}
   case 'elevIn':{if(!owned('base'))return true;const C=a.lvl===0?CAR_UP:CAR_DN;if(!inCar(p,C)||S.elev.lvl!==a.lvl)return true;elevStart(a.lvl);return true}
   case 'elevCall':{if(!owned('base'))return true;if(S.elev.st==='idle'&&S.elev.lvl!==a.lvl)elevStart(S.elev.lvl);return true}
+  case 'shred':shredBox(p);return true;
+  case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>m.ty===14&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
+  case 'shake':{if(!p.up.shake||S.t-(p.shT??-1e9)<.3)return true;p.shT=S.t;noise(p.x,p.z,10);emit({e:'shake',p:pid,x:p.x,z:p.z});return true}
   case 'can':{if(!owned('gen')||p.carry>=0||p.can||!nearPos(p,FUELR.x,FUELR.z,2.6))return true;p.can=true;emit({e:'canUp',p:pid});return true}
   case 'fuel':{if(!owned('gen')||!p.can||!nearPos(p,GEN.x,GEN.z,2.8))return true;p.can=false;const was=mainsDown();S.gen.fuel=Math.min(100,S.gen.fuel+50);S.gen.out=false;if(was&&!S.ot)powerOn();emit({e:'refuel',x:GEN.x,z:GEN.z,on:was});return true}
   case 'fork':{const f=S.fork;if(f.drv===pid){f.drv='';const sx=Math.cos(f.ry),sz=-Math.sin(f.ry);let x=f.x+sx*1.2,z=f.z+sz*1.2;if(insideAny(x,z,.3)){x=f.x-sx*1.2;z=f.z-sz*1.2}
@@ -324,3 +329,60 @@ function act2(pid,p,a){
   }
   return false}
 function palWorld(pal){if(pal.st===0){const tr=S.trucks[pal.bay];return{x:BAYS[pal.bay].x+pal.lx,z:tr.z+pal.lz}}return{x:pal.x,z:pal.z}}
+
+// ---------------------------------------------------------------- the blind one
+// Comes out as soon as the power fails. Tall, eyeless, and it lives in the dark: it won't step into lamp light or
+// near a flare. It hunts by sound (running, kicking, dropped boxes, the air horn, a shaken flashlight), and close
+// up it feels footsteps, so walking within 3 m of it gives you away. Standing still is safe; light does nothing.
+function spawnBlind(){if(S.mons.some(m=>m.ty===13))return;let best=null,bd=-1;
+  for(let k=0;k<50;k++){const i=randi(0,GRID.nx-1),j=randi(4,GRID.nz-1);if(GRID.blk[j*GRID.nx+i])continue;const x=GRID.x0+i+.5,z=GRID.z0+j+.5;if(lightZone(x,z,1))continue;
+    const p=nearestPlayer(x,z,1e9,inWH),d=p?Math.hypot(p.x-x,p.z-z):30;if(d>bd){bd=d;best={x,z}}}
+  if(best)S.mons.push({id:monSeq++,ty:13,x:best.x,z:best.z,y:0,ry:rand(-3,3),st:'look',a:0,t:0,lookT:3,cd:3,path:null,rep:0,hearT:0})}
+function blindUpdate(m,dt){m.cd-=dt;m.t+=dt;m.hearT-=dt;
+  const v=alivePlayers().find(p=>inWH(p)&&Math.hypot(p.x-m.x,p.z-m.z)<1.0);
+  if(v&&m.cd<=0){emit({e:'scare',p:v.id,ty:13,id:m.id});damage(v,55);m.st='look';m.t=0;m.lookT=4;m.cd=7;return}
+  const hear=(x,z)=>{if(lightZone(x,z,.3))return;if(m.st!=='hunt'||Math.hypot(x-m.tx,z-m.tz)>1){m.path=null;if(m.hearT<=0){m.hearT=4;emit({e:'blindHear',id:m.id,x:m.x,z:m.z})}}m.st='hunt';m.tx=x;m.tz=z};
+  if(m.cd<=2){for(const n of HOST.noise||[])if(Math.hypot(n.x-m.x,n.z-m.z)<n.r*1.4)hear(n.x,n.z);
+    for(const p of alivePlayers())if(inWH(p)&&p.spd>.8&&Math.hypot(p.x-m.x,p.z-m.z)<3.2)hear(p.x,p.z)}
+  if(m.st==='look'){m.a=0;if(m.t>m.lookT){m.st='wander';m.t=0;m.tx=undefined}return}
+  if(m.st==='wander'&&m.tx===undefined){for(let k=0;k<30;k++){const i=randi(0,GRID.nx-1),j=randi(4,GRID.nz-1);if(GRID.blk[j*GRID.nx+i])continue;const x=GRID.x0+i+.5,z=GRID.z0+j+.5;if(lightZone(x,z,.5))continue;m.tx=x;m.tz=z;break}m.path=null}
+  if(m.tx===undefined){m.st='look';m.t=0;m.lookT=2;return}
+  // its path keeps to the dark
+  m.rep-=dt;if(m.rep<=0||!m.path){m.rep=.5;m.path=astar(m.x,m.z,m.tx,m.tz,(x,z)=>lightZone(x,z,0))}
+  if(!m.path){m.st='look';m.t=0;m.lookT=2;m.tx=undefined;return}
+  while(m.path.length&&Math.hypot(m.path[0].x-m.x,m.path[0].z-m.z)<.4)m.path.shift();const px=m.path.length?m.path[0].x:m.tx,pz=m.path.length?m.path[0].z:m.tz;
+  const sp=m.st==='hunt'?3.3:1.1,dx=px-m.x,dz=pz-m.z,d=Math.hypot(dx,dz);m.a=m.st==='hunt'?4:2;
+  if(d>.02){const s=Math.min(d,sp*dt),nx=m.x+dx/d*s,nz=m.z+dz/d*s;if(lightZone(nx,nz,0)){m.path=null;m.st='look';m.t=0;m.lookT=2;m.tx=undefined;return}m.x=nx;m.z=nz;m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*5)}
+  if(Math.hypot(m.tx-m.x,m.tz-m.z)<.6){m.lookT=m.st==='hunt'?3.5:rand(2,4);m.st='look';m.t=0;m.tx=undefined}}
+
+// ---------------------------------------------------------------- the basement: the shredder, and the hunched thing in the corner
+// Anyone who stands around down there without handling a box gets noticed. It crawls over slowly, takes hold and
+// drags them to the shredder. Mashing E breaks its grip; getting back to work before it arrives sends it back.
+const inBase=p=>p.x>60;
+const baseLimit=()=>25/Math.sqrt(diffEv()); // seconds of idling: 25 on Normal, about 34 on Easy and 20 on Hard
+// the cage fence runs along x = 79 with its gate at z = 0
+function baseStep(m,tx,tz,sp,dt){let wx=tx,wz=tz;const inside=m.x>79,want=tx>79;
+  if(inside!==want){wx=Math.abs(m.z)>.5?(inside?79.7:78.3):(want?79.9:78.1);wz=0}
+  const dx=wx-m.x,dz=wz-m.z,d=Math.hypot(dx,dz);if(d>.02){const s=Math.min(d,sp*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*5)}
+  return Math.hypot(tx-m.x,tz-m.z)}
+function hunchUpdate(m,dt){const lim=baseLimit();m.cd-=dt;m.t+=dt;
+  for(const p of alivePlayers()){if(!inBase(p)){p.baseIdle=0;p.baseWarn=false;continue}
+    const busy=p.carry>=0&&p.spd>.8;p.baseIdle=busy?Math.max(0,(p.baseIdle||0)-dt*2):(p.baseIdle||0)+dt;
+    if(!p.baseWarn&&p.baseIdle>lim*.6){p.baseWarn=true;emit({e:'hunchWarn',p:p.id,x:m.x,z:m.z})}}
+  const tg=S.players[m.tg];
+  if(m.st==='sit'){m.a=0;m.ry=angLerp(m.ry,-2.4,dt*2);if(m.cd>0)return;
+    let best=null;for(const p of alivePlayers())if(inBase(p)&&p.baseIdle>=lim&&(!best||p.baseIdle>best.baseIdle))best=p;
+    if(best){m.st='reach';m.tg=best.id;emit({e:'hunchGo',x:m.x,z:m.z})}return}
+  if(m.st==='back'){m.a=2;m.tg='';if(baseStep(m,HUNCH.x,HUNCH.z,1.3,dt)<.1){m.st='sit';m.x=HUNCH.x;m.z=HUNCH.z}return}
+  if(m.st==='reach'){if(!tg||tg.dead||!inBase(tg)||tg.baseIdle<lim*.5){m.st='back';return}
+    m.a=2;if(baseStep(m,tg.x,tg.z,.75,dt)<1.0){m.st='drag';m.t=0;tg.strug=0;emit({e:'grab',p:tg.id,id:m.id})}return}
+  if(m.st==='drag'){if(!tg||tg.dead){m.st='back';return}
+    if((tg.strug||0)>=STRUGGLE_N){damage(tg,20);tg.baseIdle=0;tg.baseWarn=false;m.st='back';m.cd=12;emit({e:'freed',p:tg.id,x:m.x,z:m.z});return}
+    m.a=5;if(m.t<1.2)return; // it takes its time getting a grip
+    if(baseStep(m,SHRED.x,SHRED.z+1.65,.9,dt)<.15){m.ry=Math.PI;emit({e:'scare',p:tg.id,ty:14,id:m.id});emit({e:'shred',x:SHRED.x,z:SHRED.z});damage(tg,999);m.st='back';m.cd=8}}}
+function shredBox(p){const b=S.boxes.find(x=>x.id===p.carry&&x.st!==4);if(!b||!nearPos(p,SHRED.x,SHRED.z,2.4))return;
+  b.st=4;p.carry=p.stack.length?p.stack.pop():-1;p.baseIdle=0;p.baseWarn=false;S.bver++;emit({e:'shred',x:SHRED.x,z:SHRED.z});
+  if(b.m){pay(5);emit({e:'msg',m:'Whatever that was, it isn\'t anymore.',p:p.id})}
+  else if(b.ret){S.shelved++;pay(5);if(S.shelved===S.quota)emit({e:'quota'})}
+  else{S.lost++;emit({e:'msg',m:'That was good stock. It\'s confetti now.',p:p.id})}}
+MON_UPD[13]=blindUpdate;MON_UPD[14]=hunchUpdate;

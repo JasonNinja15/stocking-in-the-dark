@@ -99,3 +99,29 @@ function makeHands(){const g=new THREE.Group(),sk=toon(0x8a8478);for(let i=0;i<3
 // a rack slot that is a mouth: a gum line and teeth under the deck, only there when light falls on it
 function makeTeeth(){const g=new THREE.Group();part(GEO.box,MAT.gum,1.8,.05,.06,0,-.05,.5,g,{cast:false});part(GEO.box,MAT.gum,1.8,.05,.06,0,-.05,-.5,g,{cast:false});
   for(let i=0;i<14;i++)for(const s of[-1,1])part(GEO.fang,MAT.tooth,.025,.14+Math.random()*.06,.025,-.85+i*.13,-.12,s*.5,g,{rx:Math.PI,cast:false});return g}
+
+// ---- the blind one: far too tall and thin, grey and hairless, a smooth face with no eyes at all, only a mouth
+// that hangs open. Its head is always cocked, listening. Long arms, longer fingers.
+function makeBlind(){const g=new THREE.Group(),body=pivot(0,0,0,g),sk=MAT.blindSkin||(MAT.blindSkin=toon(0x77746c,{map:TEX.lskin})),dk=MAT.lurkDark;
+  const legs=[];for(const s of[-1,1]){const hip=pivot(s*.11,1.25,0,body);part(GEO.cyl,sk,.07,1.27,.07,0,-.63,0,hip);part(GEO.sph,sk,.06,.05,.13,0,-1.24,.06,hip);legs.push(hip)}
+  const torso=pivot(0,1.25,0,body);part(GEO.cyl,sk,.17,.86,.12,0,.43,0,torso);for(let i=0;i<4;i++)part(GEO.cyl,dk,.175,.012,.125,0,.42+i*.09,0,torso,{cast:false}); // ribs
+  const arms=[];for(const s of[-1,1]){const sh=pivot(s*.22,.8,0,torso);part(GEO.cyl,sk,.045,1.15,.045,0,-.57,0,sh);
+    for(let f=-1.5;f<=1.5;f++)part(GEO.cyl,sk,.012,.24,.012,f*.022,-1.24,0,sh,{rz:f*.08,cast:false});arms.push(sh)}
+  const head=pivot(0,.9,0,torso);part(GEO.cyl,sk,.05,.16,.05,0,.05,0,head);part(GEO.sph,sk,.13,.19,.15,0,.24,.01,head);
+  part(GEO.box,MAT.dark,.08,.12,.03,0,.15,.14,head,{cast:false}); // the mouth, hanging open
+  head.rotation.set(.25,0,.4);g.userData={body,torso,head,legs,arms,ty:13};return g}
+
+// ---- the thing in the basement corner: hunched, knees up, a torn store apron, arms long enough to reach the
+// floor while it sits. Its face is turned down and it doesn't look up until it moves.
+function makeHunch(){const g=new THREE.Group(),body=pivot(0,0,0,g),sk=MAT.hunchSkin||(MAT.hunchSkin=toon(0x8a8478,{map:TEX.lskin})),ap=toon(0x5a2420),hr=MAT.hair;
+  const torso=pivot(0,.5,0,body);part(GEO.box,sk,.36,.72,.24,0,.36,0,torso);part(GEO.box,ap,.38,.48,.02,0,.2,.13,torso,{cast:false});part(GEO.box,ap,.04,.3,.02,.12,.62,.13,torso,{rz:.3,cast:false});
+  // knees drawn up: thigh, then a knee joint and the shin
+  const legs=[],knees=[];for(const s of[-1,1]){const hip=pivot(s*.12,.5,0,body);part(GEO.cyl,sk,.065,.46,.065,0,-.23,0,hip);
+    const kn=pivot(0,-.46,0,hip);part(GEO.cyl,sk,.055,.5,.055,0,-.25,0,kn);part(GEO.box,sk,.09,.04,.18,0,-.5,.05,kn);legs.push(hip);knees.push(kn)}
+  // arms long enough to rest on the floor while it sits
+  const arms=[],elbows=[];for(const s of[-1,1]){const sh=pivot(s*.23,.66,0,torso);part(GEO.cyl,sk,.045,.6,.045,0,-.3,0,sh);
+    const el=pivot(0,-.6,0,sh);part(GEO.cyl,sk,.04,.62,.04,0,-.31,0,el);for(let f=-1;f<=1;f++)part(GEO.cyl,sk,.012,.2,.012,f*.022,-.7,0,el,{rz:f*.12,cast:false});arms.push(sh);elbows.push(el)}
+  const head=pivot(0,.74,.03,torso);part(GEO.sph,sk,.14,.21,.16,0,.14,0,head);
+  for(const s of[-1,1])part(GEO.sph,MAT.dark,.04,.03,.02,s*.055,.16,.15,head,{cast:false});part(GEO.box,MAT.dark,.1,.025,.02,0,.04,.15,head,{cast:false});
+  for(let i=0;i<9;i++){const a=-1.3+i*.33;part(GEO.box,hr,.02,rand(.25,.45),.02,Math.sin(a)*.13,.05,Math.cos(a)*.12+.02,head,{rx:Math.cos(a)*.15,rz:-Math.sin(a)*.15,cast:false})} // lank hair over the face
+  g.userData={body,torso,head,legs,knees,arms,elbows,ty:14};return g}

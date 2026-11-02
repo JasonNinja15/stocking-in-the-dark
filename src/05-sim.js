@@ -334,7 +334,7 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
     if(p.carry>=0&&!(p.up.hand&&p.stack.length<2))return;const w=boxWorld(b);if(!near(w,3.4))return;
     if(b.m){burstMimic(b,pid,true);return}
     if(p.carry>=0)p.stack.push(p.carry);
-    const fromTruck=b.st===0,bay=b.bay;b.st=1;b.h=pid;p.carry=b.id;if(fromTruck)settleTruck(bay);S.bver++;emit({e:'pick',p:pid,x:w.x,y:w.y,z:w.z});break}
+    const fromTruck=b.st===0,bay=b.bay;b.st=1;b.h=pid;p.carry=b.id;p.baseIdle=0;p.baseWarn=false;if(fromTruck)settleTruck(bay);S.bver++;emit({e:'pick',p:pid,x:w.x,y:w.y,z:w.z});break}
   case 'place':{const b=B(p.carry),s=SLOTS[a.s];if(!b||!s||s.old||s.box!==-1||!slotOn(s))return;if(Math.hypot(p.x-s.x,p.z-s.z)>3.8)return;
     if(s.cold&&!b.fz)return emit({e:'msg',m:'Only frozen crates go in the freezer.',p:pid});
     if(!s.cold&&b.fz)return emit({e:'msg',m:'Frozen crates go in the cold storage room.',p:pid});
@@ -344,7 +344,7 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
     emit({e:'place',x:b.x,y:b.y,z:b.z});if(S.shelved===S.quota)emit({e:'quota'});break}
   case 'drop':{const b=B(p.carry);if(!b)return;let x=+a.x,z=+a.z;if(!isFinite(x)||!isFinite(z)||Math.hypot(x-p.x,z-p.z)>2.2||insideAny(x,z,.15)){x=p.x;z=p.z}
     const tb=trailerAt(x,z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=x-BAYS[tb].x;b.z=z-S.trucks[tb].z;b.y=0;settleTruck(tb)}else{b.st=3;b.x=x;b.z=z;b.y=0}
-    b.ry=+a.ry||0;b.h='';nextCarry();S.bver++;noise(x,z,5);emit({e:'place',x,y:0,z});break}
+    b.ry=+a.ry||0;b.h='';nextCarry();p.baseIdle=0;S.bver++;noise(x,z,5);emit({e:'place',x,y:0,z});break}
   case 'kick':{if(a.pc!==undefined){kickParcel(p,a.pc,false);noise(p.x,p.z,10);return}
     const b=B(a.b);if(!b||(b.st!==0&&b.st!==3))return;const w=boxWorld(b);if(!near(w,3.2))return;noise(w.x,w.z,10);
     if(b.m){const first=!b.roam;burstMimic(b,pid,false);if(first){pay(5);emit({e:'msg',m:'Good instincts.',p:pid})}return}
