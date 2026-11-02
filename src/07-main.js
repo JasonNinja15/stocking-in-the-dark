@@ -98,12 +98,16 @@ function updGhost(me){const t=ME.target;const b=t&&t.kind==='slot'&&me&&me.carry
   const K=BOX_KINDS[b.k];GHOST.scale.set(t.s.rot?K.d:K.w,K.h,t.s.rot?K.w:K.d);GHOST.position.set(t.s.x,t.s.y+.01,t.s.z);GHOST.material.color.set(t.ok?0x9dff9a:0xff6a5a);GHOST.material.opacity=.45+Math.sin(performance.now()/160)*.25}
 function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.scare)return;
   RC.setFromCamera({x:0,y:0},camera);RC.far=3.1;const carrying=me.carry>=0;
-  if(ME.driving){ME.target=forkTarget();return}
-  if(carrying){let best=null,bt=3.3;for(const s of SLOTS){if(Math.abs(s.x-ME.x)>4.5||Math.abs(s.z-ME.z)>4.5||!slotOn(s))continue;const hx=s.rot?.55:.97,hz=s.rot?.97:.55;const t=rayBox(RC.ray,s.x-hx,s.y,s.z-hz,s.x+hx,s.y+1.08,s.z+hz);if(t!==null&&t<bt){bt=t;best=s}}
+  // in the forklift: pallets first; with no pallet up, loose boxes and shelf slots out past the forks
+  const drv=ME.driving,reach=drv?4.8:3.3,many=(me.up&&me.up.hand)||drv;
+  if(drv){ME.target=S.fork.pal>=0||!carrying?forkTarget():null;if(ME.target||S.fork.pal>=0)return;RC.far=reach}
+  if(carrying){let best=null,bt=reach;for(const s of SLOTS){if(Math.abs(s.x-ME.x)>6||Math.abs(s.z-ME.z)>6||(drv&&s.cold)||!slotOn(s))continue;const hx=s.rot?.55:.97,hz=s.rot?.97:.55;const t=rayBox(RC.ray,s.x-hx,s.y,s.z-hz,s.x+hx,s.y+1.08,s.z+hz);if(t!==null&&t<bt){bt=t;best=s}}
     if(best){ME.target={kind:'slot',s:best,ok:!best.old&&best.box===-1};return}}
   const hits=RC.intersectObjects(BOXPICK.concat(INTER,PARCELPICK,PALPICK,FORKPICK),false);
-  for(const h of hits){const ud=h.object.userData;if(!shown(h.object))continue;if(segBlocked(ME.x,ME.z,h.point.x-(h.point.x-ME.x)*.08,h.point.z-(h.point.z-ME.z)*.08))break;
-    if(ud.kind==='box'){const b=S.boxes.find(x=>x.id===ud.id);if(!b||b.st===2||b.st===1)break;if(!carrying||(me.up&&me.up.hand&&(me.stack||[]).length<2))ME.target={kind:'box',b};break}
+  for(const h of hits){const ud=h.object.userData;if(!shown(h.object)||(drv&&ud.kind!=='box'))continue;
+    // (parcels ride on top of the belt, inside its collider, so they can't be hidden behind it)
+    if(ud.kind!=='parcel'&&segBlocked(ME.x,ME.z,h.point.x-(h.point.x-ME.x)*.08,h.point.z-(h.point.z-ME.z)*.08))break;
+    if(ud.kind==='box'){const b=S.boxes.find(x=>x.id===ud.id);if(b&&b.st===1)continue;if(!b||b.st===2)break;if(!carrying||(many&&(me.stack||[]).length<2))ME.target={kind:'box',b};break}
     if(findTarget2(me,h))break;if(ud.kind)ME.target={kind:ud.kind,bay:ud.bay};break}}
 
 function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
@@ -211,16 +215,19 @@ function syncTrucks(){S.trucks.forEach((tr,i)=>{const v=TV[i],b=BAYS[i],bv=BAYV[
     const dm=Math.abs(tr.door-v.pd)>1e-4;v.door.set(dm?.45:0,.04);v.pd=tr.door}})}
 function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
   for(const b of S.boxes){if(b.st===4)continue;live.add(b.id);let m=BM.get(b.id);if(!m){m=makeBoxMesh(b);BM.set(b.id,m);ROOT.add(m);m.userData.tw=0}
-    if(b.st===1){if(b.h===NET.myId){m.visible=false;continue}const av=AV.get(b.h);if(!av||!av.g.visible){m.visible=false;continue}
-      // the box in their arms, with anything stacked with the carry upgrade piled on top of it
-      const h=S.players[b.h],pile=(h?[h.carry,...(h.stack||[]).slice().reverse()]:[]).map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),lv=Math.max(0,pile.indexOf(b));
+    if(b.st===1){const f=S.fork,onF=!!(f&&f.drv&&f.drv===b.h&&FORK3D),h=S.players[b.h];
+      // the box in their arms (or on the forks), with anything stacked on top of it
+      const pile=(h?[h.carry,...(h.stack||[]).slice().reverse()]:[]).map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),lv=Math.max(0,pile.indexOf(b));
+      if(onF){let y=FORK3D.userData.lift.position.y+.08;for(let i=0;i<lv;i++)y+=BOX_KINDS[pile[i].k].h;
+        m.visible=true;m.position.set(f.x+Math.sin(f.ry)*1.45,y,f.z+Math.cos(f.ry)*1.45);m.rotation.set(0,f.ry+lv*.1,0);continue}
+      if(b.h===NET.myId){m.visible=false;continue}const av=AV.get(b.h);if(!av||!av.g.visible){m.visible=false;continue}
       let y=.92-BOX_KINDS[(pile[0]||b).k].h*.4;for(let i=0;i<lv;i++)y+=BOX_KINDS[pile[i].k].h;
       m.visible=true;m.position.set(av.x-Math.sin(av.yaw)*.42,y,av.z-Math.cos(av.yaw)*.42);m.rotation.set(0,av.yaw+lv*.12,0);continue}
     m.visible=true;const w=boxWorld(b);m.position.set(w.x,w.y,w.z);m.rotation.set(0,b.ry,0);
     if(m.userData.tw>0){m.userData.tw-=dt;const k=m.userData.tw;m.rotation.z=Math.sin(k*70)*.07*Math.min(1,k*3);m.rotation.x=Math.cos(k*53)*.05*Math.min(1,k*3);m.position.y+=Math.abs(Math.sin(k*45))*.035}}
   for(const [id,m] of BM)if(!live.has(id)){ROOT.remove(m);BM.delete(id)}
   BOXPICK.length=0;for(const m of BM.values())if(m.visible)BOXPICK.push(m);
-  const cb=me&&me.carry>=0?S.boxes.find(b=>b.id===me.carry):null;setViewBox(me&&!me.dead?cb:null)}
+  const cb=me&&me.carry>=0?S.boxes.find(b=>b.id===me.carry):null;setViewBox(me&&!me.dead&&!ME.driving?cb:null)}
 function syncMonsters(dt,time){const live=new Set();
   for(const m of S.mons){live.add(m.id);let v=MV.get(m.id);
     if(!v){const g=makeMonster2(m)||(m.ty===0?makeMimic(m.k,m.v,m.f):m.ty===1?makeLurker():m.ty===3?makeCrawler():makeStalker());if(m.ty===1&&m.k===1)coldify(g);g.position.set(m.x,m.y,m.z);g.rotation.y=m.ry;ROOT.add(g);
@@ -358,14 +365,15 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   if(me&&!me.dead&&!ME.scare&&S.phase==='play'){const carrying=me.carry>=0;
     const p2=t&&promptFor(t,me);
     if(p2!==null&&p2!==undefined)pr=p2;
-    else if(t){if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Pick up another':'<kbd>E</kbd> Pick up')+' &nbsp; <kbd>Q</kbd> Kick'+(me.up&&me.up.cutter?' &nbsp; <kbd>3</kbd> Cut':'');
+    else if(t){if(t.kind==='box'&&ME.driving)pr='<kbd>E</kbd> Load onto the forks';
+      else if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Pick up another':'<kbd>E</kbd> Pick up')+' &nbsp; <kbd>Q</kbd> Kick'+(me.up&&me.up.cutter?' &nbsp; <kbd>3</kbd> Cut':'');
       else if(t.kind==='slot')pr=t.ok?'<kbd>E</kbd> Shelve box':'Shelf is full';
       else if(t.kind==='charger')pr=ME.bat>=99.5?'Flashlight fully charged':ME.charging?`Charging&hellip; ${Math.floor(ME.bat)}%`:'Hold <kbd>E</kbd> Charge flashlight';
       else if(t.kind==='aid')pr=S.aidLeft>0?`<kbd>E</kbd> First aid (${S.aidLeft} left tonight)`:'First-aid cabinet is empty';
       else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=!bayOn(t.bay)?`Bay ${BAYS[t.bay].name}: not in service`:tr.st===0&&tr.stuck>0?`<kbd>E</kbd> Close the Bay ${BAYS[t.bay].name} door`:tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
       else if(t.kind==='exit')pr='<kbd>E</kbd> Exit';}
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
-    if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?' &nbsp; <kbd>G</kbd> Set the pallet down':'');
+    if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?' &nbsp; <kbd>G</kbd> Set the pallet down':carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
     const hn=hatchNote()||grabNote();if(hn)pr=hn;}
   if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
@@ -414,13 +422,17 @@ const SCREENS=['menu','how','settings','lobby','pause','over','shop'];
 function hideScreens(){for(const s of SCREENS)$(s).classList.add('hide')}
 function show(id){hideScreens();$(id).classList.remove('hide')}
 let settingsBack='menu';
-function showMenu(err){GAME.on=false;$('hud').classList.add('hide');$('lockmsg').classList.add('hide');show('menu');$('menuErr').textContent=err?String(err):'';if(document.pointerLockElement)document.exitPointerLock()}
+function showMenu(err){GAME.on=false;$('hud').classList.add('hide');$('lockmsg').classList.add('hide');show('menu');$('menuErr').textContent=err?String(err):'';saveNote();if(document.pointerLockElement)document.exitPointerLock()}
 function showPause(){if(!GAME.on)return;if(NET.mode==='solo')GAME.paused=true;$('pauseNote').textContent=NET.mode==='solo'?'The clock is stopped.':`Crew ${NET.code}: the night keeps going without you.`;show('pause')}
 function renderLobby(){show('lobby');$('code').textContent=NET.code||'-----';
   $('lobbyList').innerHTML=NET.lobby.map(p=>`<li><span class="dot" style="background:${p.col}"></span>${esc(p.name)}${p.id===NET.myId?' <span class="lbl">(you)</span>':''}</li>`).join('');
   $('lobbyStatus').textContent=NET.mode==='host'?(NET.lobby.length>1?`${NET.lobby.length} workers. Start when everyone is in.`:'Share the code. Waiting for your crew…'):'Waiting for the host to start the shift…';
   const d=NET.mode==='host'?SET.diff:NET.diff;if(DIFFS[d])$('lobbyStatus').textContent+=` Difficulty: ${DIFFS[d].name}.`;
-  $('bStart').classList.toggle('hide',NET.mode!=='host')}
+  $('bStart').classList.toggle('hide',NET.mode!=='host');$('bCont2').classList.toggle('hide',NET.mode!=='host'||!loadSave())}
+// the Continue button on the menu says what it would pick up
+function saveNote(){const sv=loadSave();$('bCont').classList.toggle('hide',!sv);$('contNote').classList.toggle('hide',!sv);if(!sv)return;
+  $('bCont').textContent=`Continue: night ${sv.night+1}`;
+  $('contNote').textContent=`${DIFFS[sv.diff]?DIFFS[sv.diff].name:'Normal'}, ${sv.night} night${sv.night>1?'s':''} survived, $${Math.round(sv.cash||0)} in the kitty${sv.crew>1?' (a crew run: host a crew to carry on together)':''}. A new run replaces it once it gets through a night.`}
 function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
   const crew=S&&Object.keys(S.players).length>1;
   const T={dead:[crew?'THE CREW IS GONE':'YOU DIDN\'T MAKE IT',crew?'Nobody clocked out this morning.':'Something in the dark got you.'],quota:['FIRED',`You missed the quota${o.ot?', even on overtime':''}: ${o.shelved} of ${o.quota} boxes shelved.`],host:['DISCONNECTED','The host left the crew room.']}[o.why]||['SHIFT OVER',''];
@@ -431,12 +443,13 @@ function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document
   show('over');if(NET.mode==='client'&&o.why!=='host')$('overWhy').textContent+=' Waiting for the host to start another shift…'}
 function checkOver(dt){if(!S.over||GAME.overShown)return;if(ME.scare)return;GAME.overT+=dt;if(GAME.overT>1.8)showOver(S.over)}
 
-function enterGame(){clearVisuals();hideScreens();$('hud').classList.remove('hide');GAME.on=true;GAME.paused=false;GAME.overShown=false;GAME.overT=0;GAME.lastPr=null;
+function enterGame(){clearVisuals();applyAdds();markSlots();hideScreens();$('hud').classList.remove('hide');GAME.on=true;GAME.paused=false;GAME.overShown=false;GAME.overT=0;GAME.lastPr=null;
   Object.assign(ME,{vx:0,vz:0,stam:100,exh:false,bat:100,light:true,kickCD:0,scare:null,shake:0,hurt:0,flash:0,fear:0,deathT:0,lastHp:100,specId:'',red:false,drinkT:0,driving:false,scan:false});shopShown=false;
   const me=S.players[NET.myId];if(me){ME.x=me.x;ME.z=me.z;ME.yaw=me.yaw||0;ME.pitch=0}
   auInit();reqLock();setTimeout(()=>{if(GAME.on&&!locked()&&!GAME.overShown)$('lockmsg').classList.remove('hide')},600)}
-function startSolo(){netClose();NET.mode='solo';NET.myId='me';S=newState();addPlayer('me',myName(),VEST[0]);startNight();enterGame()}
-function hostStartGame(){S=newState();for(const p of NET.lobby)addPlayer(p.id,p.name,p.col);NET.started=true;NET.sentBver=-1;NETEV.length=0;startNight();hostSend({t:'start'});lobbyBroadcast();enterGame()}
+// sv: a saved run to pick up (in the shop, before its next night)
+function startSolo(sv){netClose();NET.mode='solo';NET.myId='me';S=newState();addPlayer('me',myName(),VEST[0]);if(sv)restoreRun(sv);else startNight();enterGame()}
+function hostStartGame(sv){S=newState();for(const p of NET.lobby)addPlayer(p.id,p.name,p.col);NET.started=true;NET.sentBver=-1;NETEV.length=0;if(sv)restoreRun(sv);else startNight();hostSend({t:'start'});lobbyBroadcast();enterGame()}
 function clientStart(){S=newState();S.players={};EVQ.length=0;ME.ready=false;enterGame()}
 function quitToMenu(){GAME.on=false;netClose();S=null;clearVisuals();EVQ.length=0;NETEV.length=0;showMenu()}
 
@@ -454,6 +467,8 @@ function bindUI(){
     try{await netJoin(code);renderLobby()}catch(e){netClose();showMenu(e)}};
   $('bJoin').onclick=join;$('joinCode').addEventListener('keydown',e=>{if(e.key==='Enter')join()});
   $('bStart').onclick=()=>{if(NET.mode==='host')hostStartGame()};
+  $('bCont').onclick=()=>{const sv=loadSave();if(!sv)return saveNote();auInit();startSolo(sv)};
+  $('bCont2').onclick=()=>{const sv=loadSave();if(NET.mode==='host'&&sv)hostStartGame(sv)};
   $('bLeave').onclick=()=>{netClose();showMenu()};
   $('bHow').onclick=()=>show('how');$('bHowBack').onclick=()=>show('menu');
   $('bSettings').onclick=()=>{settingsBack='menu';openSettings()};$('bPauseSet').onclick=()=>{settingsBack='pause';openSettings()};
@@ -513,9 +528,10 @@ async function init(){
    try{buildWorld();for(let i=0;i<BAYS.length;i++){const g=makeTrailer(!!BAYS[i].reefer);ROOT.add(g);TV.push({g,eng:null,beep:null,door:null,pd:0})}buildExtrasVisuals()}finally{Math.random=mr}}
   buildViewModel();
   bindShop();
-  applyQuality();bindUI();
+  applyQuality();bindUI();saveNote();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,
+  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,CONV,showMenu,renderShop,K,onKey2,
+
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});

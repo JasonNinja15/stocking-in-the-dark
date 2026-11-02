@@ -59,6 +59,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 .warnline{color:#ff6a4a}
 .meter{display:inline-block;vertical-align:middle;width:7em;height:.6em;border:1px solid #ffb84a;margin-left:.4em}.meter i{display:block;height:100%;background:#ffb84a}
 .diffs{gap:6px}.diffs button{min-width:0;padding:7px 14px;font-size:15px;opacity:.55}.diffs button.on{opacity:1;border-color:#ffb84a;color:#ffd890}
+#bShopGo.on{border-color:#6aff9a;color:#b8ffd0}
 .diffnote{font-size:13px;color:#a89e88;min-height:1.3em;max-width:30em;text-align:center}
 @keyframes blink{50%{opacity:.35}}
 #bl{position:absolute;left:1em;bottom:1em;display:flex;flex-direction:column;gap:.5em;border-left:.28em solid var(--amber);padding-right:5.6em}
@@ -139,6 +140,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <div class="row"><span class="lbl">Name</span><input id="name" maxlength="14" placeholder="Night worker"></div>
   <div class="row diffs" id="diffs"><span class="lbl">Shift</span><button data-d="0">Easy</button><button data-d="1">Normal</button><button data-d="2">Hard</button></div>
   <div class="diffnote" id="diffNote"></div>
+  <button id="bCont" class="hide">Continue the saved run</button><div class="diffnote hide" id="contNote"></div>
   <button id="bSolo">Work Alone</button>
   <button id="bHost">Host a Crew</button>
   <div class="row"><input id="joinCode" maxlength="5" placeholder="CODE" style="width:110px;text-transform:uppercase;text-align:center;letter-spacing:.2em"><button id="bJoin" style="min-width:110px">Join Crew</button></div>
@@ -166,7 +168,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <p><b>Later nights bring more.</b> A night manager who writes up anyone standing around empty-handed (three write-ups and he comes for you). A shrink-wrapped figure that hunts by sound: walk, don't run. A truck driver who passes for a crewmate but makes no footsteps. Shelf slots that bite. A loudspeaker voice that isn't quite the supervisor's, with a wrong chime. And something out in the yard you shouldn't look at when a bay door jams open.</p>
   <p><b>Difficulty</b> is picked on the title screen: Easy has smaller quotas, softer monsters and rarer bad luck; Hard has bigger quotas, harder hits and much more bad luck. A crew plays on the host's setting.</p>
   <p><b>Power outages.</b> From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel. And something that lives in the dark comes out: it can't see you, but it hears you, and it feels footsteps close by. Stand still.</p>
-  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items are on <kbd>1</kbd>&ndash;<kbd>9</kbd>, the red headlamp on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold <kbd>5</kbd> for the thermal scanner. The <b>THIS WAY</b> board on the dock wall points to everything you have bought.</p>
+  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items are on <kbd>1</kbd>&ndash;<kbd>9</kbd>, the red headlamp on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold <kbd>5</kbd> for the thermal scanner. The <b>THIS WAY</b> board on the dock wall points to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
   <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause</p>
   <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to four people can work a shift together. The quota grows with the crew. If you go down, you watch the others in third person until the night ends: move the mouse to look around, click or use the arrow keys to switch.</p>
   </div>
@@ -189,7 +191,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <div id="code">-----</div>
   <div class="lbl" id="lobbyStatus">Connecting&hellip;</div>
   <ul id="lobbyList"></ul>
-  <div class="row"><button id="bStart">Start the shift</button><button id="bLeave" class="small">Leave</button></div>
+  <div class="row"><button id="bStart">Start the shift</button><button id="bCont2" class="hide">Continue the saved run</button><button id="bLeave" class="small">Leave</button></div>
 </div></div>
 
 <div id="pause" class="screen dim hide"><div class="card">

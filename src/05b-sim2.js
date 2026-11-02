@@ -4,7 +4,7 @@
 const ADDS={
   cold:{name:'Cold Storage',price:250,q:6,time:45,desc:'A freezer room in the north-east corner. Trucks bring frozen crates: shelve each in the freezer within a minute or it spoils.'},
   conv:{name:'Sorting Conveyor',price:300,q:8,time:45,desc:'Parcels ride a belt along the south wall. Set the lever to the colour at the end to sort them. Hit the red button if it jams.'},
-  fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks bring pallets of eight boxes. Drive one onto a top shelf to shelve all eight at once.'},
+  fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks bring pallets of eight boxes. Drive one onto a top shelf to shelve all eight at once. Or carry three loose boxes on the forks.'},
   base:{name:'Basement Returns',price:400,q:6,time:60,desc:'Ten damaged returns in a cage downstairs, reached by the freight elevator.'},
   gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power for outages (from night 3). Keep it fuelled with jerry cans from the rack by the office.'},
   bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'}};
@@ -47,9 +47,10 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   Object.assign(HOST,{nextPA:rand(70,120),nextMoth:rand(30,50),palDue:owned('fork')?3:0,mgr:false,noise:[]});
   for(const p of Object.values(S.players))Object.assign(p,{can:false,stack:[],wu:0,idleT:0,wuCD:0,binT:0,spd:0,px:undefined,baseIdle:0,baseWarn:false,strug:0});
   // a few of the empty lower slots are mouths tonight
-  if(S.night>=5){const c=SLOTS.filter(s=>!s.old&&!s.add&&s.y<2);for(let i=0;i<Math.round(2*diffEv())&&c.length;i++)S.mouths.push(c.splice(randi(0,c.length-1),1)[0].id)}
+  if(S.night>=5){const c=SLOTS.filter(s=>!s.old&&!s.add&&s.y<2&&s.box===-1);for(let i=0;i<Math.round(2*diffEv())&&c.length;i++)S.mouths.push(c.splice(randi(0,c.length-1),1)[0].id)}
   if(owned('base'))S.mons.push({id:monSeq++,ty:14,x:HUNCH.x,z:HUNCH.z,y:0,ry:-2.4,st:'sit',a:0,t:0,cd:0,tg:''});
-  if(owned('base'))for(let i=0;i<10;i++)S.boxes.push({id:boxSeq++,st:3,x:rand(79.6,83.5),y:0,z:rand(-5,4),ry:rand(-.4,.4),k:randi(0,1),f:false,v:randi(0,3),h:'',s:-1,m:false,ret:true});
+  // topped back up to ten: returns nobody dealt with last night are still lying there
+  if(owned('base'))for(let i=S.boxes.filter(b=>b.ret).length;i<10;i++)S.boxes.push({id:boxSeq++,st:3,x:rand(79.6,83.5),y:0,z:rand(-5,4),ry:rand(-.4,.4),k:randi(0,1),f:false,v:randi(0,3),h:'',s:-1,m:false,ret:true});
   if(owned("cold"))for(const [x,z] of[[21.6,-13.6],[28.9,-13.3],[22.3,-18.4]]) // each hidden behind a stack of frozen stock
    S.mons.push({id:monSeq++,ty:6,x,z,y:0,hx:x,hz:z,ry:rand(-3,3),st:'still',a:0,cd:0});
   if(S.night>=4)S.mons.push({id:monSeq++,ty:5,x:SHRINK_HOME.x,z:SHRINK_HOME.z,y:0,ry:-2.4,st:'home',a:0,heard:-99,cd:0,path:null,rep:0});
@@ -57,17 +58,21 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
 
 // ---------------------------------------------------------------- the shop (between nights)
 function shopAct(pid,a){const p=S.players[pid];if(!p)return;
-  if(a.a==='start'){if(S.phase!=='shop')return;if(NET.mode!=='solo'&&pid!==NET.myId)return;S.night++;startNight();return}
+  // everyone votes on being done shopping; more than half the crew and the next night starts
+  if(a.a==='start'){if(S.phase!=='shop')return;const v=S.votes||(S.votes=[]);if(v.includes(pid))S.votes=v.filter(x=>x!==pid);else v.push(pid);shopVoteCheck();return}
   if(a.a!=='buy'||S.phase!=='shop')return;const k=a.k;
   const no=m=>emit({e:'msg',m,p:pid});
   if(ADDS[k]){const it=ADDS[k];if(owned(k))return no('Already built.');if(S.cash<it.price)return no('Not enough money.');
-    S.cash-=it.price;S.adds.push(k);applyAdds();emit({e:'bought',k,p:pid,n:p.name});return}
+    S.cash-=it.price;S.adds.push(k);applyAdds();emit({e:'bought',k,p:pid,n:p.name});saveRun();return}
   const it=SHOP[k];if(!it)return;if(S.cash<it.price)return no('Not enough money.');
   if(it.once&&p.up[k])return no('You already have one.');
   if(k==='aid'&&(S.aidBonus||0)>=2)return no('The cabinet is already stocked for tomorrow.');
   if(k==='bulb'){const held=Object.values(S.players).reduce((a,q)=>a+(q.inv.bulb||0),0);if(S.fixed.length+held>=MAX_BULBS)return no('There are no more fixtures worth fixing.')}
   S.cash-=it.price;if(it.once)p.up[k]=true;else if(k==='aid')S.aidBonus=(S.aidBonus||0)+1;else p.inv[k]=(p.inv[k]||0)+it.give;
-  emit({e:'bought',k,p:pid,n:p.name})}
+  emit({e:'bought',k,p:pid,n:p.name});saveRun()}
+
+function shopVoteCheck(){const ids=Object.keys(S.players),v=(S.votes||[]).filter(id=>ids.includes(id));S.votes=v;
+  if(S.phase==='shop'&&v.length*2>ids.length){S.night++;startNight()}}
 
 // ---------------------------------------------------------------- every tick during a shift
 function extrasUpdate(dt){
@@ -191,6 +196,9 @@ function forkUpdate(dt){const f=S.fork;if(!f)return;FORKCOL.x0=f.x-.8;FORKCOL.x1
     if(f.pass.lit>=3){f.pass=null;emit({e:'passGone',x:t.x,z:t.z})}
     else if(f.pass.dark>=7){f.pass=null;emit({e:'scare',p:p.id,ty:11});damage(p,40)}}
   const pal=S.pallets.find(x=>x.id===f.pal);if(pal){const t=forkTip();pal.x=t.x;pal.z=t.z;pal.ry=f.ry}}
+// getting out (or 6 AM) sets any loose boxes on the forks down on the floor in front of them
+function forkUnload(p){if(p.carry<0)return;const t=forkTip(),q=insideAny(t.x,t.z,.3)?{x:S.fork.x,z:S.fork.z}:t;
+  for(const id of[p.carry,...p.stack])dropOne(q,id);p.carry=-1;p.stack=[];emit({e:'place',x:q.x,y:0,z:q.z})}
 function palletInTruck(i){return S.pallets.some(x=>x.st===0&&x.bay===i)}
 
 // ---------------------------------------------------------------- the loudspeaker: priority parcels, and the voice that isn't the supervisor
@@ -261,10 +269,10 @@ function driverUpdate(m,dt){m.life-=dt;m.stun-=dt;
     if(m.path){while(m.path.length&&Math.hypot(m.path[0].x-m.x,m.path[0].z-m.z)<.4)m.path.shift();if(m.path.length){px=m.path[0].x;pz=m.path[0].z}}
     const dx=px-m.x,dz=pz-m.z,d=Math.hypot(dx,dz);if(d>.02){const s=Math.min(d,sp*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*6)}return Math.hypot(tx-m.x,tz-m.z)};
   if(m.stun>0){m.a=1;return}
-  if(m.st==='leave'||m.life<=0){m.st='leave';m.a=2;if(walkTo(BAYS[m.bay].x,WH.z0+.6,2)<.5){m.dead=true;emit({e:'fade',id:m.id})}return}
+  if(m.st==='leave'||m.life<=0){m.st='leave';m.a=2;if(walkTo(BAYS[m.bay].x,WH.z0+.6,1.6)<.5){m.dead=true;emit({e:'fade',id:m.id})}return}
   const tgt=nearestPlayer(m.x,m.z,8,p=>inWH(p)&&inTrailer(p)<0&&!segBlocked(m.x,m.z,p.x,p.z));
-  if(tgt){if(Math.hypot(tgt.x-m.x,tgt.z-m.z)<1.1){emit({e:'scare',p:tgt.id,ty:7,id:m.id});damage(tgt,70);m.st='leave';return}m.a=2;walkTo(tgt.x,tgt.z,2.7);return}
-  m.a=2;if(m.tx===undefined||walkTo(m.tx,m.tz,2)<.5){for(let k=0;k<30;k++){const i=randi(0,GRID.nx-1),j=randi(3,GRID.nz-1);if(GRID.blk[j*GRID.nx+i])continue;m.tx=GRID.x0+i+.5;m.tz=GRID.z0+j+.5;m.path=null;break}}}
+  if(tgt){if(Math.hypot(tgt.x-m.x,tgt.z-m.z)<1.1){emit({e:'scare',p:tgt.id,ty:7,id:m.id});damage(tgt,35);m.st='leave';return}m.a=2;walkTo(tgt.x,tgt.z,1.6);return} // a slow, stiff walk: anyone can outpace him
+  m.a=2;if(m.tx===undefined||walkTo(m.tx,m.tz,1.3)<.5){for(let k=0;k<30;k++){const i=randi(0,GRID.nx-1),j=randi(3,GRID.nz-1);if(GRID.blk[j*GRID.nx+i])continue;m.tx=GRID.x0+i+.5;m.tz=GRID.z0+j+.5;m.path=null;break}}}
 
 // ---------------------------------------------------------------- items
 function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,no=m=>toP(p,m);
@@ -274,6 +282,9 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
   case 'batt':case 'drink':if(take())emit({e:'item',p:p.id,k});break;
   case 'flare':if(take()){const f={id:flSeq++,x:p.x+fx*.7,z:p.z+fz*.7,t:35};if(insideAny(f.x,f.z,.1)){f.x=p.x;f.z=p.z}S.flares.push(f);emit({e:'flare',x:f.x,z:f.z})}break;
   case 'cutter':{if(!p.up.cutter)return;if(a.pc!==undefined){kickParcel(p,a.pc,true);return}
+    // a mimic that has already burst out (off the belt, or out of a box) can be cut down too, if you can reach it
+    if(a.m!==undefined){const m=S.mons.find(x=>x.id===a.m&&x.ty===0&&x.st!=='bolt'&&!x.dead);if(!m||Math.hypot(p.x-m.x,p.z-m.z)>3)return;
+      m.dead=true;emit({e:'squeal',x:m.x,y:m.y+.3,z:m.z});emit({e:'fade',id:m.id});pay(5);no('Cut it down. Whatever it was, it\'s dead.');return}
     const b=S.boxes.find(x=>x.id===a.b&&(x.st===0||x.st===3));if(!b)return;const w=boxWorld(b);if(Math.hypot(p.x-w.x,p.z-w.z)>3.2)return;
     if(b.m){freeMimicBox(b);emit({e:'squeal',x:w.x,y:w.y+.3,z:w.z});pay(5);no('Cut it open. Whatever it was, it\'s dead.')}
     else{const bay=b.st===0?b.bay:-1;b.st=4;S.lost++;S.bver++;if(bay>=0)settleTruck(bay);emit({e:'cut',x:w.x,y:w.y,z:w.z});no('You cut into real freight. That one\'s ruined.')}break}
@@ -316,11 +327,11 @@ function act2(pid,p,a){
   case 'shake':{if(!p.up.shake||S.t-(p.shT??-1e9)<.3)return true;p.shT=S.t;noise(p.x,p.z,10);emit({e:'shake',p:pid,x:p.x,z:p.z});return true}
   case 'can':{if(!owned('gen')||p.carry>=0||p.can||!nearPos(p,FUELR.x,FUELR.z,2.6))return true;p.can=true;emit({e:'canUp',p:pid});return true}
   case 'fuel':{if(!owned('gen')||!p.can||!nearPos(p,GEN.x,GEN.z,2.8))return true;p.can=false;const was=mainsDown();S.gen.fuel=Math.min(100,S.gen.fuel+50);S.gen.out=false;if(was&&!S.ot)powerOn();emit({e:'refuel',x:GEN.x,z:GEN.z,on:was});return true}
-  case 'fork':{const f=S.fork;if(f.drv===pid){f.drv='';const sx=Math.cos(f.ry),sz=-Math.sin(f.ry);let x=f.x+sx*1.2,z=f.z+sz*1.2;if(insideAny(x,z,.3)){x=f.x-sx*1.2;z=f.z-sz*1.2}
+  case 'fork':{const f=S.fork;if(f.drv===pid){forkUnload(p);f.drv='';const sx=Math.cos(f.ry),sz=-Math.sin(f.ry);let x=f.x+sx*1.2,z=f.z+sz*1.2;if(insideAny(x,z,.3)){x=f.x-sx*1.2;z=f.z-sz*1.2}
       p.x=x;p.z=z;p.tpT=.6;emit({e:'tp',p:pid,x:r2(x),z:r2(z)});emit({e:'forkOut',p:pid});return true}
     if(!owned("fork")||f.drv||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>5.2)return true; // (matches the reach of the hit box around it)
     f.drv=pid;if(S.night>=2&&!f.pass&&Math.random()<.25*diffEv())f.pass={lit:0,dark:0};emit({e:'forkIn',p:pid});return true}
-  case 'fpick':{const f=S.fork;if(f.drv!==pid||f.pal>=0)return true;const t=forkTip();const pal=S.pallets.find(x=>(x.st===0||x.st===3)&&Math.hypot(palWorld(x).x-t.x,palWorld(x).z-t.z)<1.3);
+  case 'fpick':{const f=S.fork;if(f.drv!==pid||f.pal>=0||p.carry>=0)return true;const t=forkTip();const pal=S.pallets.find(x=>(x.st===0||x.st===3)&&Math.hypot(palWorld(x).x-t.x,palWorld(x).z-t.z)<1.3);
     if(!pal)return true;pal.st=1;f.pal=pal.id;f.lift=2.62;emit({e:'pick',x:t.x,y:.5,z:t.z});return true}
   case 'fplace':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal),s=SLOTS[a.s];if(f.drv!==pid||!pal||!s)return true;const t=forkTip();
     if(s.old||s.box!==-1||s.cold||!slotOn(s)||s.y<2||Math.hypot(t.x-s.x,t.z-s.z)>2.6)return true;
@@ -386,3 +397,26 @@ function shredBox(p){const b=S.boxes.find(x=>x.id===p.carry&&x.st!==4);if(!b||!n
   else if(b.ret){S.shelved++;pay(5);if(S.shelved===S.quota)emit({e:'quota'})}
   else{S.lost++;emit({e:'msg',m:'That was good stock. It\'s confetti now.',p:p.id})}}
 MON_UPD[13]=blindUpdate;MON_UPD[14]=hunchUpdate;
+
+// ---------------------------------------------------------------- the saved run
+// Kept in the browser of whoever runs the world, rewritten after every night the crew survives (and after
+// every purchase in the shop). Loading it puts the crew back in the shop before the next night. When the run
+// ends (the crew dies, or misses quota) the save goes with it. A new run leaves an
+// older save alone until it has a night of its own to save over it.
+const SAVE_KEY='sitd-run';
+function saveRun(){if(!S||S.over)return;const pl={};for(const p of Object.values(S.players))pl[p.name]={inv:p.inv,up:p.up};
+  const sv={v:1,night:S.night,diff:S.diff,total:S.total,score:S.score,cash:S.cash,adds:S.adds,fixed:S.fixed,aidBonus:S.aidBonus||0,sel:S.conv?S.conv.sel:0,pl,
+    boxes:S.boxes.filter(b=>b.st===3).map(b=>({x:b.x,y:b.y,z:b.z,ry:b.ry,k:b.k,f:b.f,v:b.v,s:b.s,m:b.m,roam:b.roam,ret:b.ret,pri:b.pri})),crew:Object.keys(S.players).length,at:Date.now()};
+  S.saved=true;try{localStorage.setItem(SAVE_KEY,JSON.stringify(sv))}catch(e){}}
+function loadSave(){try{const sv=JSON.parse(localStorage.getItem(SAVE_KEY));return sv&&sv.v===1&&sv.night>=1?sv:null}catch(e){return null}}
+function dropSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}}
+// players get their own gear back by name; anyone new to the crew picks up gear nobody claimed, or starts empty
+function restoreRun(sv){Object.assign(S,{night:sv.night,diff:DIFFS[sv.diff]?sv.diff:1,total:sv.total|0,score:sv.score||0,cash:sv.cash||0,adds:(sv.adds||[]).filter(k=>ADDS[k]),fixed:sv.fixed||[],aidBonus:sv.aidBonus|0,
+    conv:{sel:sv.sel|0,next:12,jam:false},phase:'shop',shopT:150,votes:[],saved:true});
+  const left=Object.assign({},sv.pl||{}),ps=Object.values(S.players),give=(p,g)=>{p.inv=Object.assign({},g.inv||{});p.up=Object.assign({},g.up||{})};
+  for(const p of ps)if(left[p.name]){give(p,left[p.name]);delete left[p.name];p.got=1}
+  const rest=Object.values(left);for(const p of ps)if(!p.got&&rest.length)give(p,rest.shift());
+  for(const p of ps){delete p.got;Object.assign(p,{hp:100,dead:false,carry:-1,stack:[],can:false})}
+  S.boxes=(sv.boxes||[]).map(b=>Object.assign({id:boxSeq++,st:3,h:'',s:-1,tw:rand(2,4),near:0,nearMax:rand(1.4,2.8)},b,{f:!!b.f,m:!!b.m}));
+  for(const b of S.boxes)if(b.s>=0&&SLOTS[b.s])SLOTS[b.s].box=b.id;
+  S.bver++}

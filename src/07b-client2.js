@@ -95,13 +95,15 @@ function onKey2(code,me){
   if(code==='KeyH'){if(me.up&&me.up.red){ME.red=!ME.red;SFX.click()}else toast('You don\'t have a headlamp.');return true}
   const k=ITEM_KEYS[code];
   if(k){if(k==='scanner')return true;const have=k==='cutter'?me.up&&me.up.cutter:(me.inv&&me.inv[k]>0);if(!have){SFX.deny();toast(`No ${SHOP[k].name.toLowerCase()}. They're sold between nights.`,2.5);return true}
-    if(k==='cutter'){const t=ME.target;if(t&&t.kind==='box')doAct({a:'use',k,b:t.b.id});else if(t&&t.kind==='parcel')doAct({a:'use',k,pc:t.id});else toast('Look at a box to cut it open.',2);return true}
+    if(k==='cutter'){const t=ME.target;if(t&&t.kind==='box')doAct({a:'use',k,b:t.b.id});else if(t&&t.kind==='parcel')doAct({a:'use',k,pc:t.id});
+      else{const m=looseMimic();if(m)doAct({a:'use',k,m:m.id});else toast('Look at a box to cut it open.',2)}return true}
     if(k==='strobe'){ME.flash=Math.max(ME.flash,.55);SFX.strobe()}
     doAct({a:'use',k});return true}
   if(ME.driving){
     if(code==='KeyQ'){doAct({a:'fork'});return true}
-    if(code==='KeyE'){const t=ME.target;if(t&&t.kind==='fslot'){if(t.ok)doAct({a:'fplace',s:t.s.id});else SFX.deny()}else if(t&&t.kind==='fpal')doAct({a:'fpick'});else SFX.deny();return true}
-    if(code==='KeyG'){if(S.fork.pal>=0){doAct({a:'fdrop'})}return true}
+    if(code==='KeyE'){const t=ME.target;if(t&&t.kind==='fslot'){if(t.ok)doAct({a:'fplace',s:t.s.id});else SFX.deny()}else if(t&&t.kind==='fpal')doAct({a:'fpick'});
+      else if(t&&t.kind==='box')doAct({a:'pick',b:t.b.id});else if(t&&t.kind==='slot'){if(t.ok)doAct({a:'place',s:t.s.id});else SFX.deny()}else SFX.deny();return true}
+    if(code==='KeyG'){const f=S.fork;if(f.pal>=0)doAct({a:'fdrop'});else if(me.carry>=0)doAct({a:'drop',x:r2(f.x+Math.sin(f.ry)*1.55),z:r2(f.z+Math.cos(f.ry)*1.55),ry:r2(f.ry)});return true}
     return true}
   if(code==='KeyE'){const t=ME.target;if(!t)return false;
     switch(t.kind){
@@ -118,6 +120,9 @@ function onKey2(code,me){
     case 'shred':if(me.carry<0)toast('Bring a box to feed it.',2);else doAct({a:'shred'});return true}}
   if(code==='KeyQ'&&ME.target&&ME.target.kind==='parcel'){if(ME.kickCD>0)return true;ME.kickCD=.8;ME.kickA=.35;doAct({a:'kick',pc:ME.target.id});return true}
   return false}
+// a burst mimic within reach and roughly in front of you
+function looseMimic(){let best=null,bd=2.9;const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw);
+  for(const m of S.mons){if(m.ty!==0)continue;const dx=m.x-ME.x,dz=m.z-ME.z,d=Math.hypot(dx,dz);if(d<bd&&(d<1||(dx*fx+dz*fz)/d>.5)){bd=d;best=m}}return best}
 // held E on the jam button for a moment clears it
 function localUpdate2(dt,me){const t=ME.target;
   if(t&&t.kind==='jam'&&K.KeyE&&S.conv&&S.conv.jam&&!ME.scare){ME.holdT=(ME.holdT||0)+dt;if(ME.holdT>1.2){ME.holdT=-99;doAct({a:'jam'})}}else if(!K.KeyE)ME.holdT=0;
@@ -294,20 +299,22 @@ function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const f
 // ---------------------------------------------------------------- the shop screen
 let shopShown=false,shopSig='';
 function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)return;
-  const sig=JSON.stringify([S.cash,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0)]);if(!force&&sig===shopSig)return;shopSig=sig;
+  const sig=JSON.stringify([S.cash,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
   $('shopCash').textContent=`$${Math.round(S.cash||0)}`;$('shopNight').textContent=`Night ${S.night} done. Night ${S.night+1} is next.`;
   const card=(k,it,ownedNow,extra='')=>{const can=!ownedNow&&S.cash>=it.price;return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+it.price}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" ${can?'':'disabled'}>Buy</button>`}</div>`};
   $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">+${it.q} boxes to quota · +${it.time} s of shift</div>`)).join('');
   $('shopItems').innerHTML=Object.entries(SHOP).map(([k,it])=>{const have=it.once?!!me.up[k]:k==='aid'?(S.aidBonus||0):(me.inv[k]||0);
     return card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${it.key?` · key ${it.key}`:''}</div>`:it.key&&!it.once?`<div class="tag">key ${it.key}</div>`:it.key?`<div class="tag">key ${it.key}</div>`:'')}).join('');
-  const host=NET.mode!=='client';$('bShopGo').classList.toggle('hide',!host);
-  $('shopWait').textContent=host?(NET.mode==='host'?`Starts by itself in ${Math.max(0,Math.round(S.shopT||0))} s.`:''):`Waiting for the host to start night ${S.night+1} (or ${Math.max(0,Math.round(S.shopT||0))} s).`}
+  // the crew votes: more than half ready and the next night starts
+  const n=Object.keys(S.players).length,v=(S.votes||[]).length,need=Math.floor(n/2)+1,mine=(S.votes||[]).includes(NET.myId);
+  $('bShopGo').textContent=n<2?`Start night ${S.night+1}`:mine?'Not done yet':`Done: start night ${S.night+1}`;$('bShopGo').classList.toggle('on',mine);$('bShopGo').classList.remove('hide');
+  $('shopWait').textContent=n<2?'':`${v} of ${n} done (${need} needed). Starts by itself in ${Math.max(0,Math.round(S.shopT||0))} s.`}
 function shopTick(){if(!GAME.on||!S)return;const want=S.phase==='shop'&&!GAME.overShown;
   if(want&&!shopShown){shopShown=true;if(document.pointerLockElement)document.exitPointerLock();show('shop');$('hud').classList.add('hide');renderShop(true)}
   else if(!want&&shopShown){shopShown=false;hideScreens();$('hud').classList.remove('hide');if(!locked())$('lockmsg').classList.remove('hide')}
   if(shopShown)renderShop(false)}
 function bindShop(){$('shop').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b){auInit();doAct({a:'buy',k:b.dataset.buy});return}});
-  $('bShopGo').onclick=()=>{auInit();doAct({a:'start'});reqLock()}}
+  $('bShopGo').onclick=()=>{auInit();const going=Object.keys(S.players).length<2;doAct({a:'start'});if(going)reqLock()}}
 
 // ---------------------------------------------------------------- held by the thing in the basement
 // It drags you to the shredder: you can't move, only mash E (or Q, Space, click) to break its grip.
