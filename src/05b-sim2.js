@@ -2,25 +2,26 @@
 // Host only, like 05-sim. Every addition adds boxes to the quota and minutes to the shift (the shift starts
 // earlier: 11:15 PM instead of midnight, and so on).
 const ADDS={
-  cold:{name:'Cold Storage',price:250,q:6,time:45,desc:'A freezer room in the north-east corner, under a blue light. Trucks bring extra frozen crates (pale blue), never more than its 15 shelves can hold. Get each one onto a freezer shelf within a minute of leaving the trailer, or it spoils. Frost figures wait behind the stock. They move only while the door is shut and your light is off them.'},
-  conv:{name:'Sorting Conveyor',price:300,q:8,time:45,desc:'Parcels ride a belt along the south wall, about four a minute, each one a box toward quota. Set the lever to the colour of the parcel at the end and it drops into its bin. Nothing is lost if you are busy: parcels wait at the end until the lever matches. Clear jams with the red button by the bins, quickly: hands come out of the bins for anyone who lingers. Kick any parcel that twitches.'},
-  fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks carry pallets of eight boxes that only the forklift can lift onto the top shelves: one trip, eight boxes shelved. The forklift waits by the dock where you start. Its engine draws the stalker and the shrink-wrap. Sometimes a passenger rides the forks. Keep your light on it.'},
-  base:{name:'Basement Returns',price:400,q:6,time:60,desc:'Ten damaged returns wait in a cage downstairs, reached by the freight elevator. Sometimes the elevator stops halfway and something walks on its roof. Shine your flashlight up at the hatch for a few seconds and it moves again.'},
-  gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power. From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower. With fuel in the generator, the lights and the charger keep working. It only burns fuel during an outage (a full tank lasts two minutes); jerry cans from the rack by the office top it up. It also stops lamps flickering out on their own. Moths come for the lamps: lure them off with your flashlight.'},
-  bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock for refrigerated trailers. Their sleepers are colder: they creep faster, but light slows them down when they charge.'}};
+  cold:{name:'Cold Storage',price:250,q:6,time:45,desc:'A freezer room in the north-east corner. Trucks bring frozen crates: shelve each in the freezer within a minute or it spoils.'},
+  conv:{name:'Sorting Conveyor',price:300,q:8,time:45,desc:'Parcels ride a belt along the south wall. Set the lever to the colour at the end to sort them. Hit the red button if it jams.'},
+  fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks bring pallets of eight boxes. Drive one onto a top shelf to shelve all eight at once.'},
+  base:{name:'Basement Returns',price:400,q:6,time:60,desc:'Ten damaged returns in a cage downstairs, reached by the freight elevator.'},
+  gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power for outages (from night 3). Keep it fuelled with jerry cans from the rack by the office.'},
+  bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'}};
 const SHOP={
-  fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam that monsters notice from farther away. The battery lasts twice as long.'},
-  batt:{name:'Spare batteries',price:20,give:2,key:1,desc:'Two batteries. Swap one in for a full charge anywhere.'},
-  flare:{name:'Flares',price:25,give:2,key:2,desc:'Two road flares. Drop one to light the floor for 35 seconds. The stalker and the sleeper won\'t cross it, the crawler won\'t hang over it, and moths circle it instead of the lamps.'},
-  cutter:{name:'Box cutter',price:60,once:true,key:3,desc:'Cut into a box you\'re looking at. Kills a mimic for good. Cutting a real box ruins it.'},
-  strobe:{name:'Strobe',price:70,give:3,key:4,desc:'Three blinding flashes. Stops a charging sleeper, scatters the crawler, drives off mimics and moths, stuns the driver.'},
-  scanner:{name:'Thermal scanner',price:120,once:true,key:5,desc:'Hold 5 to see warm bodies through walls nearby: sleepers, crawlers, mimics, the passenger, and your crew. The dead and the cold don\'t show, so a "crewmate" that stays dark isn\'t one.'},
-  horn:{name:'Air horn',price:40,give:3,key:6,desc:'Three blasts. The shrink-wrap goes to the sound, and the driver is stunned.'},
+  fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam. The battery lasts twice as long.'},
+  batt:{name:'Spare batteries',price:20,give:2,key:1,desc:'Two batteries. Swap one in for a full charge.'},
+  flare:{name:'Flares',price:25,give:2,key:2,desc:'Two road flares. Each lights the floor for 35 s, and most things won\'t cross one.'},
+  cutter:{name:'Box cutter',price:60,once:true,key:3,desc:'Cut open the box you\'re looking at. Kills a mimic; ruins a real box.'},
+  strobe:{name:'Strobe',price:70,give:3,key:4,desc:'Three blinding flashes that drive off almost anything in front of you.'},
+  scanner:{name:'Thermal scanner',price:120,once:true,key:5,desc:'Hold 5 to see warm bodies through walls nearby.'},
+  horn:{name:'Air horn',price:40,give:3,key:6,desc:'Three loud blasts. Things that hunt by sound go to it.'},
   drink:{name:'Energy drinks',price:15,give:2,key:7,desc:'Two cans. Twenty seconds of sprinting without getting tired.'},
-  remote:{name:'Bay door remote',price:90,give:1,key:8,desc:'Slams the nearest bay door shut from anywhere. A docked truck leaves at once and whatever of it is out in the warehouse is shut out for good. Won\'t fire while anyone is in that trailer.'},
-  bulb:{name:'Lamp bulb',price:50,give:1,key:9,desc:'Stand under a dead light fixture and press 9 to bring it back for the rest of the run. Three fixtures at most.'},
-  hand:{name:'Hand truck',price:110,once:true,desc:'Stack up to three boxes and carry them together. Slower, and loud enough for the shrink-wrap to hear.'},
-  red:{name:'Red headlamp',price:80,once:true,key:'H',desc:'A dim red light on your head (H). Monsters don\'t notice it, so it doesn\'t count as light: not for scaring them off, not for setting them off.'},
+  stam:{name:'Stamina upgrade',price:90,once:true,desc:'Sprint half again as long, and get your breath back faster.'},
+  remote:{name:'Bay door remote',price:90,give:1,key:8,desc:'Shuts the nearest bay door from anywhere. Its truck leaves at once.'},
+  bulb:{name:'Lamp bulb',price:50,give:1,key:9,desc:'Press 9 under a dead light fixture to fix it for the rest of the run.'},
+  hand:{name:'Carry Upgrade',price:110,once:true,desc:'Carry up to three boxes at once. Slower, and noisier.'},
+  red:{name:'Red headlamp',price:80,once:true,key:'H',desc:'A dim red light (H) that monsters don\'t notice.'},
   aid:{name:'First-aid refill',price:30,desc:'One more use of the first-aid cabinet next night (two at most).'}};
 const PA_SPOTS=[{n:'by the office door',x:-22.4,z:12.2},{n:'at the west end of aisle two',x:-28.4,z:1.5},{n:'behind the east racks',x:28.6,z:2.5},
   {n:'by the barrels',x:26.4,z:16.4},{n:'between the middle racks',x:0,z:1.5},{n:'at the west end of aisle four',x:-28.4,z:11.5},{n:'by the dock columns',x:5.5,z:-11.2}];
@@ -239,7 +240,7 @@ function managerUpdate(m,dt){m.t+=dt;
 function shrinkUpdate(m,dt){m.cd-=dt;
   const v=alivePlayers().find(p=>inWH(p)&&Math.hypot(p.x-m.x,p.z-m.z)<1.0);
   if(v&&m.cd<=0){emit({e:'scare',p:v.id,ty:5,id:m.id});damage(v,50);m.st='return';m.cd=6;m.path=null;return}
-  // it hears running, kicking, forklifts, stacked hand trucks and air horns. Walking is silent.
+  // it hears running, kicking, forklifts, carry-upgrade stacks and air horns. Walking is silent.
   for(const n of HOST.noise||[])if(Math.hypot(n.x-m.x,n.z-m.z)<n.r&&(m.st!=='hunt'||Math.hypot(n.x-m.tx,n.z-m.tz)>1)){m.st='hunt';m.tx=n.x;m.tz=n.z;m.heard=S.t;m.path=null}
   let tx,tz,sp=1.7;
   if(m.st==='home'){m.a=0;return}

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Stocking In The Dark</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='b' cx='.3' cy='.1' r='.9'%3E%3Cstop offset='0' stop-color='%23f3dc9a' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%23f3dc9a' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='12' fill='%230b0a09'/%3E%3Cpath d='M4 4 L34 4 L60 46 L18 60 Z' fill='url(%23b)'/%3E%3Cpath d='M12 30 L32 22 L52 30 L32 38 Z' fill='%231a1006'/%3E%3Cpath d='M12 30 L32 38 L32 58 L12 50 Z' fill='%23b8803f'/%3E%3Cpath d='M52 30 L32 38 L32 58 L52 50 Z' fill='%238a5a28'/%3E%3Cpath d='M12 30 L4 24 L24 17 L32 22 Z' fill='%23c99352'/%3E%3Cpath d='M52 30 L60 24 L40 17 L32 22 Z' fill='%239c6a33'/%3E%3Cpath d='M19 39.5 L25 42 L25 52 L19 49.5 Z' fill='%23d8b98a' opacity='.55'/%3E%3Ccircle cx='26.5' cy='29.5' r='2.6' fill='%23ff2a1a'/%3E%3Ccircle cx='36.5' cy='29.5' r='2.6' fill='%23ff2a1a'/%3E%3Ccircle cx='26.5' cy='29.5' r='1' fill='%23ffd0c0'/%3E%3Ccircle cx='36.5' cy='29.5' r='1' fill='%23ffd0c0'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Creepster&display=swap" rel="stylesheet">
 <style>
@@ -1290,7 +1291,7 @@ function simUpdate(dt){
 
 // ---------------------------------------------------------------- trucks
 function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&HOST.trucksTonight===0;
-  Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0});
+  Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0,due:0});
   const n=Math.min(16,randi(6,9)+Math.min(5,S.night-1));
   tr.lurk=!first&&Math.random()<Math.min(.85,Math.min(.55,.17+.09*(S.night-1))*diffEv());
   tr.crawl=!first&&!tr.lurk&&!S.mons.some(m=>m.ty===3)&&Math.random()<Math.min(.7,Math.min(.4,.14+.06*(S.night-1))*diffEv());
@@ -1314,7 +1315,7 @@ function truckGone(i){const tr=S.trucks[i];let n=0;for(const b of S.boxes)if(b.s
   for(const p of S.pallets||[])if(p.st===0&&p.bay===i){p.st=4;if(!tr.reject)n+=8}
   S.lost+=n;S.mons=S.mons.filter(m=>!((m.ty===1||m.ty===3)&&m.bay===i));S.bver++;
   if(n)emit({e:'msg',m:`Bay ${BAYS[i].name} left with ${n} box${n>1?'es':''} still on board.`});
-  Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0});
+  Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0,due:0});
   // late in the run the door motor sticks after a truck leaves, and something out in the yard notices
   if(yardOn()){tr.door=1;tr.stuck=14;if(!S.yard)S.yard={bay:i,stage:0,look:0};emit({e:"stuck",b:i})}}
 const freeBays=()=>S.trucks.map((t,i)=>t.st===0&&!(t.stuck>0)&&t.door<=0&&bayOn(i)?i:-1).filter(i=>i>=0);
@@ -1331,9 +1332,15 @@ function trucksUpdate(dt){
     else if(tr.st===2){tr.door=Math.min(1,tr.door+dt/2.6);tr.t+=dt;tr.left=S.boxes.filter(x=>x.st===0&&x.bay===i).length;
       if(tr.left===0&&!palletInTruck(i)&&tr.door>=1)tr.emptyT=(tr.emptyT===undefined?5:tr.emptyT)-dt;else tr.emptyT=undefined;
       if(tr.reject||(tr.emptyT!==undefined&&tr.emptyT<=0)||(tr.t>=DOCK_TIME&&!S.ot)){
-        const inside=alivePlayers().some(p=>inTrailer(p)===i);const lur=S.mons.find(m=>m.ty===1&&m.bay===i),cr=S.mons.find(m=>m.ty===3&&m.bay===i);
-        if(lur&&lur.st!=='sleep'&&!lurkTarget(lur))lur.st='return';
+        const inside=alivePlayers().some(p=>inTrailer(p)===i);let lur=S.mons.find(m=>m.ty===1&&m.bay===i),cr=S.mons.find(m=>m.ty===3&&m.bay===i);
+        // the truck won't wait on its monsters for long: after 8 s the sleeper hurries back whatever it was doing,
+        // and after 16 s whatever still hasn't made it back is simply gone
+        tr.due=(tr.due||0)+dt;
+        if(lur&&lur.st!=='sleep'&&(!lurkTarget(lur)||tr.due>8)){lur.st='return';lur.hurry=tr.due>8}
         if(cr&&cr.st!=='inside'&&cr.st!=='home')cr.ret=true; // the crawler goes home with its truck
+        if(tr.due>16&&!inside){
+          if(lur&&lur.st!=='sleep'){Object.assign(lur,{st:'sleep',lx:LURK_LX,lz:LURK_HOME,ry:Math.PI/2,litT:0,hurry:false});lur=null}
+          if(cr&&cr.st!=='inside'&&cr.st!=='home'){cr.dead=true;emit({e:'vanish',x:cr.x,y:cr.y,z:cr.z});cr=null}}
         if(!inside&&(!lur||lur.st==='sleep')&&(!cr||cr.st==='inside'||cr.st==='home')){tr.st=3;tr.t=0;emit({e:'horn',b:i})}
         else{tr.honk=(tr.honk||0)-dt;if(tr.honk<=0){tr.honk=5;emit({e:'horn',b:i});if(inside)emit({e:'msg',m:`Bay ${BAYS[i].name}: the truck is pulling out. Get out of the trailer!`})}}}}
     else if(tr.st===3){tr.t+=dt;tr.door=Math.max(0,tr.door-dt/2.2);if(tr.door<=0){const p=clamp((tr.t-2.4)/8,0,1);tr.z=lerp(TZ_DOCK,TZ_FAR,easeIn(p));if(p>=1)truckGone(i)}}
@@ -1413,13 +1420,13 @@ function lurkerUpdate(m,dt){const tr=S.trucks[m.bay],bx=BAYS[m.bay].x;
   m.x=bx+m.lx;m.z=tr.z+m.lz;m.y=0;if(tr.st!==2)return;
   // a flare on the floor is a line it won't cross
   const flareNear=(x,z)=>S.flares&&S.flares.some(f=>Math.hypot(f.x-x,f.z-z)<2.6);
-  const step=(tx,tz,sp)=>{const dx=tx-m.lx,dz=tz-m.lz,d=Math.hypot(dx,dz);if(d<.01)return 0;const s=Math.min(d,sp*dt);const ox=m.lx,oz=m.lz;m.lx+=dx/d*s;m.lz+=dz/d*s;
+  const step=(tx,tz,sp,free)=>{const dx=tx-m.lx,dz=tz-m.lz,d=Math.hypot(dx,dz);if(d<.01)return 0;const s=Math.min(d,sp*dt);const ox=m.lx,oz=m.lz;m.lx+=dx/d*s;m.lz+=dz/d*s;
     if(m.lz<-.25)m.lx=clamp(m.lx,-TRAIL_HW+.45,TRAIL_HW-.45);else m.lx=clamp(m.lx,-4,4);m.lz=clamp(m.lz,LURK_HOME,6.8);
-    if(flareNear(bx+m.lx,tr.z+m.lz)){m.lx=ox;m.lz=oz}m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*5);return d};
+    if(!free&&flareNear(bx+m.lx,tr.z+m.lz)){m.lx=ox;m.lz=oz}m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*5);return d};
   if(m.st==='sleep'){m.a=0;m.cd-=dt;if(m.cd>0||tr.door<1)return;
     const deep=alivePlayers().some(p=>inTrailer(p)===m.bay&&p.z<tr.z-8);
     if(deep){m.wake+=dt;if(m.wake>(S.ot?.3:.8)){m.st='sit';m.t=0;m.wake=0;m.litT=0}}else m.wake=Math.max(0,m.wake-dt);return}
-  if(m.st==='return'){m.a=2;const d=step(LURK_LX,LURK_HOME,2.4);m.litT=0;if(d<.1){m.st='sleep';m.cd=8;m.ry=Math.PI/2;m.lx=LURK_LX;m.lz=LURK_HOME}return}
+  if(m.st==='return'){m.a=m.hurry?4:2;const d=step(LURK_LX,LURK_HOME,m.hurry?5:2.4,m.hurry);m.litT=0;if(d<.1){m.st='sleep';m.hurry=false;m.cd=8;m.ry=Math.PI/2;m.lx=LURK_LX;m.lz=LURK_HOME}return}
   const tgt=lurkTarget(m);if(!tgt){m.st='return';return}
   const tlx=tgt.x-bx,tlz=tgt.z-tr.z,d=Math.hypot(tlx-m.lx,tlz-m.lz),face=()=>{m.ry=angLerp(m.ry,Math.atan2(tlx-m.lx,tlz-m.lz),dt*3)};
   if(d<1.25){emit({e:'scare',p:tgt.id,ty:1,id:m.id});damage(tgt,999);m.st='return';return}
@@ -1514,7 +1521,7 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
   const nextCarry=()=>{p.carry=p.stack.length?p.stack.pop():-1};
   switch(a.a){
   case 'pick':{const b=B(a.b);if(!b||(b.st!==0&&b.st!==3)||busy)return;
-    // a hand truck stacks up to three; otherwise hands must be empty
+    // the carry upgrade stacks up to three; otherwise hands must be empty
     if(p.carry>=0&&!(p.up.hand&&p.stack.length<2))return;const w=boxWorld(b);if(!near(w,3.4))return;
     if(b.m){burstMimic(b,pid,true);return}
     if(p.carry>=0)p.stack.push(p.carry);
@@ -1547,25 +1554,26 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
 // Host only, like 05-sim. Every addition adds boxes to the quota and minutes to the shift (the shift starts
 // earlier: 11:15 PM instead of midnight, and so on).
 const ADDS={
-  cold:{name:'Cold Storage',price:250,q:6,time:45,desc:'A freezer room in the north-east corner, under a blue light. Trucks bring extra frozen crates (pale blue), never more than its 15 shelves can hold. Get each one onto a freezer shelf within a minute of leaving the trailer, or it spoils. Frost figures wait behind the stock. They move only while the door is shut and your light is off them.'},
-  conv:{name:'Sorting Conveyor',price:300,q:8,time:45,desc:'Parcels ride a belt along the south wall, about four a minute, each one a box toward quota. Set the lever to the colour of the parcel at the end and it drops into its bin. Nothing is lost if you are busy: parcels wait at the end until the lever matches. Clear jams with the red button by the bins, quickly: hands come out of the bins for anyone who lingers. Kick any parcel that twitches.'},
-  fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks carry pallets of eight boxes that only the forklift can lift onto the top shelves: one trip, eight boxes shelved. The forklift waits by the dock where you start. Its engine draws the stalker and the shrink-wrap. Sometimes a passenger rides the forks. Keep your light on it.'},
-  base:{name:'Basement Returns',price:400,q:6,time:60,desc:'Ten damaged returns wait in a cage downstairs, reached by the freight elevator. Sometimes the elevator stops halfway and something walks on its roof. Shine your flashlight up at the hatch for a few seconds and it moves again.'},
-  gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power. From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower. With fuel in the generator, the lights and the charger keep working. It only burns fuel during an outage (a full tank lasts two minutes); jerry cans from the rack by the office top it up. It also stops lamps flickering out on their own. Moths come for the lamps: lure them off with your flashlight.'},
-  bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock for refrigerated trailers. Their sleepers are colder: they creep faster, but light slows them down when they charge.'}};
+  cold:{name:'Cold Storage',price:250,q:6,time:45,desc:'A freezer room in the north-east corner. Trucks bring frozen crates: shelve each in the freezer within a minute or it spoils.'},
+  conv:{name:'Sorting Conveyor',price:300,q:8,time:45,desc:'Parcels ride a belt along the south wall. Set the lever to the colour at the end to sort them. Hit the red button if it jams.'},
+  fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks bring pallets of eight boxes. Drive one onto a top shelf to shelve all eight at once.'},
+  base:{name:'Basement Returns',price:400,q:6,time:60,desc:'Ten damaged returns in a cage downstairs, reached by the freight elevator.'},
+  gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power for outages (from night 3). Keep it fuelled with jerry cans from the rack by the office.'},
+  bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'}};
 const SHOP={
-  fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam that monsters notice from farther away. The battery lasts twice as long.'},
-  batt:{name:'Spare batteries',price:20,give:2,key:1,desc:'Two batteries. Swap one in for a full charge anywhere.'},
-  flare:{name:'Flares',price:25,give:2,key:2,desc:'Two road flares. Drop one to light the floor for 35 seconds. The stalker and the sleeper won\'t cross it, the crawler won\'t hang over it, and moths circle it instead of the lamps.'},
-  cutter:{name:'Box cutter',price:60,once:true,key:3,desc:'Cut into a box you\'re looking at. Kills a mimic for good. Cutting a real box ruins it.'},
-  strobe:{name:'Strobe',price:70,give:3,key:4,desc:'Three blinding flashes. Stops a charging sleeper, scatters the crawler, drives off mimics and moths, stuns the driver.'},
-  scanner:{name:'Thermal scanner',price:120,once:true,key:5,desc:'Hold 5 to see warm bodies through walls nearby: sleepers, crawlers, mimics, the passenger, and your crew. The dead and the cold don\'t show, so a "crewmate" that stays dark isn\'t one.'},
-  horn:{name:'Air horn',price:40,give:3,key:6,desc:'Three blasts. The shrink-wrap goes to the sound, and the driver is stunned.'},
+  fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam. The battery lasts twice as long.'},
+  batt:{name:'Spare batteries',price:20,give:2,key:1,desc:'Two batteries. Swap one in for a full charge.'},
+  flare:{name:'Flares',price:25,give:2,key:2,desc:'Two road flares. Each lights the floor for 35 s, and most things won\'t cross one.'},
+  cutter:{name:'Box cutter',price:60,once:true,key:3,desc:'Cut open the box you\'re looking at. Kills a mimic; ruins a real box.'},
+  strobe:{name:'Strobe',price:70,give:3,key:4,desc:'Three blinding flashes that drive off almost anything in front of you.'},
+  scanner:{name:'Thermal scanner',price:120,once:true,key:5,desc:'Hold 5 to see warm bodies through walls nearby.'},
+  horn:{name:'Air horn',price:40,give:3,key:6,desc:'Three loud blasts. Things that hunt by sound go to it.'},
   drink:{name:'Energy drinks',price:15,give:2,key:7,desc:'Two cans. Twenty seconds of sprinting without getting tired.'},
-  remote:{name:'Bay door remote',price:90,give:1,key:8,desc:'Slams the nearest bay door shut from anywhere. A docked truck leaves at once and whatever of it is out in the warehouse is shut out for good. Won\'t fire while anyone is in that trailer.'},
-  bulb:{name:'Lamp bulb',price:50,give:1,key:9,desc:'Stand under a dead light fixture and press 9 to bring it back for the rest of the run. Three fixtures at most.'},
-  hand:{name:'Hand truck',price:110,once:true,desc:'Stack up to three boxes and carry them together. Slower, and loud enough for the shrink-wrap to hear.'},
-  red:{name:'Red headlamp',price:80,once:true,key:'H',desc:'A dim red light on your head (H). Monsters don\'t notice it, so it doesn\'t count as light: not for scaring them off, not for setting them off.'},
+  stam:{name:'Stamina upgrade',price:90,once:true,desc:'Sprint half again as long, and get your breath back faster.'},
+  remote:{name:'Bay door remote',price:90,give:1,key:8,desc:'Shuts the nearest bay door from anywhere. Its truck leaves at once.'},
+  bulb:{name:'Lamp bulb',price:50,give:1,key:9,desc:'Press 9 under a dead light fixture to fix it for the rest of the run.'},
+  hand:{name:'Carry Upgrade',price:110,once:true,desc:'Carry up to three boxes at once. Slower, and noisier.'},
+  red:{name:'Red headlamp',price:80,once:true,key:'H',desc:'A dim red light (H) that monsters don\'t notice.'},
   aid:{name:'First-aid refill',price:30,desc:'One more use of the first-aid cabinet next night (two at most).'}};
 const PA_SPOTS=[{n:'by the office door',x:-22.4,z:12.2},{n:'at the west end of aisle two',x:-28.4,z:1.5},{n:'behind the east racks',x:28.6,z:2.5},
   {n:'by the barrels',x:26.4,z:16.4},{n:'between the middle racks',x:0,z:1.5},{n:'at the west end of aisle four',x:-28.4,z:11.5},{n:'by the dock columns',x:5.5,z:-11.2}];
@@ -1784,7 +1792,7 @@ function managerUpdate(m,dt){m.t+=dt;
 function shrinkUpdate(m,dt){m.cd-=dt;
   const v=alivePlayers().find(p=>inWH(p)&&Math.hypot(p.x-m.x,p.z-m.z)<1.0);
   if(v&&m.cd<=0){emit({e:'scare',p:v.id,ty:5,id:m.id});damage(v,50);m.st='return';m.cd=6;m.path=null;return}
-  // it hears running, kicking, forklifts, stacked hand trucks and air horns. Walking is silent.
+  // it hears running, kicking, forklifts, carry-upgrade stacks and air horns. Walking is silent.
   for(const n of HOST.noise||[])if(Math.hypot(n.x-m.x,n.z-m.z)<n.r&&(m.st!=='hunt'||Math.hypot(n.x-m.tx,n.z-m.tz)>1)){m.st='hunt';m.tx=n.x;m.tz=n.z;m.heard=S.t;m.path=null}
   let tx,tz,sp=1.7;
   if(m.st==='home'){m.a=0;return}
@@ -2086,7 +2094,7 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   const busy=!!ME.scare||S.phase!=='play';
   if(ME.driving){driveUpdate(dt,me);batteryUpdate(dt,busy,me);findTarget(me);return}
   const fw=busy?0:(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),st=busy?0:(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0);
-  // a hand-truck stack is heavier; a jerry can slows you a little
+  // a stack (carry upgrade) is heavier; a jerry can slows you a little
   const carry=me.carry>=0?S.boxes.find(b=>b.id===me.carry):null,slow=(carry?BOX_KINDS[carry.k].slow:1)*Math.pow(.85,me.stack?me.stack.length:0)*(me.can?.9:1);
   const moving=fw||st,run=(K.ShiftLeft||K.ShiftRight)&&fw>0&&!ME.exh&&ME.stam>0;
   const spd=(run?5.3:3.05)*slow;
@@ -2101,7 +2109,8 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
       const tr=bi>=0?S.trucks[bi]:null;if(!tr||(tr.st!==2&&tr.st!==3)){if(bi>=0)p.x=BAYS[bi].x;p.z=WH.z0+1.2}}
     p.x=clamp(p.x,WH.x0+.3,WH.x1-.3);p.z=clamp(p.z,TZ_DOCK-TRAIL_LEN+.3,WH.z1-.3)}
   const sp=Math.hypot(p.x-ME.x,p.z-ME.z)/Math.max(dt,1e-4);ME.x=p.x;ME.z=p.z;
-  if(run&&sp>1){if(!(ME.drinkT>0))ME.stam-=dt*21;if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16));if(ME.exh&&ME.stam>35)ME.exh=false}
+  const fit=me&&me.up&&me.up.stam; // the stamina upgrade
+  if(run&&sp>1){if(!(ME.drinkT>0))ME.stam-=dt*(fit?14:21);if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16)*(fit?1.5:1));if(ME.exh&&ME.stam>35)ME.exh=false}
   // head bob + footsteps
   if(sp>.3){const ph0=ME.stepPh;ME.stepPh+=dt*sp*(run?1.9:2.15);if(Math.floor(ph0/Math.PI)!==Math.floor(ME.stepPh/Math.PI))SFX.step(ME.z<WH.z0,run)}
   ME.bob=damp(ME.bob,sp>.3?1:0,6,dt);
@@ -2161,7 +2170,10 @@ function syncTrucks(){S.trucks.forEach((tr,i)=>{const v=TV[i],b=BAYS[i],bv=BAYV[
 function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
   for(const b of S.boxes){if(b.st===4)continue;live.add(b.id);let m=BM.get(b.id);if(!m){m=makeBoxMesh(b);BM.set(b.id,m);ROOT.add(m);m.userData.tw=0}
     if(b.st===1){if(b.h===NET.myId){m.visible=false;continue}const av=AV.get(b.h);if(!av||!av.g.visible){m.visible=false;continue}
-      m.visible=true;m.position.set(av.x-Math.sin(av.yaw)*.42,.92-BOX_KINDS[b.k].h*.4,av.z-Math.cos(av.yaw)*.42);m.rotation.set(0,av.yaw,0);continue}
+      // the box in their arms, with anything stacked with the carry upgrade piled on top of it
+      const h=S.players[b.h],pile=(h?[h.carry,...(h.stack||[]).slice().reverse()]:[]).map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),lv=Math.max(0,pile.indexOf(b));
+      let y=.92-BOX_KINDS[(pile[0]||b).k].h*.4;for(let i=0;i<lv;i++)y+=BOX_KINDS[pile[i].k].h;
+      m.visible=true;m.position.set(av.x-Math.sin(av.yaw)*.42,y,av.z-Math.cos(av.yaw)*.42);m.rotation.set(0,av.yaw+lv*.12,0);continue}
     m.visible=true;const w=boxWorld(b);m.position.set(w.x,w.y,w.z);m.rotation.set(0,b.ry,0);
     if(m.userData.tw>0){m.userData.tw-=dt;const k=m.userData.tw;m.rotation.z=Math.sin(k*70)*.07*Math.min(1,k*3);m.rotation.x=Math.cos(k*53)*.05*Math.min(1,k*3);m.position.y+=Math.abs(Math.sin(k*45))*.035}}
   for(const [id,m] of BM)if(!live.has(id)){ROOT.remove(m);BM.delete(id)}
@@ -2304,7 +2316,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   if(me&&!me.dead&&!ME.scare&&S.phase==='play'){const carrying=me.carry>=0;
     const p2=t&&promptFor(t,me);
     if(p2!==null&&p2!==undefined)pr=p2;
-    else if(t){if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Stack on the hand truck':'<kbd>E</kbd> Pick up')+' &nbsp; <kbd>Q</kbd> Kick'+(me.up&&me.up.cutter?' &nbsp; <kbd>3</kbd> Cut':'');
+    else if(t){if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Pick up another':'<kbd>E</kbd> Pick up')+' &nbsp; <kbd>Q</kbd> Kick'+(me.up&&me.up.cutter?' &nbsp; <kbd>3</kbd> Cut':'');
       else if(t.kind==='slot')pr=t.ok?'<kbd>E</kbd> Shelve box':'Shelf is full';
       else if(t.kind==='charger')pr=ME.bat>=99.5?'Flashlight fully charged':ME.charging?`Charging&hellip; ${Math.floor(ME.bat)}%`:'Hold <kbd>E</kbd> Charge flashlight';
       else if(t.kind==='aid')pr=S.aidLeft>0?`<kbd>E</kbd> First aid (${S.aidLeft} left tonight)`:'First-aid cabinet is empty';
@@ -2435,7 +2447,6 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
     const fl2=me&&me.up&&me.up.fl2;FL.angle=fl2?.55:.44;FL.distance=fl2?28:24;
     FL.intensity=ME.scare?(Math.random()<.45?7:.5):(ME.lightOn()&&me&&!me.dead?(fl2?40:30)*ME.flick:0);
     REDL.intensity=ME.red&&me&&me.up&&me.up.red&&!me.dead&&!ME.scare?10:0;VM.can.visible=!!(me&&me.can);
-    const ns=me&&me.stack?me.stack.length:0;VM.stack.forEach((m,i)=>{m.visible=i<ns;m.position.set(-.04,-.5+.06+i*.24,-.78);m.rotation.set(.32,.08+i*.2,0)});
     SCARE_L.intensity=ME.scare?(Math.random()<.3?.6:4):0;
     VM.g.visible=!!(me&&!me.dead);VM.lens.material.color.setScalar(ME.lightOn()?ME.flick:.15);
     BAYV.chargeLed.material.color.set(ME.charging?(Math.sin(time*12)>0?0x37ff8a:0x0a3a1a):0x37ff8a);
@@ -2455,9 +2466,11 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
 async function init(){
   try{await Promise.race([Promise.all([document.fonts.load("40px 'Special Elite'"),document.fonts.load("40px 'Creepster'")]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
   MAT.eye.fog=false;
-  buildWorld();buildViewModel();
-  for(let i=0;i<BAYS.length;i++){const g=makeTrailer(!!BAYS[i].reefer);ROOT.add(g);TV.push({g,eng:null,beep:null,door:null,pd:0})}
-  buildExtrasVisuals();bindShop();
+  // the same seed on every machine, so the old stock, dead lamps and clutter match across a crew
+  {const mr=Math.random;let a=0x5eed13;Math.random=()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+   try{buildWorld();for(let i=0;i<BAYS.length;i++){const g=makeTrailer(!!BAYS[i].reefer);ROOT.add(g);TV.push({g,eng:null,beep:null,door:null,pd:0})}buildExtrasVisuals()}finally{Math.random=mr}}
+  buildViewModel();
+  bindShop();
   applyQuality();bindUI();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
@@ -2478,8 +2491,7 @@ function buildExtrasVisuals(){FORK3D=makeForklift();ROOT.add(FORK3D);
   GIANT=makeGiant();GIANT.visible=false;ROOT.add(GIANT);PASS3D=makePassenger();PASS3D.visible=false;ROOT.add(PASS3D);ROOT.add(FLARE_L,ROOM_L);
   const tex=ctex(64,64,g=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,220,140,1)');gr.addColorStop(.45,'rgba(255,110,30,.7)');gr.addColorStop(1,'rgba(255,40,0,0)');g.fillStyle=gr;g.fillRect(0,0,64,64)},{aniso:1});
   for(let i=0;i<20;i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,fog:false}));s.visible=false;s.renderOrder=9;scene.add(s);SCAN.push(s)}
-  VM.can=makeCan();VM.can.position.set(-.16,-.36,-.55);VM.can.visible=false;VM.g.add(VM.can);VM.can.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=5}});
-  VM.stack=[];for(let i=0;i<2;i++){const m=new THREE.Mesh(BOX_KINDS[0].geo,MAT.box[i]);m.scale.setScalar(.55);m.visible=false;m.renderOrder=5;VM.g.add(m);VM.stack.push(m)}}
+  VM.can=makeCan();VM.can.position.set(-.16,-.36,-.55);VM.can.visible=false;VM.g.add(VM.can);VM.can.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=5}})}
 const shown=o=>{for(let p=o.parent;p;p=p.parent)if(!p.visible)return false;return true};
 
 // ---------------------------------------------------------------- per-frame sync of the additions' moving parts

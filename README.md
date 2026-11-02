@@ -41,7 +41,7 @@ Things that end your shift outright (the sleeper reaching you, the night manager
 | Threat | From | What it does | What to do |
 |---|---|---|---|
 | **The night manager** | Night 3 | A tall man in a grey suit who walks the aisles reading a clipboard, shoes clicking. Stand idle and empty-handed in front of him for 3 seconds and he writes you up ($10 off the crew's pay). | Keep busy. On the third write-up he lowers the clipboard and walks after you, slightly slower than you walk. Keep moving for 25 seconds and he gives up. |
-| **The shrink-wrap** | Night 4 | A person wrapped in pallet film, standing among the wrapped pallets in the south-east. It's blind and hunts sound: running, kicking, dropping boxes, the forklift, a loaded hand truck, the air horn. | Walk, don't run, and don't bump into it (about 50 damage). It gives up and goes home after 18 quiet seconds. |
+| **The shrink-wrap** | Night 4 | A person wrapped in pallet film, standing among the wrapped pallets in the south-east. It's blind and hunts sound: running, kicking, dropping boxes, the forklift, a loaded carry-upgrade stack, the air horn. | Walk, don't run, and don't bump into it (about 50 damage). It gives up and goes home after 18 quiet seconds. |
 | **The driver** | Night 5 | Sometimes a trucker climbs out of a cab. He looks like a crewmate (in a crew he even wears one of their names), his torch never flickers and he makes no footsteps. Within 8 m he follows you. | Keep your distance (about 70 damage). An air horn or the strobe stuns him. The thermal scanner shows him cold. |
 | **Shelf mouths** | Night 5 | Two empty lower slots a night are mouths. The deck sags and there are teeth under it that only show in your light. | Shine your light on a slot before you shelve into it. A box put in a mouth is lost, and so is 25 health. |
 | **The wrong voice** | Night 2 / 6 | From night 2 the loudspeaker sometimes calls out a priority parcel somewhere dark (double pay). From night 6, half of those calls use a chime played upside down and out of tune and a voice too slow and low. | There's no parcel at a wrong-voice location, only a stalker waiting in the dark. |
@@ -74,9 +74,10 @@ After each night you survive, the crew's pay buys things. The money is shared, a
 | Thermal scanner | $120 | hold 5 | Warm things glow through walls within 15 m: sleepers, crawlers, mimics, the passenger, your crew. The driver, the frost figures and the shrink-wrap stay dark. |
 | Air horn (3) | $40 | 6 | Lures the shrink-wrap to the sound and stuns the driver. |
 | Energy drinks (2) | $15 | 7 | 20 s of running without getting tired. |
+| Stamina upgrade | $90 | | Sprint half again as long (drains at two-thirds the rate) and recover 50% faster. |
 | Bay door remote | $90 | 8 | Slams the nearest bay shut: a docked truck leaves at once, its crawler is shut out for good, and a jammed door closes. It won't fire while anyone is inside that trailer. |
 | Lamp bulb | $50 | 9 | Stand under a dead fixture to bring it back for the rest of the run. Three fixtures at most. |
-| Hand truck | $110 | | Stack up to three boxes. Slower, and loud enough for the shrink-wrap to hear. |
+| Carry Upgrade | $110 | | Carry up to three boxes at once. Crewmates see the whole stack. Slower, and loud enough for the shrink-wrap to hear. |
 | Red headlamp | $80 | H | A dim red light that monsters don't notice: it doesn't scare them off and doesn't set them off. |
 | First-aid refill | $30 | | One more first-aid use next night (two at most). |
 

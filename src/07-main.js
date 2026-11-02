@@ -114,7 +114,7 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   const busy=!!ME.scare||S.phase!=='play';
   if(ME.driving){driveUpdate(dt,me);batteryUpdate(dt,busy,me);findTarget(me);return}
   const fw=busy?0:(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),st=busy?0:(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0);
-  // a hand-truck stack is heavier; a jerry can slows you a little
+  // a stack (carry upgrade) is heavier; a jerry can slows you a little
   const carry=me.carry>=0?S.boxes.find(b=>b.id===me.carry):null,slow=(carry?BOX_KINDS[carry.k].slow:1)*Math.pow(.85,me.stack?me.stack.length:0)*(me.can?.9:1);
   const moving=fw||st,run=(K.ShiftLeft||K.ShiftRight)&&fw>0&&!ME.exh&&ME.stam>0;
   const spd=(run?5.3:3.05)*slow;
@@ -129,7 +129,8 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
       const tr=bi>=0?S.trucks[bi]:null;if(!tr||(tr.st!==2&&tr.st!==3)){if(bi>=0)p.x=BAYS[bi].x;p.z=WH.z0+1.2}}
     p.x=clamp(p.x,WH.x0+.3,WH.x1-.3);p.z=clamp(p.z,TZ_DOCK-TRAIL_LEN+.3,WH.z1-.3)}
   const sp=Math.hypot(p.x-ME.x,p.z-ME.z)/Math.max(dt,1e-4);ME.x=p.x;ME.z=p.z;
-  if(run&&sp>1){if(!(ME.drinkT>0))ME.stam-=dt*21;if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16));if(ME.exh&&ME.stam>35)ME.exh=false}
+  const fit=me&&me.up&&me.up.stam; // the stamina upgrade
+  if(run&&sp>1){if(!(ME.drinkT>0))ME.stam-=dt*(fit?14:21);if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16)*(fit?1.5:1));if(ME.exh&&ME.stam>35)ME.exh=false}
   // head bob + footsteps
   if(sp>.3){const ph0=ME.stepPh;ME.stepPh+=dt*sp*(run?1.9:2.15);if(Math.floor(ph0/Math.PI)!==Math.floor(ME.stepPh/Math.PI))SFX.step(ME.z<WH.z0,run)}
   ME.bob=damp(ME.bob,sp>.3?1:0,6,dt);
@@ -189,7 +190,10 @@ function syncTrucks(){S.trucks.forEach((tr,i)=>{const v=TV[i],b=BAYS[i],bv=BAYV[
 function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
   for(const b of S.boxes){if(b.st===4)continue;live.add(b.id);let m=BM.get(b.id);if(!m){m=makeBoxMesh(b);BM.set(b.id,m);ROOT.add(m);m.userData.tw=0}
     if(b.st===1){if(b.h===NET.myId){m.visible=false;continue}const av=AV.get(b.h);if(!av||!av.g.visible){m.visible=false;continue}
-      m.visible=true;m.position.set(av.x-Math.sin(av.yaw)*.42,.92-BOX_KINDS[b.k].h*.4,av.z-Math.cos(av.yaw)*.42);m.rotation.set(0,av.yaw,0);continue}
+      // the box in their arms, with anything stacked with the carry upgrade piled on top of it
+      const h=S.players[b.h],pile=(h?[h.carry,...(h.stack||[]).slice().reverse()]:[]).map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),lv=Math.max(0,pile.indexOf(b));
+      let y=.92-BOX_KINDS[(pile[0]||b).k].h*.4;for(let i=0;i<lv;i++)y+=BOX_KINDS[pile[i].k].h;
+      m.visible=true;m.position.set(av.x-Math.sin(av.yaw)*.42,y,av.z-Math.cos(av.yaw)*.42);m.rotation.set(0,av.yaw+lv*.12,0);continue}
     m.visible=true;const w=boxWorld(b);m.position.set(w.x,w.y,w.z);m.rotation.set(0,b.ry,0);
     if(m.userData.tw>0){m.userData.tw-=dt;const k=m.userData.tw;m.rotation.z=Math.sin(k*70)*.07*Math.min(1,k*3);m.rotation.x=Math.cos(k*53)*.05*Math.min(1,k*3);m.position.y+=Math.abs(Math.sin(k*45))*.035}}
   for(const [id,m] of BM)if(!live.has(id)){ROOT.remove(m);BM.delete(id)}
@@ -332,7 +336,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   if(me&&!me.dead&&!ME.scare&&S.phase==='play'){const carrying=me.carry>=0;
     const p2=t&&promptFor(t,me);
     if(p2!==null&&p2!==undefined)pr=p2;
-    else if(t){if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Stack on the hand truck':'<kbd>E</kbd> Pick up')+' &nbsp; <kbd>Q</kbd> Kick'+(me.up&&me.up.cutter?' &nbsp; <kbd>3</kbd> Cut':'');
+    else if(t){if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Pick up another':'<kbd>E</kbd> Pick up')+' &nbsp; <kbd>Q</kbd> Kick'+(me.up&&me.up.cutter?' &nbsp; <kbd>3</kbd> Cut':'');
       else if(t.kind==='slot')pr=t.ok?'<kbd>E</kbd> Shelve box':'Shelf is full';
       else if(t.kind==='charger')pr=ME.bat>=99.5?'Flashlight fully charged':ME.charging?`Charging&hellip; ${Math.floor(ME.bat)}%`:'Hold <kbd>E</kbd> Charge flashlight';
       else if(t.kind==='aid')pr=S.aidLeft>0?`<kbd>E</kbd> First aid (${S.aidLeft} left tonight)`:'First-aid cabinet is empty';
@@ -463,7 +467,6 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
     const fl2=me&&me.up&&me.up.fl2;FL.angle=fl2?.55:.44;FL.distance=fl2?28:24;
     FL.intensity=ME.scare?(Math.random()<.45?7:.5):(ME.lightOn()&&me&&!me.dead?(fl2?40:30)*ME.flick:0);
     REDL.intensity=ME.red&&me&&me.up&&me.up.red&&!me.dead&&!ME.scare?10:0;VM.can.visible=!!(me&&me.can);
-    const ns=me&&me.stack?me.stack.length:0;VM.stack.forEach((m,i)=>{m.visible=i<ns;m.position.set(-.04,-.5+.06+i*.24,-.78);m.rotation.set(.32,.08+i*.2,0)});
     SCARE_L.intensity=ME.scare?(Math.random()<.3?.6:4):0;
     VM.g.visible=!!(me&&!me.dead);VM.lens.material.color.setScalar(ME.lightOn()?ME.flick:.15);
     BAYV.chargeLed.material.color.set(ME.charging?(Math.sin(time*12)>0?0x37ff8a:0x0a3a1a):0x37ff8a);
@@ -483,9 +486,11 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
 async function init(){
   try{await Promise.race([Promise.all([document.fonts.load("40px 'Special Elite'"),document.fonts.load("40px 'Creepster'")]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
   MAT.eye.fog=false;
-  buildWorld();buildViewModel();
-  for(let i=0;i<BAYS.length;i++){const g=makeTrailer(!!BAYS[i].reefer);ROOT.add(g);TV.push({g,eng:null,beep:null,door:null,pd:0})}
-  buildExtrasVisuals();bindShop();
+  // the same seed on every machine, so the old stock, dead lamps and clutter match across a crew
+  {const mr=Math.random;let a=0x5eed13;Math.random=()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+   try{buildWorld();for(let i=0;i<BAYS.length;i++){const g=makeTrailer(!!BAYS[i].reefer);ROOT.add(g);TV.push({g,eng:null,beep:null,door:null,pd:0})}buildExtrasVisuals()}finally{Math.random=mr}}
+  buildViewModel();
+  bindShop();
   applyQuality();bindUI();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);

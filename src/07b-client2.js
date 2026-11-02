@@ -12,8 +12,7 @@ function buildExtrasVisuals(){FORK3D=makeForklift();ROOT.add(FORK3D);
   GIANT=makeGiant();GIANT.visible=false;ROOT.add(GIANT);PASS3D=makePassenger();PASS3D.visible=false;ROOT.add(PASS3D);ROOT.add(FLARE_L,ROOM_L);
   const tex=ctex(64,64,g=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,220,140,1)');gr.addColorStop(.45,'rgba(255,110,30,.7)');gr.addColorStop(1,'rgba(255,40,0,0)');g.fillStyle=gr;g.fillRect(0,0,64,64)},{aniso:1});
   for(let i=0;i<20;i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,fog:false}));s.visible=false;s.renderOrder=9;scene.add(s);SCAN.push(s)}
-  VM.can=makeCan();VM.can.position.set(-.16,-.36,-.55);VM.can.visible=false;VM.g.add(VM.can);VM.can.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=5}});
-  VM.stack=[];for(let i=0;i<2;i++){const m=new THREE.Mesh(BOX_KINDS[0].geo,MAT.box[i]);m.scale.setScalar(.55);m.visible=false;m.renderOrder=5;VM.g.add(m);VM.stack.push(m)}}
+  VM.can=makeCan();VM.can.position.set(-.16,-.36,-.55);VM.can.visible=false;VM.g.add(VM.can);VM.can.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=5}})}
 const shown=o=>{for(let p=o.parent;p;p=p.parent)if(!p.visible)return false;return true};
 
 // ---------------------------------------------------------------- per-frame sync of the additions' moving parts

@@ -100,7 +100,7 @@ function simUpdate(dt){
 
 // ---------------------------------------------------------------- trucks
 function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&HOST.trucksTonight===0;
-  Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0});
+  Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0,due:0});
   const n=Math.min(16,randi(6,9)+Math.min(5,S.night-1));
   tr.lurk=!first&&Math.random()<Math.min(.85,Math.min(.55,.17+.09*(S.night-1))*diffEv());
   tr.crawl=!first&&!tr.lurk&&!S.mons.some(m=>m.ty===3)&&Math.random()<Math.min(.7,Math.min(.4,.14+.06*(S.night-1))*diffEv());
@@ -124,7 +124,7 @@ function truckGone(i){const tr=S.trucks[i];let n=0;for(const b of S.boxes)if(b.s
   for(const p of S.pallets||[])if(p.st===0&&p.bay===i){p.st=4;if(!tr.reject)n+=8}
   S.lost+=n;S.mons=S.mons.filter(m=>!((m.ty===1||m.ty===3)&&m.bay===i));S.bver++;
   if(n)emit({e:'msg',m:`Bay ${BAYS[i].name} left with ${n} box${n>1?'es':''} still on board.`});
-  Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0});
+  Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0,due:0});
   // late in the run the door motor sticks after a truck leaves, and something out in the yard notices
   if(yardOn()){tr.door=1;tr.stuck=14;if(!S.yard)S.yard={bay:i,stage:0,look:0};emit({e:"stuck",b:i})}}
 const freeBays=()=>S.trucks.map((t,i)=>t.st===0&&!(t.stuck>0)&&t.door<=0&&bayOn(i)?i:-1).filter(i=>i>=0);
@@ -141,9 +141,15 @@ function trucksUpdate(dt){
     else if(tr.st===2){tr.door=Math.min(1,tr.door+dt/2.6);tr.t+=dt;tr.left=S.boxes.filter(x=>x.st===0&&x.bay===i).length;
       if(tr.left===0&&!palletInTruck(i)&&tr.door>=1)tr.emptyT=(tr.emptyT===undefined?5:tr.emptyT)-dt;else tr.emptyT=undefined;
       if(tr.reject||(tr.emptyT!==undefined&&tr.emptyT<=0)||(tr.t>=DOCK_TIME&&!S.ot)){
-        const inside=alivePlayers().some(p=>inTrailer(p)===i);const lur=S.mons.find(m=>m.ty===1&&m.bay===i),cr=S.mons.find(m=>m.ty===3&&m.bay===i);
-        if(lur&&lur.st!=='sleep'&&!lurkTarget(lur))lur.st='return';
+        const inside=alivePlayers().some(p=>inTrailer(p)===i);let lur=S.mons.find(m=>m.ty===1&&m.bay===i),cr=S.mons.find(m=>m.ty===3&&m.bay===i);
+        // the truck won't wait on its monsters for long: after 8 s the sleeper hurries back whatever it was doing,
+        // and after 16 s whatever still hasn't made it back is simply gone
+        tr.due=(tr.due||0)+dt;
+        if(lur&&lur.st!=='sleep'&&(!lurkTarget(lur)||tr.due>8)){lur.st='return';lur.hurry=tr.due>8}
         if(cr&&cr.st!=='inside'&&cr.st!=='home')cr.ret=true; // the crawler goes home with its truck
+        if(tr.due>16&&!inside){
+          if(lur&&lur.st!=='sleep'){Object.assign(lur,{st:'sleep',lx:LURK_LX,lz:LURK_HOME,ry:Math.PI/2,litT:0,hurry:false});lur=null}
+          if(cr&&cr.st!=='inside'&&cr.st!=='home'){cr.dead=true;emit({e:'vanish',x:cr.x,y:cr.y,z:cr.z});cr=null}}
         if(!inside&&(!lur||lur.st==='sleep')&&(!cr||cr.st==='inside'||cr.st==='home')){tr.st=3;tr.t=0;emit({e:'horn',b:i})}
         else{tr.honk=(tr.honk||0)-dt;if(tr.honk<=0){tr.honk=5;emit({e:'horn',b:i});if(inside)emit({e:'msg',m:`Bay ${BAYS[i].name}: the truck is pulling out. Get out of the trailer!`})}}}}
     else if(tr.st===3){tr.t+=dt;tr.door=Math.max(0,tr.door-dt/2.2);if(tr.door<=0){const p=clamp((tr.t-2.4)/8,0,1);tr.z=lerp(TZ_DOCK,TZ_FAR,easeIn(p));if(p>=1)truckGone(i)}}
@@ -223,13 +229,13 @@ function lurkerUpdate(m,dt){const tr=S.trucks[m.bay],bx=BAYS[m.bay].x;
   m.x=bx+m.lx;m.z=tr.z+m.lz;m.y=0;if(tr.st!==2)return;
   // a flare on the floor is a line it won't cross
   const flareNear=(x,z)=>S.flares&&S.flares.some(f=>Math.hypot(f.x-x,f.z-z)<2.6);
-  const step=(tx,tz,sp)=>{const dx=tx-m.lx,dz=tz-m.lz,d=Math.hypot(dx,dz);if(d<.01)return 0;const s=Math.min(d,sp*dt);const ox=m.lx,oz=m.lz;m.lx+=dx/d*s;m.lz+=dz/d*s;
+  const step=(tx,tz,sp,free)=>{const dx=tx-m.lx,dz=tz-m.lz,d=Math.hypot(dx,dz);if(d<.01)return 0;const s=Math.min(d,sp*dt);const ox=m.lx,oz=m.lz;m.lx+=dx/d*s;m.lz+=dz/d*s;
     if(m.lz<-.25)m.lx=clamp(m.lx,-TRAIL_HW+.45,TRAIL_HW-.45);else m.lx=clamp(m.lx,-4,4);m.lz=clamp(m.lz,LURK_HOME,6.8);
-    if(flareNear(bx+m.lx,tr.z+m.lz)){m.lx=ox;m.lz=oz}m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*5);return d};
+    if(!free&&flareNear(bx+m.lx,tr.z+m.lz)){m.lx=ox;m.lz=oz}m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*5);return d};
   if(m.st==='sleep'){m.a=0;m.cd-=dt;if(m.cd>0||tr.door<1)return;
     const deep=alivePlayers().some(p=>inTrailer(p)===m.bay&&p.z<tr.z-8);
     if(deep){m.wake+=dt;if(m.wake>(S.ot?.3:.8)){m.st='sit';m.t=0;m.wake=0;m.litT=0}}else m.wake=Math.max(0,m.wake-dt);return}
-  if(m.st==='return'){m.a=2;const d=step(LURK_LX,LURK_HOME,2.4);m.litT=0;if(d<.1){m.st='sleep';m.cd=8;m.ry=Math.PI/2;m.lx=LURK_LX;m.lz=LURK_HOME}return}
+  if(m.st==='return'){m.a=m.hurry?4:2;const d=step(LURK_LX,LURK_HOME,m.hurry?5:2.4,m.hurry);m.litT=0;if(d<.1){m.st='sleep';m.hurry=false;m.cd=8;m.ry=Math.PI/2;m.lx=LURK_LX;m.lz=LURK_HOME}return}
   const tgt=lurkTarget(m);if(!tgt){m.st='return';return}
   const tlx=tgt.x-bx,tlz=tgt.z-tr.z,d=Math.hypot(tlx-m.lx,tlz-m.lz),face=()=>{m.ry=angLerp(m.ry,Math.atan2(tlx-m.lx,tlz-m.lz),dt*3)};
   if(d<1.25){emit({e:'scare',p:tgt.id,ty:1,id:m.id});damage(tgt,999);m.st='return';return}
@@ -324,7 +330,7 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
   const nextCarry=()=>{p.carry=p.stack.length?p.stack.pop():-1};
   switch(a.a){
   case 'pick':{const b=B(a.b);if(!b||(b.st!==0&&b.st!==3)||busy)return;
-    // a hand truck stacks up to three; otherwise hands must be empty
+    // the carry upgrade stacks up to three; otherwise hands must be empty
     if(p.carry>=0&&!(p.up.hand&&p.stack.length<2))return;const w=boxWorld(b);if(!near(w,3.4))return;
     if(b.m){burstMimic(b,pid,true);return}
     if(p.carry>=0)p.stack.push(p.carry);
