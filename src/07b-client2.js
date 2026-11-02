@@ -6,7 +6,9 @@ const REDL=new THREE.SpotLight(0xff2412,0,12,.5,.6,1.3);REDL.position.set(0,.12,
 const ITEM_KEYS={Digit1:'batt',Digit2:'flare',Digit3:'cutter',Digit4:'strobe',Digit5:'scanner',Digit6:'horn',Digit7:'drink',Digit8:'remote',Digit9:'bulb'};
 const PARCEL_NAMES=['red','blue','yellow'],PARCEL_CSS=['#e0493c','#4a7fe0','#e8c440'];
 
-function buildExtrasVisuals(){FORK3D=makeForklift();ROOT.add(FORK3D);FORK3D.traverse(o=>{if(o.isMesh){o.userData={kind:'fork'};FORKPICK.push(o)}});
+function buildExtrasVisuals(){FORK3D=makeForklift();ROOT.add(FORK3D);
+  // one invisible box around the whole machine, so it's easy to look at and press E
+  {const hit=new THREE.Mesh(GEO.box,basic(0));hit.scale.set(1.5,2.4,3.4);hit.position.set(0,1.2,.2);hit.visible=false;hit.userData={kind:'fork'};FORK3D.add(hit);FORKPICK.push(hit)}
   GIANT=makeGiant();GIANT.visible=false;ROOT.add(GIANT);PASS3D=makePassenger();PASS3D.visible=false;ROOT.add(PASS3D);ROOT.add(FLARE_L,ROOM_L);
   const tex=ctex(64,64,g=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,220,140,1)');gr.addColorStop(.45,'rgba(255,110,30,.7)');gr.addColorStop(1,'rgba(255,40,0,0)');g.fillStyle=gr;g.fillRect(0,0,64,64)},{aniso:1});
   for(let i=0;i<20;i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,fog:false}));s.visible=false;s.renderOrder=9;scene.add(s);SCAN.push(s)}
@@ -52,6 +54,7 @@ function syncExtras(dt,time){if(!S)return;const t=time;
     v.lp&&v.lp.set(.6,.2);const d=Math.hypot(fl.x-ME.x,fl.z-ME.z);if(d<nd){nd=d;nf=fl}}
   for(const [id,v] of FLV)if(!fs.has(id)){ROOT.remove(v.g);v.lp&&v.lp.stop();FLV.delete(id)}
   FLARE_L.intensity=nf?(8+Math.random()*3):0;if(nf)FLARE_L.position.set(nf.x,.5,nf.z);
+  if(ADDV.coldBeacon)ADDV.coldBeacon.material.color.setHSL(.58,1,.35+.25*Math.max(0,Math.sin(t*4)));
   // a room light that follows you into the freezer or the basement
   if(ME.x>60&&owned('base')){ROOM_L.color.set(0xffc890);ROOM_L.position.set(77,2.8,0);ROOM_L.intensity=Math.random()<.04?.5:7}
   else if(owned('cold')&&ME.x>18&&ME.z<-9){ROOM_L.color.set(0x9fc4ff);ROOM_L.position.set(25.5,3,-16);ROOM_L.intensity=5}else ROOM_L.intensity=0;
@@ -202,10 +205,13 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'jam':SFX.deny();toast('The conveyor jammed. Hold E on the red button by the bins.',4);break;
   case 'unjam':SFX.thunk(P(CONV.jam.x,CONV.jam.z,1));break;
   case 'sorted':SFX.sorted(e.ok,P(CONV.bx,CONV.bins[e.b],1));break;
+  case 'pwait':SFX.deny();if(Math.hypot(ME.x-CONV.lever.x,ME.z-CONV.lever.z)<30)toast(`A ${PARCEL_NAMES[e.c]} parcel is waiting at the end of the belt. Set the lever to ${PARCEL_NAMES[e.c]}.`,4);break;
   case 'ptw':{const v=PV.get(e.id);if(v){v.tw=.6;SFX.scratch({x:v.g.position.x,y:1.1,z:CONV.z})}break}
   case 'canUp':if(e.p===me)SFX.pick(P(FUELR.x,FUELR.z,.8));break;
   case 'refuel':SFX.refuel(P(e.x,e.z,.8));if(e.on)toast('The generator coughs back to life. The lights come on.',3);break;
-  case 'genOut':SFX.sputter(P(GEN.x,GEN.z,1));SFX.powerDown();toast('The generator ran dry. Every light is out until someone refuels it.',5,'radio');break;
+  case 'genOut':SFX.sputter(P(GEN.x,GEN.z,1));SFX.powerDown();toast('The generator ran dry. The lights are out until someone refuels it.',5,'radio');break;
+  case 'outage':SFX.powerDown();big('POWER OUTAGE',e.gen?'The generator kicks in. Keep it fuelled until morning.':'The mains are dead until morning. The charger barely works.',5);
+    if(!e.gen&&!owned('gen'))setTimeout(()=>GAME.on&&toast('A generator would have kept the lights on. It can be bought between nights.',5),5500);break;
   case 'forkIn':if(e.p===me){ME.yaw=S.fork.ry+Math.PI;ME.pitch=-.1;ME.fv=0;toast('W/S drive, A/D steer. E lifts or sets down a pallet, Q gets out.',4)}break;
   case 'forkOut':break;
   case 'pa2':SFX.pa(e.fake);toast(`Loudspeaker: "Priority parcel ${e.n}. Double pay."`,6,e.fake?'radio fake':'radio');break;
@@ -231,12 +237,32 @@ function promptFor(t,me){switch(t.kind){
   case 'fslot':return t.ok?'<kbd>E</kbd> Set the pallet on the shelf':'Shelf is full';
   case 'fpal':return'<kbd>E</kbd> Lift the pallet';}return null}
 function statusLines(me){let h='';
-  if(owned('gen')&&S.gen)h+=`<div class="bay${S.gen.fuel<20?' warnline':''}" style="font-size:12.5px">generator fuel ${Math.round(S.gen.fuel)}%</div>`;
-  if(owned('conv')&&S.conv)h+=`<div class="bay" style="font-size:12.5px">sorting bin: <b style="color:${PARCEL_CSS[S.conv.sel]}">${PARCEL_NAMES[S.conv.sel]}</b>${S.conv.jam?' &middot; <span class="warn">JAMMED</span>':''}</div>`;
-  if(me&&me.wu)h+=`<div class="bay" style="font-size:12.5px;color:#ff8a70">write-ups tonight: ${me.wu} / 3</div>`;
+  if(mainsDown())h+=`<div class="bay warnline">POWER OUT &middot; charger slowed</div>`;
+  if(owned('gen')&&S.gen)h+=`<div class="bay small${S.outage&&S.gen.fuel<25?' warnline':''}">generator ${S.outage?(S.gen.fuel>0?'running':'empty'):'on standby'} &middot; fuel ${Math.round(S.gen.fuel)}%</div>`;
+  if(owned('conv')&&S.conv)h+=`<div class="bay small">sorting bin: <b style="color:${PARCEL_CSS[S.conv.sel]}">${PARCEL_NAMES[S.conv.sel]}</b>${S.conv.jam?' &middot; <span class="warn">JAMMED</span>':''}</div>`;
+  if(me&&me.wu)h+=`<div class="bay small" style="color:#ff8a70">write-ups tonight: ${me.wu} / 3</div>`;
   return h}
-function carryNote(me){const b=me&&me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;if(!b)return'';const n=1+(me.stack?me.stack.length:0);
-  let s=n>1?`Carrying ${n} boxes`:'';if(b.fz)s+=(s?' · ':'')+`<span style="color:#9fd4ff">Frozen: thaws in ${Math.max(0,Math.ceil(b.th||0))}s</span>`;if(b.pri)s+=(s?' · ':'')+'<span style="color:#ff7a5a">Priority</span>';return s}
+// which way something is, relative to where you're looking, and how far
+const ARROWS=['&uarr;','&nearr;','&rarr;','&searr;','&darr;','&swarr;','&larr;','&nwarr;'];
+function dirTo(x,z){const dx=x-ME.x,dz=z-ME.z,d=Math.hypot(dx,dz),fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw),rx=Math.cos(ME.yaw),rz=-Math.sin(ME.yaw);
+  const a=Math.atan2(dx*rx+dz*rz,dx*fx+dz*fz);return`<b class="arrow">${ARROWS[(Math.round(a/(Math.PI/4))+8)%8]}</b> ${Math.round(d)} m`}
+function carryNote(me){if(!me)return'';
+  if(me.can)return`Jerry can &middot; generator ${dirTo(GEN.x,GEN.z)}`;
+  const b=me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;if(!b)return'';const n=1+(me.stack?me.stack.length:0);
+  let s=n>1?`Carrying ${n} boxes`:'';
+  if(b.fz)s+=(s?' &middot; ':'')+`<span style="color:#9fd4ff">Frozen: thaws in ${Math.max(0,Math.ceil(b.th||0))}s${inCold(ME)?'':` &middot; freezer ${dirTo((COLD.dx0+COLD.dx1)/2,COLD.z1+.6)}`}</span>`;
+  else if(ME.x>60)s+=(s?' &middot; ':'')+`Shelves are upstairs &middot; elevator ${dirTo(CAR_DN.x1,0)}`;
+  if(b.pri)s+=(s?' &middot; ':'')+'<span style="color:#ff7a5a">Priority</span>';return s}
+// the first night after something is bought, say what it's for and where it is
+const ADD_INTRO={fork:'The forklift is parked by the dock, just east of where you start. Some trailers have a pallet of eight boxes inside the door. Lift it with E, set it on any top shelf.',
+  cold:'Cold storage is in the north-east corner, under the blue light. Frozen crates (pale blue) go on its shelves within 60 seconds of leaving the trailer.',
+  conv:'The sorting conveyor is on the south wall, behind you as you start. Set its lever to the colour of the next parcel to reach the end.',
+  base:'The freight elevator is on the west wall, past Bay A. Ten returns wait in the basement for the shelves.',
+  gen:'The generator is on the west wall by the office. If the power fails, it keeps the lights and the charger running while it has fuel.',
+  bayc:'Bay C is open in the north-west corner. Its refrigerated trucks bring more boxes, and more frozen crates if you have cold storage.'};
+function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const fresh=(S.adds||[]).filter(k=>!seen.has(k));if(!fresh.length)return;
+  fresh.forEach((k,i)=>{seen.add(k);setTimeout(()=>GAME.on&&S&&S.phase==='play'&&toast(ADD_INTRO[k],6.5),5200+i*7000)});
+  setTimeout(()=>GAME.on&&toast('The THIS WAY board on the dock wall points to everything the crew has bought.',5),5200+fresh.length*7000)}
 
 // ---------------------------------------------------------------- the shop screen
 let shopShown=false,shopSig='';

@@ -8,9 +8,11 @@ const ADDV={};         // moving parts: doors, gates, hatches, the sorting arm, 
 function addGroup(k){const g=new THREE.Group();g.visible=false;ROOT.add(g);ADDG[k]=g;return g}
 function acol(k,x0,z0,x1,z1,o={}){return col(x0,z0,x1,z1,{dyn:true,on:false,add:k,...o})}
 function inter(mesh,ud,group){mesh.userData=ud;(group||ROOT).add(mesh);INTER.push(mesh);return mesh}
-function addSign(lines,x,y,z,ry,w,h,group,o={}){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),toon(0xffffff,{map:signTex(lines,{w:512,h:Math.round(512*h/w),...o})}));m.position.set(x,y,z);m.rotation.y=ry;group.add(m);return m}
+// addition signs are backlit: readable from across the dark building, so you can find what you bought
+function addSign(lines,x,y,z,ry,w,h,group,o={}){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),basic(0xb8b4a8,{fog:false,map:signTex(lines,{w:512,h:Math.round(512*h/w),...o})}));m.position.set(x,y,z);m.rotation.y=ry;group.add(m);return m}
 
 function buildAdditions(){
+  {const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),basic(0xd6d0c0,{fog:false}));m.position.set(0,3.6,WH.z0+.04);m.visible=false;ROOT.add(m);ADDV.dir=m}
   // ---------------------------------------------------------------- cold storage (north-east corner)
   {const g=addGroup('cold'),H=3.4,C=COLD,wm=toon(0xc9d0d4,{map:TEX.wall});
     sbox(wm,.2,H,C.z1-C.z0,C.x0,H/2,(C.z0+C.z1)/2,{uv:[3,1.5]});acol('cold',C.x0-.1,C.z0,C.x0+.1,C.z1);
@@ -25,13 +27,17 @@ function buildAdditions(){
       for(const ly of[.14,1.34,2.54])sbox(MAT.deck,rot?1.0:len,.03,rot?len:1.0,(x0+x1)/2,ly-.015,(z0+z1)/2)};
     rack(22,-19.85,28,-18.85,false);rack(28.85,-18,29.85,-14,true);
     acol('cold',21.9,-19.95,28.1,-18.75);acol('cold',28.8,-18.1,29.95,-13.9);
-    for(const x of[23,25,27])for(const ly of[.14,1.34])SLOTS.push({id:SLOTS.length,x,y:ly,z:-19.35,box:-1,old:false,cold:true,add:'cold'});
-    for(const z of[-17,-15])for(const ly of[.14,1.34])SLOTS.push({id:SLOTS.length,x:29.35,y:ly,z,box:-1,old:false,cold:true,add:'cold',rot:true});
+    // stacks of frozen stock in three corners; the frost figures stand behind them
+    for(const [x,z,w,d] of[[22.55,-13.75,.9,1.8],[27.75,-13.45,.9,1.5],[22.3,-17.4,1.3,.9]]){sbox(MAT.frozen,w,1.95,d,x,.975,z,{uv:[w*2,2]});sbox(MAT.ice,w+.04,.05,d+.04,x,1.97,z,{cast:false});acol('cold',x-w/2,z-d/2,x+w/2,z+d/2)}
+    for(const x of[23,25,27])for(const ly of[.14,1.34,2.54])SLOTS.push({id:SLOTS.length,x,y:ly,z:-19.35,box:-1,old:false,cold:true,add:'cold'});
+    for(const z of[-17,-15])for(const ly of[.14,1.34,2.54])SLOTS.push({id:SLOTS.length,x:29.35,y:ly,z,box:-1,old:false,cold:true,add:'cold',rot:true});
     addSign([{t:'COLD STORAGE',size:52,bold:true},{t:'-18 °C · FROZEN ONLY',size:34}],(C.dx0+C.dx1)/2,2.95,C.z1+.11,0,1.6,.6,g,{bg:'#cfe0ea',fg:'#10243a'});
+    // a blue beacon over the door, visible from anywhere in the building
+    const bc=new THREE.Mesh(GEO.sph,basic(0x5ab4ff,{fog:false}));bc.scale.set(.16,.1,.16);bc.position.set((C.dx0+C.dx1)/2,3.42,C.z1+.12);g.add(bc);ADDV.coldBeacon=bc;
     // the door swings on a heavy spring hinge at its west edge
     const hinge=pivot(C.dx0,0,C.z1,g);const dm=new THREE.Mesh(GEO.box,toon(0xb9c3c8,{map:TEX.wall}));dm.scale.set(C.dx1-C.dx0,2.35,.1);dm.position.set((C.dx1-C.dx0)/2,1.18,0);dm.castShadow=true;hinge.add(dm);
     const handle=part(GEO.box,MAT.steel,.06,.3,.08,C.dx1-C.dx0-.15,1.1,.08,hinge);
-    inter(dm,{kind:'cold'});ADDV.coldDoor=hinge;ADDV.coldCol=acol('cold',C.dx0,C.z1-.1,C.dx1,C.z1+.1,{door:true});
+    inter(dm,{kind:'cold'},hinge);ADDV.coldDoor=hinge;ADDV.coldCol=acol('cold',C.dx0,C.z1-.1,C.dx1,C.z1+.1,{door:true});
     flushStatics(g)}
 
   // ---------------------------------------------------------------- sorting conveyor (along the south wall)
@@ -108,10 +114,22 @@ function buildAdditions(){
     flushStatics(g)}
 }
 
+// ---------------------------------------------------------------- the "THIS WAY" board
+// Hangs on the dock wall right in front of where everyone starts, listing what the crew owns with an arrow to
+// each one (as seen from the start, facing the dock: up is the dock wall, down is the south wall behind you).
+const DIR_INFO={fork:{n:'FORKLIFT',x:FORK_HOME.x,z:FORK_HOME.z},cold:{n:'COLD STORAGE',x:25.3,z:-13},bayc:{n:'BAY C',x:-24,z:-19},
+  base:{n:'FREIGHT ELEVATOR',x:-27.5,z:-9.3},gen:{n:'GENERATOR',x:GEN.x,z:GEN.z},conv:{n:'SORTING CONVEYOR',x:-7.5,z:18}};
+function drawDirectory(){const m=ADDV.dir,ks=Object.keys(DIR_INFO).filter(owned);m.visible=ks.length>0;if(!ks.length)return;
+  const W=1024,LH=74,H=96+ks.length*LH;
+  const t=ctex(W,H,(g,w,h)=>{g.fillStyle='#c9a227';g.fillRect(0,0,w,h);g.strokeStyle='#16130c';g.lineWidth=10;g.strokeRect(9,9,w-18,h-18);
+    g.fillStyle='#16130c';g.font="bold 54px 'Special Elite', Courier New";g.textBaseline='middle';g.fillText('THIS WAY',40,52);
+    ks.forEach((k,i)=>{const d=DIR_INFO[k],y=96+i*LH+LH/2-6;g.font="44px 'Special Elite', Courier New";g.fillText(d.n,40,y);
+      const a=Math.atan2(d.z-(-15.5),d.x-0);g.save();g.translate(w-90,y);g.rotate(a);g.beginPath();g.moveTo(-30,-7);g.lineTo(8,-7);g.lineTo(8,-20);g.lineTo(32,0);g.lineTo(8,20);g.lineTo(8,7);g.lineTo(-30,7);g.closePath();g.fill();g.restore()})},{aniso:4});
+  if(m.material.map)m.material.map.dispose();m.material.map=t;m.material.needsUpdate=true;m.scale.set(3.6,3.6*H/W,1);m.position.y=3.35+m.scale.y/2-.6}
 // switch on everything the crew owns (host and clients both run this when the list changes)
 function applyAdds(){for(const k in ADDG)ADDG[k].visible=owned(k);
   for(const c of COL)if(c.add&&!c.door&&c.gate===undefined)c.on=owned(c.add);
   BAYS.forEach((b,i)=>{if(b.add&&BAYV[i].boards)BAYV[i].boards.visible=!owned(b.add)});
-  if(FORK3D)FORK3D.visible=true;buildGrid()}
+  if(FORK3D)FORK3D.visible=true;drawDirectory();buildGrid()}
 const slotOn=s=>!s.add||owned(s.add);
 const bayOn=i=>!BAYS[i].add||owned(BAYS[i].add);

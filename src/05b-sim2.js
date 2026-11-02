@@ -2,11 +2,11 @@
 // Host only, like 05-sim. Every addition adds boxes to the quota and minutes to the shift (the shift starts
 // earlier: 11:15 PM instead of midnight, and so on).
 const ADDS={
-  cold:{name:'Cold Storage',price:250,q:6,time:45,desc:'A freezer room. Some trucks bring frozen crates that must reach its shelves within a minute of leaving the trailer, or they spoil. Frost figures stand inside. They move only while the door is shut and your light is off them.'},
-  conv:{name:'Sorting Conveyor',price:300,q:8,time:45,desc:'Parcels ride a belt to three bins. Set the lever to the colour of the next parcel. Clear jams with the red button by the bins, quickly: hands come out of the bins for anyone who lingers. Kick any parcel that twitches.'},
-  fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks carry four-box pallets that only the forklift can lift onto the top shelves. Its engine draws the stalker and the shrink-wrap. Sometimes a passenger rides the forks. Keep your light on it.'},
+  cold:{name:'Cold Storage',price:250,q:6,time:45,desc:'A freezer room in the north-east corner, under a blue light. Trucks bring extra frozen crates (pale blue), never more than its 15 shelves can hold. Get each one onto a freezer shelf within a minute of leaving the trailer, or it spoils. Frost figures wait behind the stock. They move only while the door is shut and your light is off them.'},
+  conv:{name:'Sorting Conveyor',price:300,q:8,time:45,desc:'Parcels ride a belt along the south wall, about four a minute, each one a box toward quota. Set the lever to the colour of the parcel at the end and it drops into its bin. Nothing is lost if you are busy: parcels wait at the end until the lever matches. Clear jams with the red button by the bins, quickly: hands come out of the bins for anyone who lingers. Kick any parcel that twitches.'},
+  fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks carry pallets of eight boxes that only the forklift can lift onto the top shelves: one trip, eight boxes shelved. The forklift waits by the dock where you start. Its engine draws the stalker and the shrink-wrap. Sometimes a passenger rides the forks. Keep your light on it.'},
   base:{name:'Basement Returns',price:400,q:6,time:60,desc:'Ten damaged returns wait in a cage downstairs, reached by the freight elevator. Sometimes the elevator stops halfway and something walks on its roof. Keep your light on the hatch until it moves again.'},
-  gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Lamps stop failing at random while the generator has fuel. Carry jerry cans from the rack to keep it running, or every light goes out. Moths come for the lamps. Lure them off with your flashlight.'},
+  gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power. From night 2 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower. With fuel in the generator, the lights and the charger keep working. It only burns fuel during an outage (a full tank lasts two minutes); jerry cans from the rack by the office top it up. It also stops lamps flickering out on their own. Moths come for the lamps: lure them off with your flashlight.'},
   bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock for refrigerated trailers. Their sleepers are colder: they creep faster, but light slows them down when they charge.'}};
 const SHOP={
   fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam that monsters notice from farther away. The battery lasts twice as long.'},
@@ -39,14 +39,16 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.aidLeft=2+(S.aidBonus||0);S.aidBonus=0;
   S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);
   S.parcels=[];S.pallets=[];S.flares=[];S.mouths=[];S.cold={door:0,open:false,t:0};S.conv={sel:S.conv?S.conv.sel:0,next:12,jam:false};
-  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.paN=0;
+  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.paN=0;S.outage=false;
+  HOST.outageAt=S.night>=2&&Math.random()<Math.min(.6,.22+.07*S.night)?rand(SHIFT_END*.12,SHIFT_END*.8):1e9;
   S.fork={x:FORK_HOME.x,z:FORK_HOME.z,ry:FORK_HOME.ry,lift:0,drv:'',pal:-1,pass:null};
   Object.assign(HOST,{nextPA:rand(70,120),nextMoth:rand(30,50),palDue:owned('fork')?3:0,mgr:false,noise:[]});
   for(const p of Object.values(S.players))Object.assign(p,{can:false,stack:[],wu:0,idleT:0,wuCD:0,binT:0,spd:0,px:undefined});
   // a few of the empty lower slots are mouths tonight
   if(S.night>=5){const c=SLOTS.filter(s=>!s.old&&!s.add&&s.y<2);for(let i=0;i<2&&c.length;i++)S.mouths.push(c.splice(randi(0,c.length-1),1)[0].id)}
   if(owned('base'))for(let i=0;i<10;i++)S.boxes.push({id:boxSeq++,st:3,x:rand(79.6,83.5),y:0,z:rand(-5,5),ry:rand(-.4,.4),k:randi(0,1),f:false,v:randi(0,3),h:'',s:-1,m:false,ret:true});
-  if(owned('cold'))for(const [x,z] of[[21.8,-13.3],[28.2,-13.2],[21.8,-17.6]])S.mons.push({id:monSeq++,ty:6,x,z,y:0,hx:x,hz:z,ry:rand(-3,3),st:'still',a:0,cd:0});
+  if(owned("cold"))for(const [x,z] of[[21.6,-13.6],[28.9,-13.3],[22.3,-18.4]]) // each hidden behind a stack of frozen stock
+   S.mons.push({id:monSeq++,ty:6,x,z,y:0,hx:x,hz:z,ry:rand(-3,3),st:'still',a:0,cd:0});
   if(S.night>=4)S.mons.push({id:monSeq++,ty:5,x:SHRINK_HOME.x,z:SHRINK_HOME.z,y:0,ry:-2.4,st:'home',a:0,heard:-99,cd:0,path:null,rep:0});
   S.bver++}
 
@@ -73,6 +75,8 @@ function extrasUpdate(dt){
     p.nT=(p.nT||0)-dt;if(p.nT<=0){p.nT=.4;if(p.spd>4.3)noise(p.x,p.z,9);else if(p.spd>.8&&p.stack&&p.stack.length)noise(p.x,p.z,6)}
     p.wuCD=Math.max(0,(p.wuCD||0)-dt);p.tpT=Math.max(0,(p.tpT||0)-dt)}
   S.flares=S.flares.filter(f=>(f.t-=dt)>0);
+  // a power outage, once it happens, lasts until morning
+  if(!S.outage&&!S.ot&&S.t>=HOST.outageAt){S.outage=true;if(!genPowered())S.lamps=S.lamps.map(()=>0);emit({e:'outage',gen:genPowered()})}
   coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);
   if(!HOST.mgr&&S.night>=3&&S.t>=-S.extra+50){HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:OFFICE_DOOR.x,z:OFFICE_DOOR.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0})}
   if(owned('gen')){HOST.nextMoth-=dt;if(HOST.nextMoth<=0){HOST.nextMoth=rand(40,70);spawnMoth()}}}
@@ -81,6 +85,8 @@ function extrasUpdate(dt){
 function coldUpdate(dt){if(!owned('cold'))return;const c=S.cold;
   // a box left in the doorway props it open
   const propped=S.boxes.some(b=>b.st===3&&b.x>COLD.dx0-.3&&b.x<COLD.dx1+.3&&Math.abs(b.z-COLD.z1)<.7);
+  // a push bar on the inside: walk up to the shut door from inside and it opens
+  if(!c.open&&alivePlayers().some(p=>inCold(p)&&Math.hypot(p.x-(COLD.dx0+COLD.dx1)/2,p.z-COLD.z1)<1.3)){c.open=true;c.t=4;emit({e:'coldDoor',o:1})}
   if(c.open){c.t-=dt;if(c.t<=0&&!propped){c.open=false;emit({e:'coldDoor',o:0})}}
   c.door=clamp(c.door+(c.open?dt*2.2:-dt*3),0,1);
   for(const b of S.boxes){if(!b.fz||(b.st!==1&&b.st!==3))continue;b.th-=dt;
@@ -108,7 +114,9 @@ function convUpdate(dt){if(!owned('conv'))return;const c=S.conv;
     else if(!c.jam){S.parcels=S.parcels.filter(p=>p!==end);
       if(end.m){const x=CONV.x1,z=CONV.z;emit({e:'burst',x,y:1,z});const v=nearestPlayer(x,z,5,inWH);
         S.mons.push({id:monSeq++,ty:0,x,y:CONV.y,z,ry:0,st:'lunge',t:0,k:0,v:end.c,f:false,a:1,bay:-1});if(v){emit({e:'scare',p:v.id,ty:0});damage(v,25)}}
-      else{const ok=c.sel===end.c;if(ok){S.shelved++;pay(10);if(S.shelved===S.quota)emit({e:'quota'})}else S.lost++;emit({e:'sorted',ok,b:c.sel})}}}
+      // the arm only drops a parcel into the bin of its own colour; otherwise it waits (and the belt backs up)
+      else if(c.sel===end.c){S.shelved++;pay(10);if(S.shelved===S.quota)emit({e:'quota'});emit({e:'sorted',ok:true,b:c.sel})}
+      else{S.parcels.push(end);if(!end.wait){end.wait=true;emit({e:'pwait',c:end.c})}}}}
   // hands in the bins, for anyone who leans over them too long
   for(const p of alivePlayers()){const near=CONV.bins.some(bz=>Math.hypot(p.x-CONV.bx,p.z-bz)<1.25);
     if(p.binT<0)p.binT=Math.min(0,p.binT+dt);else if(near){p.binT+=dt;if(p.binT>2.5){p.binT=-4;damage(p,20);emit({e:'hands',p:p.id,x:CONV.bx,z:CONV.bins.reduce((a,b)=>Math.abs(b-p.z)<Math.abs(a-p.z)?b:a)})}}else p.binT=Math.max(0,p.binT-dt)}}
@@ -140,9 +148,12 @@ function elevArrive(){const e=S.elev,from=e.lvl===0?CAR_UP:CAR_DN,dir=e.lvl===0?
 const carGateOpen=lvl=>owned('base')&&S.elev&&S.elev.st==='idle'&&S.elev.lvl===lvl&&S.elev.gate>.8;
 
 // ---------------------------------------------------------------- generator + moths
-function genUpdate(dt){if(!owned('gen')||S.ot)return;const g=S.gen;
-  g.fuel=Math.max(0,g.fuel-dt*100/150);
-  if(g.fuel<=0&&!g.out){g.out=true;S.lamps=S.lamps.map(()=>0);emit({e:'genOut'})}}
+// the generator only burns fuel while it's carrying the building through an outage
+function genUpdate(dt){if(!owned('gen')||S.ot||!S.outage)return;const g=S.gen;
+  g.fuel=Math.max(0,g.fuel-dt*100/120);
+  if(g.fuel<=0&&!g.out){g.out=true;emit({e:'genOut'})}}
+const genPowered=()=>owned('gen')&&S.gen&&S.gen.fuel>0;
+const mainsDown=()=>!!S.outage&&!genPowered(); // lamps dead, charger at a tenth of its speed
 function powerOn(){S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);HOST.lampT=LAMPS.map(()=>0)}
 function spawnMoth(){if(S.mons.filter(m=>m.ty===12).length>=2)return;const lit=LAMPS.map((L,i)=>i).filter(i=>S.lamps[i]);if(!lit.length)return;
   const li=pick(lit),L=LAMPS[li];S.mons.push({id:monSeq++,ty:12,x:L.x+1.2,z:L.z,y:4.4,ry:0,st:'circle',li,t:0,ph:rand(0,TAU),a:2,lt:0})}
@@ -281,7 +292,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
     emit({e:'slam',x:BAYS[bi].x,z:WH.z0});emit({e:'horn',b:bi});no(`Bay ${nm} slammed shut. The truck is leaving.`);break}
   case 'bulb':{if(!(inv.bulb>0))return;let fi=-1;LAMPS.forEach((L,i)=>{if(L.dead&&!S.fixed.includes(i)&&Math.hypot(p.x-L.x,p.z-L.z)<2.2)fi=i});
     if(fi<0)return no('Stand under a dead light fixture to put the bulb in.');if(S.fixed.length>=MAX_BULBS)return no('That\'s as many fixtures as the wiring will take.');
-    inv.bulb--;S.fixed.push(fi);if(!S.ot&&!(S.gen&&S.gen.out))S.lamps[fi]=1;emit({e:'bulbOn',i:fi});break}
+    inv.bulb--;S.fixed.push(fi);if(!S.ot&&!mainsDown())S.lamps[fi]=1;emit({e:'bulbOn',i:fi});break}
   }}
 
 // ---------------------------------------------------------------- the actions additions add (returns true if handled)
@@ -294,16 +305,16 @@ function act2(pid,p,a){
   case 'elevIn':{if(!owned('base'))return true;const C=a.lvl===0?CAR_UP:CAR_DN;if(!inCar(p,C)||S.elev.lvl!==a.lvl)return true;elevStart(a.lvl);return true}
   case 'elevCall':{if(!owned('base'))return true;if(S.elev.st==='idle'&&S.elev.lvl!==a.lvl)elevStart(S.elev.lvl);return true}
   case 'can':{if(!owned('gen')||p.carry>=0||p.can||!nearPos(p,FUELR.x,FUELR.z,2.6))return true;p.can=true;emit({e:'canUp',p:pid});return true}
-  case 'fuel':{if(!owned('gen')||!p.can||!nearPos(p,GEN.x,GEN.z,2.8))return true;p.can=false;const was=S.gen.out;S.gen.fuel=Math.min(100,S.gen.fuel+50);S.gen.out=false;if(was&&!S.ot)powerOn();emit({e:'refuel',x:GEN.x,z:GEN.z,on:was});return true}
+  case 'fuel':{if(!owned('gen')||!p.can||!nearPos(p,GEN.x,GEN.z,2.8))return true;p.can=false;const was=mainsDown();S.gen.fuel=Math.min(100,S.gen.fuel+50);S.gen.out=false;if(was&&!S.ot)powerOn();emit({e:'refuel',x:GEN.x,z:GEN.z,on:was});return true}
   case 'fork':{const f=S.fork;if(f.drv===pid){f.drv='';const sx=Math.cos(f.ry),sz=-Math.sin(f.ry);let x=f.x+sx*1.2,z=f.z+sz*1.2;if(insideAny(x,z,.3)){x=f.x-sx*1.2;z=f.z-sz*1.2}
       p.x=x;p.z=z;p.tpT=.6;emit({e:'tp',p:pid,x:r2(x),z:r2(z)});emit({e:'forkOut',p:pid});return true}
-    if(!owned('fork')||f.drv||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>2.6)return true;
+    if(!owned("fork")||f.drv||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>5.2)return true; // (matches the reach of the hit box around it)
     f.drv=pid;if(S.night>=2&&!f.pass&&Math.random()<.25)f.pass={lit:0,dark:0};emit({e:'forkIn',p:pid});return true}
   case 'fpick':{const f=S.fork;if(f.drv!==pid||f.pal>=0)return true;const t=forkTip();const pal=S.pallets.find(x=>(x.st===0||x.st===3)&&Math.hypot(palWorld(x).x-t.x,palWorld(x).z-t.z)<1.3);
     if(!pal)return true;pal.st=1;f.pal=pal.id;f.lift=2.62;emit({e:'pick',x:t.x,y:.5,z:t.z});return true}
   case 'fplace':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal),s=SLOTS[a.s];if(f.drv!==pid||!pal||!s)return true;const t=forkTip();
     if(s.old||s.box!==-1||s.cold||!slotOn(s)||s.y<2||Math.hypot(t.x-s.x,t.z-s.z)>2.6)return true;
-    pal.st=2;pal.x=s.x;pal.z=s.z;pal.ry=0;pal.s=s.id;s.box=-(1000+pal.id);f.pal=-1;f.lift=.1;S.shelved+=4;pay(40);emit({e:'place',x:s.x,y:s.y,z:s.z});if(S.shelved>=S.quota&&S.shelved-4<S.quota)emit({e:'quota'});return true}
+    pal.st=2;pal.x=s.x;pal.z=s.z;pal.ry=0;pal.s=s.id;s.box=-(1000+pal.id);f.pal=-1;f.lift=.1;S.shelved+=8;pay(80);emit({e:"place",x:s.x,y:s.y,z:s.z});if(S.shelved>=S.quota&&S.shelved-8<S.quota)emit({e:'quota'});return true}
   case 'fdrop':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal);if(f.drv!==pid||!pal)return true;const t=forkTip();pal.st=3;pal.x=t.x;pal.z=t.z;f.pal=-1;f.lift=.1;emit({e:'place',x:t.x,y:0,z:t.z});return true}
   }
   return false}

@@ -35,50 +35,59 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 #lobbyList{list-style:none;padding:0;margin:0;min-width:260px;text-align:left}
 #lobbyList li{padding:6px 10px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
 .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
-/* hud */
-#hud{position:fixed;inset:0;pointer-events:none;z-index:10}
-#tl{position:absolute;left:18px;top:14px;text-shadow:0 1px 3px #000}
-#clock{font-size:34px;letter-spacing:.06em}
-#night{color:var(--dim);font-size:14px;letter-spacing:.2em}
-#quota{font-size:17px;margin-top:4px}
-#quota.ok{color:#8fd48a}#quota.behind{color:#f0b45a}#quota.far{color:#ff6a55}
+/* hud: dark work-tag panels with an amber edge, sized from the window so it reads on any screen */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10;--hud:clamp(13px,calc(.48vw + .78vh),22px);font-size:var(--hud);color:#f1ead6}
+.panel{background:linear-gradient(180deg,rgba(16,13,10,.88),rgba(9,8,7,.74));border:1px solid rgba(227,163,58,.3);box-shadow:0 .3em 1.4em rgba(0,0,0,.65),inset 0 0 0 1px rgba(0,0,0,.4);padding:.55em .85em;text-shadow:0 1px 2px #000}
+#tl{position:absolute;left:1em;top:1em;min-width:13.5em;border-left:.28em solid var(--amber)}
+#clock{font-size:2.15em;letter-spacing:.05em;line-height:1;color:#f6efdb;text-shadow:0 0 .5em rgba(227,163,58,.35),0 2px 3px #000}
+#night{color:#c4b99f;font-size:.8em;letter-spacing:.28em;margin-top:.25em}
+#quota{font-size:1.12em;margin-top:.35em}
+#quota.ok{color:#9fe09a}#quota.behind{color:#ffbf5e}#quota.far{color:#ff6a55}
 #clock.late{color:#ff6a55}#clock.ot{color:#ff3b2b;animation:blink 1s steps(2) infinite}
 /* quota progress; the white tick is where you should be by now to make quota at 6:00 */
-#qbar{width:210px;height:7px;margin-top:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);position:relative}
-#qbar i{position:absolute;left:0;top:0;bottom:0;background:#cfc6ae;transition:width .3s}
-#qbar b{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:#fff;box-shadow:0 0 3px #000}
-#qbar.ok i{background:#8fd48a}#qbar.behind i{background:#f0b45a}#qbar.far i{background:#ff6a55}
-#toast.radio{color:#f0c27a;font-style:italic}
-#tr{position:absolute;right:18px;top:14px;text-align:right;font-size:14px;line-height:1.5;text-shadow:0 1px 3px #000;max-width:46vw}
-.bay{opacity:.75}.bay.live{opacity:1}
+#qbar{width:100%;height:.6em;margin-top:.4em;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);position:relative}
+#qbar i{position:absolute;left:0;top:0;bottom:0;background:#e6dcc1;transition:width .3s}
+#qbar b{position:absolute;top:-.3em;bottom:-.3em;width:3px;margin-left:-1px;background:#fff;box-shadow:0 0 4px #000}
+#qbar.ok i{background:#9fe09a}#qbar.behind i{background:#ffbf5e}#qbar.far i{background:#ff6a55}
+#cash{color:#9fe09a;font-size:1em;margin-top:.35em;letter-spacing:.06em}
+#toast.radio{color:#ffd28a;font-style:italic}
+#toast.fake{color:#f0a28c}
+#tr{position:absolute;right:1em;top:1em;text-align:right;font-size:.9em;line-height:1.5;max-width:min(40vw,27em);border-right:.28em solid var(--amber)}
+.bay{color:#d6cdb6}.bay.live{color:#f6efdb}.bay.small,.bay .small{font-size:.85em;color:#c4b99f}
 .warn{color:#ff6a4a;animation:blink 1s steps(2) infinite}
+.warnline{color:#ff6a4a}
 @keyframes blink{50%{opacity:.35}}
-#bl{position:absolute;left:18px;bottom:18px;display:flex;flex-direction:column;gap:6px}
-.bar{width:210px;height:9px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);position:relative}
+#bl{position:absolute;left:1em;bottom:1em;display:flex;flex-direction:column;gap:.5em;border-left:.28em solid var(--amber);padding-right:5.6em}
+.bar{width:clamp(120px,16vw,290px);height:.7em;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);position:relative}
 .bar i{position:absolute;left:0;top:0;bottom:0;background:#ddd}
-.bar span{position:absolute;left:216px;top:-5px;font-size:12px;color:var(--dim);white-space:nowrap}
-#hpb i{background:#b92a20}#batb i{background:#e8d27a}#stb i{background:#8aa6c9}
-#cross{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;background:rgba(255,255,255,.75);border-radius:50%;box-shadow:0 0 2px #000}
-#cross.on{width:8px;height:8px;margin:-4px 0 0 -4px;background:transparent;border:2px solid rgba(255,230,170,.9)}
-#prompt{position:absolute;left:50%;top:calc(50% + 34px);transform:translateX(-50%);font-size:16px;text-shadow:0 1px 3px #000,0 0 6px #000;white-space:nowrap;text-align:center}
-#prompt kbd{border:1px solid rgba(255,255,255,.45);padding:0 5px;font-family:inherit;background:rgba(0,0,0,.5)}
-#toast{position:absolute;left:50%;top:21%;transform:translateX(-50%);font-size:20px;text-align:center;text-shadow:0 2px 5px #000;transition:opacity .4s;max-width:90vw}
-#big{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:clamp(28px,6vw,62px);text-align:center;text-shadow:0 0 14px #000,0 3px 0 #000;letter-spacing:.06em;transition:opacity .6s;font-family:'Creepster','Special Elite',cursive;color:#e9e1c8}
-#big small{display:block;font-family:'Special Elite',monospace;font-size:18px;color:#cfc6ae;letter-spacing:.15em;margin-top:16px;line-height:1.3;text-shadow:0 0 8px #000,0 0 3px #000}
-#plist{position:absolute;right:18px;bottom:18px;font-size:14px;text-align:right;line-height:1.6;text-shadow:0 1px 3px #000}
-#spect{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);font-size:16px;color:#ff8f80;text-shadow:0 1px 3px #000}
-#keyhint{position:absolute;left:50%;top:16px;transform:translateX(-50%);font-size:12.5px;color:rgba(232,226,208,.55);white-space:nowrap;text-shadow:0 1px 2px #000}
+.bar span{position:absolute;left:calc(100% + .6em);top:50%;transform:translateY(-50%);font-size:.75em;color:#d6cdb6;letter-spacing:.16em;white-space:nowrap}
+#hpb i{background:#d0352a}#batb i{background:#f2dc80}#stb i{background:#93b4dc}
+#cross{position:absolute;left:50%;top:50%;width:.32em;height:.32em;transform:translate(-50%,-50%);background:rgba(255,255,255,.85);border-radius:50%;box-shadow:0 0 3px #000}
+#cross.on{width:.7em;height:.7em;background:transparent;border:2px solid #ffd68a;box-shadow:0 0 4px #000}
+#prompt{position:absolute;left:50%;top:calc(50% + 2.4em);transform:translateX(-50%);font-size:1.1em;text-align:center;max-width:min(86vw,44em);line-height:1.55;
+  background:rgba(9,8,7,.8);border:1px solid rgba(227,163,58,.4);padding:.3em .9em;text-shadow:0 1px 2px #000}
+#prompt:empty{display:none}
+#prompt kbd,.hb kbd{display:inline-block;min-width:1.3em;text-align:center;color:#16130c;background:#e3a33a;font-family:inherit;font-weight:bold;padding:0 .3em;margin:0 .15em;border-radius:2px;text-shadow:none}
+#prompt .arrow{font-size:1.25em;color:#ffd68a}
+#toast{position:absolute;left:50%;top:17%;transform:translateX(-50%);font-size:1.25em;text-align:center;max-width:min(84vw,40em);line-height:1.4;
+  background:rgba(9,8,7,.82);border:1px solid rgba(227,163,58,.35);padding:.45em 1em;transition:opacity .4s;text-shadow:0 1px 3px #000}
+#big{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:clamp(34px,6.5vw,84px);text-align:center;text-shadow:0 0 .3em #000,0 .05em 0 #000;letter-spacing:.06em;transition:opacity .6s;font-family:'Creepster','Special Elite',cursive;color:#f1e8cd;width:max-content;max-width:94vw}
+#big small{display:block;font-family:'Special Elite',monospace;font-size:clamp(15px,1.6vw,26px);color:#efe3c6;letter-spacing:.12em;margin-top:.7em;line-height:1.35;
+  background:rgba(9,8,7,.8);border:1px solid rgba(227,163,58,.35);padding:.35em .9em;text-shadow:0 1px 3px #000}
+#plist{position:absolute;left:1em;bottom:6.4em;font-size:.95em;text-align:left;line-height:1.6;border-left:.28em solid var(--amber)}
+#plist:empty{display:none}
+#spect{position:absolute;left:50%;bottom:4.5em;transform:translateX(-50%);font-size:1.05em;color:#ff9f90;background:rgba(9,8,7,.8);padding:.3em .8em}
+#keyhint{position:absolute;left:50%;top:.8em;transform:translateX(-50%);font-size:.78em;color:rgba(241,234,214,.82);white-space:nowrap;background:rgba(9,8,7,.55);padding:.2em .8em;text-shadow:0 1px 2px #000}
+#hotbar{position:absolute;right:1em;bottom:1em;display:flex;gap:.4em;flex-wrap:wrap;justify-content:flex-end;max-width:min(50vw,44em)}
+.hb{font-size:.85em;background:rgba(9,8,7,.84);border:1px solid rgba(227,163,58,.32);padding:.25em .55em;text-shadow:0 1px 2px #000}
+.hb.on{border-color:#ff5a3a;color:#ffb8a8}
+@media (max-width:1100px){#keyhint{display:none}}
+@media (max-width:760px){#tr{max-width:46vw;font-size:.78em}#hotbar{max-width:44vw}#bl{padding-right:4.6em}}
+@media (max-height:520px){#tr{font-size:.75em}#tl{min-width:11em}}
 #lockmsg{position:fixed;left:50%;top:60%;transform:translateX(-50%);z-index:15;font-size:18px;background:var(--panel);border:1px solid var(--line);padding:10px 18px;pointer-events:none}
 #fps{position:fixed;left:6px;bottom:2px;font-size:11px;color:#666;z-index:30}
 #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;z-index:50;font-size:18px;letter-spacing:.2em;color:var(--dim)}
 /* cash, hotbar, shop */
-#cash{color:#8fd48a;font-size:15px;margin-top:3px;letter-spacing:.06em}
-#hotbar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:70vw}
-.hb{font-size:12.5px;background:rgba(10,10,12,.7);border:1px solid rgba(255,255,255,.18);padding:3px 7px;text-shadow:0 1px 2px #000}
-.hb kbd{border:1px solid rgba(255,255,255,.45);padding:0 4px;margin-right:5px;font-family:inherit;font-size:11.5px}
-.hb.on{border-color:#ff5a3a;color:#ffb0a0}
-.warnline{color:#ff6a4a}
-#toast.fake{color:#e8a08a}
 #shop .card{max-width:1080px;max-height:94vh;overflow:hidden}
 #shopCols{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;overflow:auto;max-height:64vh;text-align:left;padding-right:4px}
 #shopCols h3{margin:0 0 6px;font-weight:400;letter-spacing:.12em;font-size:15px;color:var(--dim);text-transform:uppercase}
@@ -102,19 +111,19 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 <div id="loading">CLOCKING IN&hellip;</div>
 
 <div id="hud" class="hide">
-  <div id="tl"><div id="clock">12:00 AM</div><div id="night">NIGHT 1</div><div id="quota">Shelved 0 / 15</div><div id="qbar"><i></i><b></b></div><div id="cash">$0</div></div>
+  <div id="tl" class="panel"><div id="clock">12:00 AM</div><div id="night">NIGHT 1</div><div id="quota">Shelved 0 / 15</div><div id="qbar"><i></i><b></b></div><div id="cash">$0</div></div>
   <div id="hotbar"></div>
-  <div id="tr"></div>
+  <div id="tr" class="panel"></div>
   <div id="cross"></div>
   <div id="prompt"></div>
   <div id="toast"></div>
   <div id="big"></div>
-  <div id="bl">
+  <div id="bl" class="panel">
     <div class="bar" id="hpb"><i></i><span>HEALTH</span></div>
     <div class="bar" id="batb"><i></i><span>BATTERY</span></div>
     <div class="bar" id="stb"><i></i><span>STAMINA</span></div>
   </div>
-  <div id="plist"></div>
+  <div id="plist" class="panel"></div>
   <div id="spect" class="hide"></div>
   <div id="keyhint">WASD move · Shift run · F flashlight · E use · Q kick · G set down · 1-9 items · Esc pause</div>
 </div>
@@ -149,7 +158,8 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   &bull; <b>Something on the ceiling.</b> Some trailers hold a thing that bolts out and climbs the walls. Listen for tapping overhead, and shine your light up at it. If the tapping stops right above you, move.<br>
   &bull; <b>The dark.</b> Something walks the aisles where the lights are out. It only moves when no light is on it. Turn around often. Working lamps keep it back&hellip; while they work.</p>
   <p><b>Later nights bring more.</b> A night manager who writes up anyone standing around empty-handed (three write-ups and he comes for you). A shrink-wrapped figure that hunts by sound: walk, don't run. A truck driver who passes for a crewmate but makes no footsteps. Shelf slots that bite. A loudspeaker voice that isn't quite the supervisor's, with a wrong chime. And something out in the yard you shouldn't look at when a bay door jams open.</p>
-  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items are on <kbd>1</kbd>&ndash;<kbd>9</kbd>, the red headlamp on <kbd>H</kbd>. Hold <kbd>5</kbd> for the thermal scanner.</p>
+  <p><b>Power outages.</b> From night 2 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel.</p>
+  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items are on <kbd>1</kbd>&ndash;<kbd>9</kbd>, the red headlamp on <kbd>H</kbd>. Hold <kbd>5</kbd> for the thermal scanner. The <b>THIS WAY</b> board on the dock wall points to everything you have bought.</p>
   <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause</p>
   <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to four people can work a shift together. The quota grows with the crew. If you go down, you watch the others until the night ends.</p>
   </div>
@@ -227,7 +237,7 @@ const COLD={x0:21,x1:WH.x1,z0:WH.z0,z1:-12.5,dx0:24.6,dx1:26.0};           // fr
 const CONV={z:18.4,x0:-12.6,x1:-2.75,y:.85,bx:-2.2,bins:[17.25,18.4,19.55],lever:{x:-5.2,z:16.95},jam:{x:-3.05,z:17.7}};
 const CAR_UP={x0:-30,x1:-27.5,z0:-10.5,z1:-8.1}, CAR_DN={x0:70,x1:72.5,z0:-1.2,z1:1.2}, BASE={x0:70,x1:84,z0:-6,z1:6};
 const CAR_OFF={x:CAR_DN.x0-CAR_UP.x0,z:CAR_DN.z0-CAR_UP.z0};
-const GEN={x:-28.6,z:11.9}, FUELR={x:-25.2,z:13.2}, FORK_HOME={x:4.5,z:15.5,ry:.5}, SHRINK_HOME={x:25.4,z:13.4}, OFFICE_DOOR={x:-23.65,z:12.8};
+const GEN={x:-28.6,z:11.9}, FUELR={x:-25.2,z:13.2}, FORK_HOME={x:7.6,z:-15.2,ry:-Math.PI/2}, SHRINK_HOME={x:25.4,z:13.4}, OFFICE_DOOR={x:-23.65,z:12.8};
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
 const BOX_KINDS=[{w:.55,h:.42,d:.5,slow:.95},{w:.74,h:.56,d:.64,slow:.86},{w:.92,h:.72,d:.8,slow:.74}];
 const VEST=['#ff7a1a','#a4e33a','#38d4e8','#ff4fa8'];
@@ -437,8 +447,9 @@ function buildWorld(){
     const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.2,1.1),toon(0xffffff,{map:signTex([{t:'BAY '+b.name,bold:true,size:120}],{bg:'#c9a227',fg:'#16130c'})}));sign.position.set(b.x,DOOR_H+1.35,WH.z0+.02);ROOT.add(sign);
     // trailer walls collide only while a truck is docked
     const tc=[col(b.x-TRAIL_HW-.25,TZ_DOCK-TRAIL_LEN-.3,b.x-TRAIL_HW,TZ_DOCK,{dyn:true,on:false}),col(b.x+TRAIL_HW,TZ_DOCK-TRAIL_LEN-.3,b.x+TRAIL_HW+.25,TZ_DOCK,{dyn:true,on:false}),col(b.x-TRAIL_HW-.25,TZ_DOCK-TRAIL_LEN-.3,b.x+TRAIL_HW+.25,TZ_DOCK-TRAIL_LEN,{dyn:true,on:false})];
-    // a bay that isn't in service yet is boarded over on the inside
-    let boards=null;if(b.add){boards=new THREE.Group();for(let k=0;k<6;k++){const p=new THREE.Mesh(GEO.box,MAT.board);p.scale.set(DOOR_HW*2+.5,.32,.06);p.position.set(b.x,.35+k*.58,WH.z0+.07);p.rotation.z=rand(-.06,.06);p.castShadow=true;boards.add(p)}
+    // a bay that isn't in service yet: its steel door stays down, barred with two hazard beams
+    let boards=null;if(b.add){boards=new THREE.Group();const ht=TEX.hazard.clone();ht.repeat.set(12,.7);ht.needsUpdate=true;const hm=toon(0xffffff,{map:ht});for(const y of[.95,2.35]){const p=new THREE.Mesh(GEO.box,hm);p.scale.set(DOOR_HW*2+.7,.24,.08);p.position.set(b.x,y,WH.z0+.1);p.castShadow=true;boards.add(p);
+      for(const s of[-1,1]){const k=new THREE.Mesh(GEO.box,MAT.steel);k.scale.set(.14,.36,.14);k.position.set(b.x+s*(DOOR_HW+.2),y,WH.z0+.12);boards.add(k)}}
       const s2=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.55),toon(0xffffff,{map:signTex([{t:'NOT IN SERVICE',size:44,bold:true}],{w:384,h:140,bg:'#c9a227',fg:'#16130c'})}));s2.position.set(b.x,1.7,WH.z0+.11);boards.add(s2);ROOT.add(boards)}
     BAYV.push({door,panel,doorCol,trailCol:tc,ind,scr,boards});
   });
@@ -572,9 +583,11 @@ const ADDV={};         // moving parts: doors, gates, hatches, the sorting arm, 
 function addGroup(k){const g=new THREE.Group();g.visible=false;ROOT.add(g);ADDG[k]=g;return g}
 function acol(k,x0,z0,x1,z1,o={}){return col(x0,z0,x1,z1,{dyn:true,on:false,add:k,...o})}
 function inter(mesh,ud,group){mesh.userData=ud;(group||ROOT).add(mesh);INTER.push(mesh);return mesh}
-function addSign(lines,x,y,z,ry,w,h,group,o={}){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),toon(0xffffff,{map:signTex(lines,{w:512,h:Math.round(512*h/w),...o})}));m.position.set(x,y,z);m.rotation.y=ry;group.add(m);return m}
+// addition signs are backlit: readable from across the dark building, so you can find what you bought
+function addSign(lines,x,y,z,ry,w,h,group,o={}){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),basic(0xb8b4a8,{fog:false,map:signTex(lines,{w:512,h:Math.round(512*h/w),...o})}));m.position.set(x,y,z);m.rotation.y=ry;group.add(m);return m}
 
 function buildAdditions(){
+  {const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),basic(0xd6d0c0,{fog:false}));m.position.set(0,3.6,WH.z0+.04);m.visible=false;ROOT.add(m);ADDV.dir=m}
   // ---------------------------------------------------------------- cold storage (north-east corner)
   {const g=addGroup('cold'),H=3.4,C=COLD,wm=toon(0xc9d0d4,{map:TEX.wall});
     sbox(wm,.2,H,C.z1-C.z0,C.x0,H/2,(C.z0+C.z1)/2,{uv:[3,1.5]});acol('cold',C.x0-.1,C.z0,C.x0+.1,C.z1);
@@ -589,13 +602,17 @@ function buildAdditions(){
       for(const ly of[.14,1.34,2.54])sbox(MAT.deck,rot?1.0:len,.03,rot?len:1.0,(x0+x1)/2,ly-.015,(z0+z1)/2)};
     rack(22,-19.85,28,-18.85,false);rack(28.85,-18,29.85,-14,true);
     acol('cold',21.9,-19.95,28.1,-18.75);acol('cold',28.8,-18.1,29.95,-13.9);
-    for(const x of[23,25,27])for(const ly of[.14,1.34])SLOTS.push({id:SLOTS.length,x,y:ly,z:-19.35,box:-1,old:false,cold:true,add:'cold'});
-    for(const z of[-17,-15])for(const ly of[.14,1.34])SLOTS.push({id:SLOTS.length,x:29.35,y:ly,z,box:-1,old:false,cold:true,add:'cold',rot:true});
+    // stacks of frozen stock in three corners; the frost figures stand behind them
+    for(const [x,z,w,d] of[[22.55,-13.75,.9,1.8],[27.75,-13.45,.9,1.5],[22.3,-17.4,1.3,.9]]){sbox(MAT.frozen,w,1.95,d,x,.975,z,{uv:[w*2,2]});sbox(MAT.ice,w+.04,.05,d+.04,x,1.97,z,{cast:false});acol('cold',x-w/2,z-d/2,x+w/2,z+d/2)}
+    for(const x of[23,25,27])for(const ly of[.14,1.34,2.54])SLOTS.push({id:SLOTS.length,x,y:ly,z:-19.35,box:-1,old:false,cold:true,add:'cold'});
+    for(const z of[-17,-15])for(const ly of[.14,1.34,2.54])SLOTS.push({id:SLOTS.length,x:29.35,y:ly,z,box:-1,old:false,cold:true,add:'cold',rot:true});
     addSign([{t:'COLD STORAGE',size:52,bold:true},{t:'-18 °C · FROZEN ONLY',size:34}],(C.dx0+C.dx1)/2,2.95,C.z1+.11,0,1.6,.6,g,{bg:'#cfe0ea',fg:'#10243a'});
+    // a blue beacon over the door, visible from anywhere in the building
+    const bc=new THREE.Mesh(GEO.sph,basic(0x5ab4ff,{fog:false}));bc.scale.set(.16,.1,.16);bc.position.set((C.dx0+C.dx1)/2,3.42,C.z1+.12);g.add(bc);ADDV.coldBeacon=bc;
     // the door swings on a heavy spring hinge at its west edge
     const hinge=pivot(C.dx0,0,C.z1,g);const dm=new THREE.Mesh(GEO.box,toon(0xb9c3c8,{map:TEX.wall}));dm.scale.set(C.dx1-C.dx0,2.35,.1);dm.position.set((C.dx1-C.dx0)/2,1.18,0);dm.castShadow=true;hinge.add(dm);
     const handle=part(GEO.box,MAT.steel,.06,.3,.08,C.dx1-C.dx0-.15,1.1,.08,hinge);
-    inter(dm,{kind:'cold'});ADDV.coldDoor=hinge;ADDV.coldCol=acol('cold',C.dx0,C.z1-.1,C.dx1,C.z1+.1,{door:true});
+    inter(dm,{kind:'cold'},hinge);ADDV.coldDoor=hinge;ADDV.coldCol=acol('cold',C.dx0,C.z1-.1,C.dx1,C.z1+.1,{door:true});
     flushStatics(g)}
 
   // ---------------------------------------------------------------- sorting conveyor (along the south wall)
@@ -672,11 +689,23 @@ function buildAdditions(){
     flushStatics(g)}
 }
 
+// ---------------------------------------------------------------- the "THIS WAY" board
+// Hangs on the dock wall right in front of where everyone starts, listing what the crew owns with an arrow to
+// each one (as seen from the start, facing the dock: up is the dock wall, down is the south wall behind you).
+const DIR_INFO={fork:{n:'FORKLIFT',x:FORK_HOME.x,z:FORK_HOME.z},cold:{n:'COLD STORAGE',x:25.3,z:-13},bayc:{n:'BAY C',x:-24,z:-19},
+  base:{n:'FREIGHT ELEVATOR',x:-27.5,z:-9.3},gen:{n:'GENERATOR',x:GEN.x,z:GEN.z},conv:{n:'SORTING CONVEYOR',x:-7.5,z:18}};
+function drawDirectory(){const m=ADDV.dir,ks=Object.keys(DIR_INFO).filter(owned);m.visible=ks.length>0;if(!ks.length)return;
+  const W=1024,LH=74,H=96+ks.length*LH;
+  const t=ctex(W,H,(g,w,h)=>{g.fillStyle='#c9a227';g.fillRect(0,0,w,h);g.strokeStyle='#16130c';g.lineWidth=10;g.strokeRect(9,9,w-18,h-18);
+    g.fillStyle='#16130c';g.font="bold 54px 'Special Elite', Courier New";g.textBaseline='middle';g.fillText('THIS WAY',40,52);
+    ks.forEach((k,i)=>{const d=DIR_INFO[k],y=96+i*LH+LH/2-6;g.font="44px 'Special Elite', Courier New";g.fillText(d.n,40,y);
+      const a=Math.atan2(d.z-(-15.5),d.x-0);g.save();g.translate(w-90,y);g.rotate(a);g.beginPath();g.moveTo(-30,-7);g.lineTo(8,-7);g.lineTo(8,-20);g.lineTo(32,0);g.lineTo(8,20);g.lineTo(8,7);g.lineTo(-30,7);g.closePath();g.fill();g.restore()})},{aniso:4});
+  if(m.material.map)m.material.map.dispose();m.material.map=t;m.material.needsUpdate=true;m.scale.set(3.6,3.6*H/W,1);m.position.y=3.35+m.scale.y/2-.6}
 // switch on everything the crew owns (host and clients both run this when the list changes)
 function applyAdds(){for(const k in ADDG)ADDG[k].visible=owned(k);
   for(const c of COL)if(c.add&&!c.door&&c.gate===undefined)c.on=owned(c.add);
   BAYS.forEach((b,i)=>{if(b.add&&BAYV[i].boards)BAYV[i].boards.visible=!owned(b.add)});
-  if(FORK3D)FORK3D.visible=true;buildGrid()}
+  if(FORK3D)FORK3D.visible=true;drawDirectory();buildGrid()}
 const slotOn=s=>!s.add||owned(s.add);
 const bayOn=i=>!BAYS[i].add||owned(BAYS[i].add);
 // ===================================================================== models
@@ -899,10 +928,10 @@ function makeForklift(){const g=new THREE.Group(),body=pivot(0,0,0,g);
   const beacon=new THREE.Mesh(GEO.sph,basic(0xffa020));beacon.scale.setScalar(.06);beacon.position.set(0,2.42,-.2);body.add(beacon);
   g.userData={body,lift,beacon};return g}
 
-// ---- a pallet load: four boxes shrink-wrapped onto a pallet (counts as four)
+// ---- a pallet load: eight boxes shrink-wrapped onto a pallet (counts as eight)
 function makePallet(){const g=new THREE.Group();part(GEO.box,MAT.pallet,1.1,.14,1.0,0,.07,0,g);
-  const k=BOX_KINDS[0];for(const dx of[-.28,.28])for(const dy of[0,1]){const m=new THREE.Mesh(k.geo,MAT.box[(dx>0?1:0)+dy*2]);m.position.set(dx,.14+dy*k.h,0);m.castShadow=true;m.receiveShadow=true;g.add(m)}
-  for(const y of[.3,.62,.88])part(GEO.box,MAT.wrap,1.14,.12,.54,0,y,0,g,{cast:false}); // bands of wrap
+  const k=BOX_KINDS[0];for(const dx of[-.28,.28])for(const dz of[-.25,.25])for(const dy of[0,1]){const m=new THREE.Mesh(k.geo,MAT.box[(dx>0?1:0)+dy*2]);m.position.set(dx,.14+dy*k.h,dz);m.castShadow=true;m.receiveShadow=true;g.add(m)}
+  for(const y of[.3,.62,.88])part(GEO.box,MAT.wrap,1.14,.12,1.04,0,y,0,g,{cast:false}); // bands of wrap
   return g}
 function makeParcel(c){const g=new THREE.Group();part(GEO.box,MAT.box[c%4],.46,.32,.4,0,.16,0,g);part(GEO.box,MAT.parcel[c],.47,.06,.41,0,.2,0,g,{cast:false});return g}
 function makeFlare(){const g=new THREE.Group();part(GEO.cyl,MAT.can,.025,.3,.025,0,.03,0,g,{rz:Math.PI/2});const tip=part(GEO.sph,MAT.flare,.04,.04,.04,.16,.03,0,g,{cast:false});g.userData={tip};return g}
@@ -1252,14 +1281,16 @@ function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&
   for(let k=0;k<n;k++){const sp=spots[k%spots.length];const K=randi(0,2),kind=BOX_KINDS[K];const m=Math.random()<mimP&&mimics<3;if(m)mimics++;
     S.boxes.push({id:boxSeq++,st:0,bay:i,x:sp.lx+rand(-.08,.08),y:sp.h,z:sp.lz+rand(-.12,.12),ry:rand(-.25,.25),k:K,f:Math.random()<.16,v:randi(0,3),h:'',s:-1,m,tw:rand(1,4)});sp.h+=kind.h}
   // frozen crates (more of them in the refrigerated trailers), and a forklift pallet just inside the door
-  if(owned('cold')){const nf=randi(1,2)+(BAYS[i].reefer?2:0);for(let k=0;k<nf;k++){const sp=spots[(n+k)%spots.length];
+  // never more frozen crates than the freezer has room for
+  if(owned('cold')){const room=SLOTS.filter(s=>s.cold&&s.box===-1).length-S.boxes.filter(b=>b.fz&&b.st!==2&&b.st!==4).length;
+    const nf=Math.max(0,Math.min(room,randi(1,2)+(BAYS[i].reefer?1:0)));for(let k=0;k<nf;k++){const sp=spots[(n+k)%spots.length];
     S.boxes.push({id:boxSeq++,st:0,bay:i,x:sp.lx+rand(-.06,.06),y:sp.h,z:sp.lz,ry:rand(-.2,.2),k:1,f:false,v:0,h:'',s:-1,m:false,fz:true,th:60,tw:9});sp.h+=BOX_KINDS[1].h}tr.n+=nf;tr.left+=nf}
   if(HOST.palDue>0&&Math.random()<.7){HOST.palDue--;S.pallets.push({id:palSeq++,st:0,bay:i,lx:0,lz:-1.15,ry:0,x:0,z:0})}
   if(tr.lurk)S.mons.push({id:monSeq++,ty:1,bay:i,st:'sleep',lx:LURK_LX,lz:LURK_HOME,x:BAYS[i].x+LURK_LX,y:0,z:tr.z+LURK_HOME,ry:Math.PI/2,a:0,litT:0,cd:0,wake:0,cold:!!BAYS[i].reefer,k:BAYS[i].reefer?1:0});
   if(tr.crawl)S.mons.push({id:monSeq++,ty:3,bay:i,st:'inside',x:BAYS[i].x,y:0,z:tr.z+CRAWL_HOME,ry:0,a:0,k:0,t:0,cd:0,side:Math.random()<.5?-1:1});
   S.bver++;emit({e:'truck',b:i,last})}
 function truckGone(i){const tr=S.trucks[i];let n=0;for(const b of S.boxes)if(b.st===0&&b.bay===i){b.st=4;if(!b.m&&!tr.reject)n++}
-  for(const p of S.pallets||[])if(p.st===0&&p.bay===i){p.st=4;if(!tr.reject)n+=4}
+  for(const p of S.pallets||[])if(p.st===0&&p.bay===i){p.st=4;if(!tr.reject)n+=8}
   S.lost+=n;S.mons=S.mons.filter(m=>!((m.ty===1||m.ty===3)&&m.bay===i));S.bver++;
   if(n)emit({e:'msg',m:`Bay ${BAYS[i].name} left with ${n} box${n>1?'es':''} still on board.`});
   Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0});
@@ -1444,9 +1475,10 @@ function stalkerUpdate(m,dt){m.life-=dt;if(m.life<=0){m.dead=true;emit({e:'fade'
 
 // ---------------------------------------------------------------- lamps
 // Dead fixtures stay dark unless someone has put a bulb in. While the generator has fuel the lamps don't fail
-// on their own (moths and the stalker can still put them out); when it runs dry, nothing comes back on.
+// on their own (moths and the stalker can still put them out). In a power outage nothing comes on unless the
+// generator has fuel.
 function lampOut(i,dur){if(!S.lamps[i])return;S.lamps[i]=0;HOST.lampT[i]=dur;emit({e:'lamp',i})}
-function lampsUpdate(dt){if(S.ot||(S.gen&&S.gen.out&&owned('gen')))return;const steady=owned('gen');for(let i=0;i<LAMPS.length;i++){
+function lampsUpdate(dt){if(S.ot)return;if(mainsDown()){if(S.lamps.some(x=>x))S.lamps=S.lamps.map(()=>0);return}const steady=owned('gen');for(let i=0;i<LAMPS.length;i++){
   if(LAMPS[i].dead&&!S.fixed.includes(i))continue;
   if(!S.lamps[i]){HOST.lampT[i]-=dt;if(HOST.lampT[i]<=0){S.lamps[i]=1;emit({e:'lampOn',i})}continue}
   HOST.lampNext[i]-=dt;if(HOST.lampNext[i]<=0){HOST.lampNext[i]=rand(25,50)*(i===0?1.8:i===3?.6:1);if(!steady)lampOut(i,rand(1.5,4.5))}}}
@@ -1494,11 +1526,11 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
 // Host only, like 05-sim. Every addition adds boxes to the quota and minutes to the shift (the shift starts
 // earlier: 11:15 PM instead of midnight, and so on).
 const ADDS={
-  cold:{name:'Cold Storage',price:250,q:6,time:45,desc:'A freezer room. Some trucks bring frozen crates that must reach its shelves within a minute of leaving the trailer, or they spoil. Frost figures stand inside. They move only while the door is shut and your light is off them.'},
-  conv:{name:'Sorting Conveyor',price:300,q:8,time:45,desc:'Parcels ride a belt to three bins. Set the lever to the colour of the next parcel. Clear jams with the red button by the bins, quickly: hands come out of the bins for anyone who lingers. Kick any parcel that twitches.'},
-  fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks carry four-box pallets that only the forklift can lift onto the top shelves. Its engine draws the stalker and the shrink-wrap. Sometimes a passenger rides the forks. Keep your light on it.'},
+  cold:{name:'Cold Storage',price:250,q:6,time:45,desc:'A freezer room in the north-east corner, under a blue light. Trucks bring extra frozen crates (pale blue), never more than its 15 shelves can hold. Get each one onto a freezer shelf within a minute of leaving the trailer, or it spoils. Frost figures wait behind the stock. They move only while the door is shut and your light is off them.'},
+  conv:{name:'Sorting Conveyor',price:300,q:8,time:45,desc:'Parcels ride a belt along the south wall, about four a minute, each one a box toward quota. Set the lever to the colour of the parcel at the end and it drops into its bin. Nothing is lost if you are busy: parcels wait at the end until the lever matches. Clear jams with the red button by the bins, quickly: hands come out of the bins for anyone who lingers. Kick any parcel that twitches.'},
+  fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks carry pallets of eight boxes that only the forklift can lift onto the top shelves: one trip, eight boxes shelved. The forklift waits by the dock where you start. Its engine draws the stalker and the shrink-wrap. Sometimes a passenger rides the forks. Keep your light on it.'},
   base:{name:'Basement Returns',price:400,q:6,time:60,desc:'Ten damaged returns wait in a cage downstairs, reached by the freight elevator. Sometimes the elevator stops halfway and something walks on its roof. Keep your light on the hatch until it moves again.'},
-  gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Lamps stop failing at random while the generator has fuel. Carry jerry cans from the rack to keep it running, or every light goes out. Moths come for the lamps. Lure them off with your flashlight.'},
+  gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power. From night 2 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower. With fuel in the generator, the lights and the charger keep working. It only burns fuel during an outage (a full tank lasts two minutes); jerry cans from the rack by the office top it up. It also stops lamps flickering out on their own. Moths come for the lamps: lure them off with your flashlight.'},
   bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock for refrigerated trailers. Their sleepers are colder: they creep faster, but light slows them down when they charge.'}};
 const SHOP={
   fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam that monsters notice from farther away. The battery lasts twice as long.'},
@@ -1531,14 +1563,16 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.aidLeft=2+(S.aidBonus||0);S.aidBonus=0;
   S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);
   S.parcels=[];S.pallets=[];S.flares=[];S.mouths=[];S.cold={door:0,open:false,t:0};S.conv={sel:S.conv?S.conv.sel:0,next:12,jam:false};
-  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.paN=0;
+  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.paN=0;S.outage=false;
+  HOST.outageAt=S.night>=2&&Math.random()<Math.min(.6,.22+.07*S.night)?rand(SHIFT_END*.12,SHIFT_END*.8):1e9;
   S.fork={x:FORK_HOME.x,z:FORK_HOME.z,ry:FORK_HOME.ry,lift:0,drv:'',pal:-1,pass:null};
   Object.assign(HOST,{nextPA:rand(70,120),nextMoth:rand(30,50),palDue:owned('fork')?3:0,mgr:false,noise:[]});
   for(const p of Object.values(S.players))Object.assign(p,{can:false,stack:[],wu:0,idleT:0,wuCD:0,binT:0,spd:0,px:undefined});
   // a few of the empty lower slots are mouths tonight
   if(S.night>=5){const c=SLOTS.filter(s=>!s.old&&!s.add&&s.y<2);for(let i=0;i<2&&c.length;i++)S.mouths.push(c.splice(randi(0,c.length-1),1)[0].id)}
   if(owned('base'))for(let i=0;i<10;i++)S.boxes.push({id:boxSeq++,st:3,x:rand(79.6,83.5),y:0,z:rand(-5,5),ry:rand(-.4,.4),k:randi(0,1),f:false,v:randi(0,3),h:'',s:-1,m:false,ret:true});
-  if(owned('cold'))for(const [x,z] of[[21.8,-13.3],[28.2,-13.2],[21.8,-17.6]])S.mons.push({id:monSeq++,ty:6,x,z,y:0,hx:x,hz:z,ry:rand(-3,3),st:'still',a:0,cd:0});
+  if(owned("cold"))for(const [x,z] of[[21.6,-13.6],[28.9,-13.3],[22.3,-18.4]]) // each hidden behind a stack of frozen stock
+   S.mons.push({id:monSeq++,ty:6,x,z,y:0,hx:x,hz:z,ry:rand(-3,3),st:'still',a:0,cd:0});
   if(S.night>=4)S.mons.push({id:monSeq++,ty:5,x:SHRINK_HOME.x,z:SHRINK_HOME.z,y:0,ry:-2.4,st:'home',a:0,heard:-99,cd:0,path:null,rep:0});
   S.bver++}
 
@@ -1565,6 +1599,8 @@ function extrasUpdate(dt){
     p.nT=(p.nT||0)-dt;if(p.nT<=0){p.nT=.4;if(p.spd>4.3)noise(p.x,p.z,9);else if(p.spd>.8&&p.stack&&p.stack.length)noise(p.x,p.z,6)}
     p.wuCD=Math.max(0,(p.wuCD||0)-dt);p.tpT=Math.max(0,(p.tpT||0)-dt)}
   S.flares=S.flares.filter(f=>(f.t-=dt)>0);
+  // a power outage, once it happens, lasts until morning
+  if(!S.outage&&!S.ot&&S.t>=HOST.outageAt){S.outage=true;if(!genPowered())S.lamps=S.lamps.map(()=>0);emit({e:'outage',gen:genPowered()})}
   coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);
   if(!HOST.mgr&&S.night>=3&&S.t>=-S.extra+50){HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:OFFICE_DOOR.x,z:OFFICE_DOOR.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0})}
   if(owned('gen')){HOST.nextMoth-=dt;if(HOST.nextMoth<=0){HOST.nextMoth=rand(40,70);spawnMoth()}}}
@@ -1573,6 +1609,8 @@ function extrasUpdate(dt){
 function coldUpdate(dt){if(!owned('cold'))return;const c=S.cold;
   // a box left in the doorway props it open
   const propped=S.boxes.some(b=>b.st===3&&b.x>COLD.dx0-.3&&b.x<COLD.dx1+.3&&Math.abs(b.z-COLD.z1)<.7);
+  // a push bar on the inside: walk up to the shut door from inside and it opens
+  if(!c.open&&alivePlayers().some(p=>inCold(p)&&Math.hypot(p.x-(COLD.dx0+COLD.dx1)/2,p.z-COLD.z1)<1.3)){c.open=true;c.t=4;emit({e:'coldDoor',o:1})}
   if(c.open){c.t-=dt;if(c.t<=0&&!propped){c.open=false;emit({e:'coldDoor',o:0})}}
   c.door=clamp(c.door+(c.open?dt*2.2:-dt*3),0,1);
   for(const b of S.boxes){if(!b.fz||(b.st!==1&&b.st!==3))continue;b.th-=dt;
@@ -1600,7 +1638,9 @@ function convUpdate(dt){if(!owned('conv'))return;const c=S.conv;
     else if(!c.jam){S.parcels=S.parcels.filter(p=>p!==end);
       if(end.m){const x=CONV.x1,z=CONV.z;emit({e:'burst',x,y:1,z});const v=nearestPlayer(x,z,5,inWH);
         S.mons.push({id:monSeq++,ty:0,x,y:CONV.y,z,ry:0,st:'lunge',t:0,k:0,v:end.c,f:false,a:1,bay:-1});if(v){emit({e:'scare',p:v.id,ty:0});damage(v,25)}}
-      else{const ok=c.sel===end.c;if(ok){S.shelved++;pay(10);if(S.shelved===S.quota)emit({e:'quota'})}else S.lost++;emit({e:'sorted',ok,b:c.sel})}}}
+      // the arm only drops a parcel into the bin of its own colour; otherwise it waits (and the belt backs up)
+      else if(c.sel===end.c){S.shelved++;pay(10);if(S.shelved===S.quota)emit({e:'quota'});emit({e:'sorted',ok:true,b:c.sel})}
+      else{S.parcels.push(end);if(!end.wait){end.wait=true;emit({e:'pwait',c:end.c})}}}}
   // hands in the bins, for anyone who leans over them too long
   for(const p of alivePlayers()){const near=CONV.bins.some(bz=>Math.hypot(p.x-CONV.bx,p.z-bz)<1.25);
     if(p.binT<0)p.binT=Math.min(0,p.binT+dt);else if(near){p.binT+=dt;if(p.binT>2.5){p.binT=-4;damage(p,20);emit({e:'hands',p:p.id,x:CONV.bx,z:CONV.bins.reduce((a,b)=>Math.abs(b-p.z)<Math.abs(a-p.z)?b:a)})}}else p.binT=Math.max(0,p.binT-dt)}}
@@ -1632,9 +1672,12 @@ function elevArrive(){const e=S.elev,from=e.lvl===0?CAR_UP:CAR_DN,dir=e.lvl===0?
 const carGateOpen=lvl=>owned('base')&&S.elev&&S.elev.st==='idle'&&S.elev.lvl===lvl&&S.elev.gate>.8;
 
 // ---------------------------------------------------------------- generator + moths
-function genUpdate(dt){if(!owned('gen')||S.ot)return;const g=S.gen;
-  g.fuel=Math.max(0,g.fuel-dt*100/150);
-  if(g.fuel<=0&&!g.out){g.out=true;S.lamps=S.lamps.map(()=>0);emit({e:'genOut'})}}
+// the generator only burns fuel while it's carrying the building through an outage
+function genUpdate(dt){if(!owned('gen')||S.ot||!S.outage)return;const g=S.gen;
+  g.fuel=Math.max(0,g.fuel-dt*100/120);
+  if(g.fuel<=0&&!g.out){g.out=true;emit({e:'genOut'})}}
+const genPowered=()=>owned('gen')&&S.gen&&S.gen.fuel>0;
+const mainsDown=()=>!!S.outage&&!genPowered(); // lamps dead, charger at a tenth of its speed
 function powerOn(){S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);HOST.lampT=LAMPS.map(()=>0)}
 function spawnMoth(){if(S.mons.filter(m=>m.ty===12).length>=2)return;const lit=LAMPS.map((L,i)=>i).filter(i=>S.lamps[i]);if(!lit.length)return;
   const li=pick(lit),L=LAMPS[li];S.mons.push({id:monSeq++,ty:12,x:L.x+1.2,z:L.z,y:4.4,ry:0,st:'circle',li,t:0,ph:rand(0,TAU),a:2,lt:0})}
@@ -1773,7 +1816,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
     emit({e:'slam',x:BAYS[bi].x,z:WH.z0});emit({e:'horn',b:bi});no(`Bay ${nm} slammed shut. The truck is leaving.`);break}
   case 'bulb':{if(!(inv.bulb>0))return;let fi=-1;LAMPS.forEach((L,i)=>{if(L.dead&&!S.fixed.includes(i)&&Math.hypot(p.x-L.x,p.z-L.z)<2.2)fi=i});
     if(fi<0)return no('Stand under a dead light fixture to put the bulb in.');if(S.fixed.length>=MAX_BULBS)return no('That\'s as many fixtures as the wiring will take.');
-    inv.bulb--;S.fixed.push(fi);if(!S.ot&&!(S.gen&&S.gen.out))S.lamps[fi]=1;emit({e:'bulbOn',i:fi});break}
+    inv.bulb--;S.fixed.push(fi);if(!S.ot&&!mainsDown())S.lamps[fi]=1;emit({e:'bulbOn',i:fi});break}
   }}
 
 // ---------------------------------------------------------------- the actions additions add (returns true if handled)
@@ -1786,16 +1829,16 @@ function act2(pid,p,a){
   case 'elevIn':{if(!owned('base'))return true;const C=a.lvl===0?CAR_UP:CAR_DN;if(!inCar(p,C)||S.elev.lvl!==a.lvl)return true;elevStart(a.lvl);return true}
   case 'elevCall':{if(!owned('base'))return true;if(S.elev.st==='idle'&&S.elev.lvl!==a.lvl)elevStart(S.elev.lvl);return true}
   case 'can':{if(!owned('gen')||p.carry>=0||p.can||!nearPos(p,FUELR.x,FUELR.z,2.6))return true;p.can=true;emit({e:'canUp',p:pid});return true}
-  case 'fuel':{if(!owned('gen')||!p.can||!nearPos(p,GEN.x,GEN.z,2.8))return true;p.can=false;const was=S.gen.out;S.gen.fuel=Math.min(100,S.gen.fuel+50);S.gen.out=false;if(was&&!S.ot)powerOn();emit({e:'refuel',x:GEN.x,z:GEN.z,on:was});return true}
+  case 'fuel':{if(!owned('gen')||!p.can||!nearPos(p,GEN.x,GEN.z,2.8))return true;p.can=false;const was=mainsDown();S.gen.fuel=Math.min(100,S.gen.fuel+50);S.gen.out=false;if(was&&!S.ot)powerOn();emit({e:'refuel',x:GEN.x,z:GEN.z,on:was});return true}
   case 'fork':{const f=S.fork;if(f.drv===pid){f.drv='';const sx=Math.cos(f.ry),sz=-Math.sin(f.ry);let x=f.x+sx*1.2,z=f.z+sz*1.2;if(insideAny(x,z,.3)){x=f.x-sx*1.2;z=f.z-sz*1.2}
       p.x=x;p.z=z;p.tpT=.6;emit({e:'tp',p:pid,x:r2(x),z:r2(z)});emit({e:'forkOut',p:pid});return true}
-    if(!owned('fork')||f.drv||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>2.6)return true;
+    if(!owned("fork")||f.drv||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>5.2)return true; // (matches the reach of the hit box around it)
     f.drv=pid;if(S.night>=2&&!f.pass&&Math.random()<.25)f.pass={lit:0,dark:0};emit({e:'forkIn',p:pid});return true}
   case 'fpick':{const f=S.fork;if(f.drv!==pid||f.pal>=0)return true;const t=forkTip();const pal=S.pallets.find(x=>(x.st===0||x.st===3)&&Math.hypot(palWorld(x).x-t.x,palWorld(x).z-t.z)<1.3);
     if(!pal)return true;pal.st=1;f.pal=pal.id;f.lift=2.62;emit({e:'pick',x:t.x,y:.5,z:t.z});return true}
   case 'fplace':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal),s=SLOTS[a.s];if(f.drv!==pid||!pal||!s)return true;const t=forkTip();
     if(s.old||s.box!==-1||s.cold||!slotOn(s)||s.y<2||Math.hypot(t.x-s.x,t.z-s.z)>2.6)return true;
-    pal.st=2;pal.x=s.x;pal.z=s.z;pal.ry=0;pal.s=s.id;s.box=-(1000+pal.id);f.pal=-1;f.lift=.1;S.shelved+=4;pay(40);emit({e:'place',x:s.x,y:s.y,z:s.z});if(S.shelved>=S.quota&&S.shelved-4<S.quota)emit({e:'quota'});return true}
+    pal.st=2;pal.x=s.x;pal.z=s.z;pal.ry=0;pal.s=s.id;s.box=-(1000+pal.id);f.pal=-1;f.lift=.1;S.shelved+=8;pay(80);emit({e:"place",x:s.x,y:s.y,z:s.z});if(S.shelved>=S.quota&&S.shelved-8<S.quota)emit({e:'quota'});return true}
   case 'fdrop':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal);if(f.drv!==pid||!pal)return true;const t=forkTip();pal.st=3;pal.x=t.x;pal.z=t.z;f.pal=-1;f.lift=.1;emit({e:'place',x:t.x,y:0,z:t.z});return true}
   }
   return false}
@@ -1872,7 +1915,7 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S
     par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1]),
     fl:(S.flares||[]).map(f=>[f.id,r2(f.x),r2(f.z),Math.round(f.t)]),cold:S.cold&&[r2(S.cold.door),S.cold.open?1:0],conv:S.conv&&[S.conv.sel,S.conv.jam?1:0],
     elev:S.elev&&[S.elev.lvl,S.elev.st,r2(S.elev.t),r2(S.elev.gate)],gen:S.gen&&[Math.round(S.gen.fuel),S.gen.out?1:0],
-    fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage]},
+    out:S.outage?1:0,fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage]},
   ev:NETEV.splice(0)}}
 function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1,b.fz?1:0,Math.round(b.th||0),b.ret?1:0,b.pri?1:0,b.m?1:0])}
 function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11],fz:!!a[12],th:a[13],ret:!!a[14],pri:!!a[15],m:!!a[16]}));
@@ -1887,7 +1930,7 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
   m.tr.forEach((a,i)=>Object.assign(S.trucks[i],{st:a[0],z:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]}));
   S.mons=m.mo.map(a=>({id:a[0],ty:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],a:a[6],k:a[7],v:a[8],f:!!a[9]}));
   const x=m.x||{};const addsChanged=JSON.stringify(x.adds||[])!==JSON.stringify(S.adds||[]);
-  Object.assign(S,{cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,mouths:x.mouths||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1]}:null,
+  Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,mouths:x.mouths||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1]}:null,
     parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8]})),
     flares:(x.fl||[]).map(a=>({id:a[0],x:a[1],z:a[2],t:a[3]}))});
   if(x.cold)S.cold={door:x.cold[0],open:!!x.cold[1]};if(x.conv)S.conv={sel:x.conv[0],jam:!!x.conv[1]};
@@ -2049,7 +2092,7 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
 function batteryUpdate(dt,busy,me){
   ME.charging=false;
   // holding E at the charger counts as charging even when full, so the battery never drains there
-  if(ME.target&&ME.target.kind==='charger'&&K.KeyE&&!busy){ME.charging=true;if(ME.bat<100){ME.bat=Math.min(100,ME.bat+dt*24);if(Math.random()<dt*6)SFX.charge()}}
+  if(ME.target&&ME.target.kind==='charger'&&K.KeyE&&!busy){ME.charging=true;if(ME.bat<100){ME.bat=Math.min(100,ME.bat+dt*(mainsDown()?2.4:24)); /* a tenth of the speed in an outage */if(Math.random()<dt*6)SFX.charge()}}
   if(ME.lightOn()&&!ME.charging){ME.bat=Math.max(0,ME.bat-dt*(me.up&&me.up.fl2?.3:.6));if(ME.bat<=0){ME.light=false;SFX.click();toast('Your flashlight died.')}}
   if(ME.bat<25&&!GAME.hints.bat){GAME.hints.bat=1;toast('Battery low. Hold E at the charging dock between the bays.',5)}}
 
@@ -2188,7 +2231,7 @@ function drainEvents(){while(EVQ.length){const e=EVQ.shift();try{onEvent(e)}catc
 function onEvent(e){const me=NET.myId;
   switch(e.e){
   case 'night':{const p=e.pos&&e.pos[me];if(p){ME.x=p[0];ME.z=p[1];ME.ready=true;ME.yaw=0;ME.pitch=0;ME.vx=ME.vz=0}ME.bat=100;ME.stam=100;ME.light=true;ME.lastHp=100;ME.deathT=0;
-    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM or you're fired${e.ex?` · shift starts at ${fmtClock(-e.ex)}`:''}`,4.5);SFX.bell();ME.red=false;ME.drinkT=0;
+    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM or you're fired${e.ex?` · shift starts at ${fmtClock(-e.ex)}`:''}`,4.5);SFX.bell();ME.red=false;ME.drinkT=0;introAdds();
     if(e.n===1&&!GAME.hints.start){GAME.hints.start=1;setTimeout(()=>GAME.on&&toast('A truck is backing into Bay A. Unload it and shelve the boxes.',5),4500);
       setTimeout(()=>GAME.on&&toast('Your quota is top left. Keep the bar ahead of the white marker to stay on pace.',6),11000)}break}
   case 'radio':SFX.radio();toast(`Supervisor, on the radio: "${e.m}"`,6,'radio');break;
@@ -2262,8 +2305,8 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     if(tr.st===0)h+=`<div class="bay">BAY ${n} &middot; ${tr.stuck>0?'<span class="warn">door jammed open</span>':'empty'}</div>`;
     else{let s=tr.st===1?'truck backing in&hellip;':tr.st===3?'truck pulling out':tr.reject?'refused, leaving':`${tr.left} / ${tr.n} boxes &middot; leaves in ${mmss(Math.max(0,DOCK_TIME-tr.t))}`;
       h+=`<div class="bay live">BAY ${n} &middot; ${s}</div>`;
-      if(tr.st!==3)h+=`<div class="bay live" style="font-size:12.5px;color:#a69f8c">manifest ${tr.n} pcs, ${tr.kg} kg${tr.warn?` &middot; <span class="warn">scale reads ${tr.kg+tr.extra} kg</span>`:''}</div>`}});
-  h+=`<div class="bay" style="margin-top:6px;font-size:12.5px;color:#a69f8c">first aid: ${S.aidLeft} left</div>`+statusLines(me);
+      if(tr.st!==3)h+=`<div class="bay small">manifest ${tr.n} pcs, ${tr.kg} kg${tr.warn?` &middot; <span class="warn">scale reads ${tr.kg+tr.extra} kg</span>`:''}</div>`}});
+  h+=`<div class="bay small" style="margin-top:.4em">first aid: ${S.aidLeft} left</div>`+statusLines(me);
   $('cash').textContent=`$${Math.round(S.cash||0)}`;const hb=hotbarHTML(me);if(hb!==GAME.lastHb){$('hotbar').innerHTML=hb;GAME.lastHb=hb}
   $('tr').innerHTML=h;
   const ps=Object.values(S.players);
@@ -2398,7 +2441,9 @@ const REDL=new THREE.SpotLight(0xff2412,0,12,.5,.6,1.3);REDL.position.set(0,.12,
 const ITEM_KEYS={Digit1:'batt',Digit2:'flare',Digit3:'cutter',Digit4:'strobe',Digit5:'scanner',Digit6:'horn',Digit7:'drink',Digit8:'remote',Digit9:'bulb'};
 const PARCEL_NAMES=['red','blue','yellow'],PARCEL_CSS=['#e0493c','#4a7fe0','#e8c440'];
 
-function buildExtrasVisuals(){FORK3D=makeForklift();ROOT.add(FORK3D);FORK3D.traverse(o=>{if(o.isMesh){o.userData={kind:'fork'};FORKPICK.push(o)}});
+function buildExtrasVisuals(){FORK3D=makeForklift();ROOT.add(FORK3D);
+  // one invisible box around the whole machine, so it's easy to look at and press E
+  {const hit=new THREE.Mesh(GEO.box,basic(0));hit.scale.set(1.5,2.4,3.4);hit.position.set(0,1.2,.2);hit.visible=false;hit.userData={kind:'fork'};FORK3D.add(hit);FORKPICK.push(hit)}
   GIANT=makeGiant();GIANT.visible=false;ROOT.add(GIANT);PASS3D=makePassenger();PASS3D.visible=false;ROOT.add(PASS3D);ROOT.add(FLARE_L,ROOM_L);
   const tex=ctex(64,64,g=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,220,140,1)');gr.addColorStop(.45,'rgba(255,110,30,.7)');gr.addColorStop(1,'rgba(255,40,0,0)');g.fillStyle=gr;g.fillRect(0,0,64,64)},{aniso:1});
   for(let i=0;i<20;i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,fog:false}));s.visible=false;s.renderOrder=9;scene.add(s);SCAN.push(s)}
@@ -2444,6 +2489,7 @@ function syncExtras(dt,time){if(!S)return;const t=time;
     v.lp&&v.lp.set(.6,.2);const d=Math.hypot(fl.x-ME.x,fl.z-ME.z);if(d<nd){nd=d;nf=fl}}
   for(const [id,v] of FLV)if(!fs.has(id)){ROOT.remove(v.g);v.lp&&v.lp.stop();FLV.delete(id)}
   FLARE_L.intensity=nf?(8+Math.random()*3):0;if(nf)FLARE_L.position.set(nf.x,.5,nf.z);
+  if(ADDV.coldBeacon)ADDV.coldBeacon.material.color.setHSL(.58,1,.35+.25*Math.max(0,Math.sin(t*4)));
   // a room light that follows you into the freezer or the basement
   if(ME.x>60&&owned('base')){ROOM_L.color.set(0xffc890);ROOM_L.position.set(77,2.8,0);ROOM_L.intensity=Math.random()<.04?.5:7}
   else if(owned('cold')&&ME.x>18&&ME.z<-9){ROOM_L.color.set(0x9fc4ff);ROOM_L.position.set(25.5,3,-16);ROOM_L.intensity=5}else ROOM_L.intensity=0;
@@ -2594,10 +2640,13 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'jam':SFX.deny();toast('The conveyor jammed. Hold E on the red button by the bins.',4);break;
   case 'unjam':SFX.thunk(P(CONV.jam.x,CONV.jam.z,1));break;
   case 'sorted':SFX.sorted(e.ok,P(CONV.bx,CONV.bins[e.b],1));break;
+  case 'pwait':SFX.deny();if(Math.hypot(ME.x-CONV.lever.x,ME.z-CONV.lever.z)<30)toast(`A ${PARCEL_NAMES[e.c]} parcel is waiting at the end of the belt. Set the lever to ${PARCEL_NAMES[e.c]}.`,4);break;
   case 'ptw':{const v=PV.get(e.id);if(v){v.tw=.6;SFX.scratch({x:v.g.position.x,y:1.1,z:CONV.z})}break}
   case 'canUp':if(e.p===me)SFX.pick(P(FUELR.x,FUELR.z,.8));break;
   case 'refuel':SFX.refuel(P(e.x,e.z,.8));if(e.on)toast('The generator coughs back to life. The lights come on.',3);break;
-  case 'genOut':SFX.sputter(P(GEN.x,GEN.z,1));SFX.powerDown();toast('The generator ran dry. Every light is out until someone refuels it.',5,'radio');break;
+  case 'genOut':SFX.sputter(P(GEN.x,GEN.z,1));SFX.powerDown();toast('The generator ran dry. The lights are out until someone refuels it.',5,'radio');break;
+  case 'outage':SFX.powerDown();big('POWER OUTAGE',e.gen?'The generator kicks in. Keep it fuelled until morning.':'The mains are dead until morning. The charger barely works.',5);
+    if(!e.gen&&!owned('gen'))setTimeout(()=>GAME.on&&toast('A generator would have kept the lights on. It can be bought between nights.',5),5500);break;
   case 'forkIn':if(e.p===me){ME.yaw=S.fork.ry+Math.PI;ME.pitch=-.1;ME.fv=0;toast('W/S drive, A/D steer. E lifts or sets down a pallet, Q gets out.',4)}break;
   case 'forkOut':break;
   case 'pa2':SFX.pa(e.fake);toast(`Loudspeaker: "Priority parcel ${e.n}. Double pay."`,6,e.fake?'radio fake':'radio');break;
@@ -2623,12 +2672,32 @@ function promptFor(t,me){switch(t.kind){
   case 'fslot':return t.ok?'<kbd>E</kbd> Set the pallet on the shelf':'Shelf is full';
   case 'fpal':return'<kbd>E</kbd> Lift the pallet';}return null}
 function statusLines(me){let h='';
-  if(owned('gen')&&S.gen)h+=`<div class="bay${S.gen.fuel<20?' warnline':''}" style="font-size:12.5px">generator fuel ${Math.round(S.gen.fuel)}%</div>`;
-  if(owned('conv')&&S.conv)h+=`<div class="bay" style="font-size:12.5px">sorting bin: <b style="color:${PARCEL_CSS[S.conv.sel]}">${PARCEL_NAMES[S.conv.sel]}</b>${S.conv.jam?' &middot; <span class="warn">JAMMED</span>':''}</div>`;
-  if(me&&me.wu)h+=`<div class="bay" style="font-size:12.5px;color:#ff8a70">write-ups tonight: ${me.wu} / 3</div>`;
+  if(mainsDown())h+=`<div class="bay warnline">POWER OUT &middot; charger slowed</div>`;
+  if(owned('gen')&&S.gen)h+=`<div class="bay small${S.outage&&S.gen.fuel<25?' warnline':''}">generator ${S.outage?(S.gen.fuel>0?'running':'empty'):'on standby'} &middot; fuel ${Math.round(S.gen.fuel)}%</div>`;
+  if(owned('conv')&&S.conv)h+=`<div class="bay small">sorting bin: <b style="color:${PARCEL_CSS[S.conv.sel]}">${PARCEL_NAMES[S.conv.sel]}</b>${S.conv.jam?' &middot; <span class="warn">JAMMED</span>':''}</div>`;
+  if(me&&me.wu)h+=`<div class="bay small" style="color:#ff8a70">write-ups tonight: ${me.wu} / 3</div>`;
   return h}
-function carryNote(me){const b=me&&me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;if(!b)return'';const n=1+(me.stack?me.stack.length:0);
-  let s=n>1?`Carrying ${n} boxes`:'';if(b.fz)s+=(s?' · ':'')+`<span style="color:#9fd4ff">Frozen: thaws in ${Math.max(0,Math.ceil(b.th||0))}s</span>`;if(b.pri)s+=(s?' · ':'')+'<span style="color:#ff7a5a">Priority</span>';return s}
+// which way something is, relative to where you're looking, and how far
+const ARROWS=['&uarr;','&nearr;','&rarr;','&searr;','&darr;','&swarr;','&larr;','&nwarr;'];
+function dirTo(x,z){const dx=x-ME.x,dz=z-ME.z,d=Math.hypot(dx,dz),fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw),rx=Math.cos(ME.yaw),rz=-Math.sin(ME.yaw);
+  const a=Math.atan2(dx*rx+dz*rz,dx*fx+dz*fz);return`<b class="arrow">${ARROWS[(Math.round(a/(Math.PI/4))+8)%8]}</b> ${Math.round(d)} m`}
+function carryNote(me){if(!me)return'';
+  if(me.can)return`Jerry can &middot; generator ${dirTo(GEN.x,GEN.z)}`;
+  const b=me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;if(!b)return'';const n=1+(me.stack?me.stack.length:0);
+  let s=n>1?`Carrying ${n} boxes`:'';
+  if(b.fz)s+=(s?' &middot; ':'')+`<span style="color:#9fd4ff">Frozen: thaws in ${Math.max(0,Math.ceil(b.th||0))}s${inCold(ME)?'':` &middot; freezer ${dirTo((COLD.dx0+COLD.dx1)/2,COLD.z1+.6)}`}</span>`;
+  else if(ME.x>60)s+=(s?' &middot; ':'')+`Shelves are upstairs &middot; elevator ${dirTo(CAR_DN.x1,0)}`;
+  if(b.pri)s+=(s?' &middot; ':'')+'<span style="color:#ff7a5a">Priority</span>';return s}
+// the first night after something is bought, say what it's for and where it is
+const ADD_INTRO={fork:'The forklift is parked by the dock, just east of where you start. Some trailers have a pallet of eight boxes inside the door. Lift it with E, set it on any top shelf.',
+  cold:'Cold storage is in the north-east corner, under the blue light. Frozen crates (pale blue) go on its shelves within 60 seconds of leaving the trailer.',
+  conv:'The sorting conveyor is on the south wall, behind you as you start. Set its lever to the colour of the next parcel to reach the end.',
+  base:'The freight elevator is on the west wall, past Bay A. Ten returns wait in the basement for the shelves.',
+  gen:'The generator is on the west wall by the office. If the power fails, it keeps the lights and the charger running while it has fuel.',
+  bayc:'Bay C is open in the north-west corner. Its refrigerated trucks bring more boxes, and more frozen crates if you have cold storage.'};
+function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const fresh=(S.adds||[]).filter(k=>!seen.has(k));if(!fresh.length)return;
+  fresh.forEach((k,i)=>{seen.add(k);setTimeout(()=>GAME.on&&S&&S.phase==='play'&&toast(ADD_INTRO[k],6.5),5200+i*7000)});
+  setTimeout(()=>GAME.on&&toast('The THIS WAY board on the dock wall points to everything the crew has bought.',5),5200+fresh.length*7000)}
 
 // ---------------------------------------------------------------- the shop screen
 let shopShown=false,shopSig='';

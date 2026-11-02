@@ -145,7 +145,7 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
 function batteryUpdate(dt,busy,me){
   ME.charging=false;
   // holding E at the charger counts as charging even when full, so the battery never drains there
-  if(ME.target&&ME.target.kind==='charger'&&K.KeyE&&!busy){ME.charging=true;if(ME.bat<100){ME.bat=Math.min(100,ME.bat+dt*24);if(Math.random()<dt*6)SFX.charge()}}
+  if(ME.target&&ME.target.kind==='charger'&&K.KeyE&&!busy){ME.charging=true;if(ME.bat<100){ME.bat=Math.min(100,ME.bat+dt*(mainsDown()?2.4:24)); /* a tenth of the speed in an outage */if(Math.random()<dt*6)SFX.charge()}}
   if(ME.lightOn()&&!ME.charging){ME.bat=Math.max(0,ME.bat-dt*(me.up&&me.up.fl2?.3:.6));if(ME.bat<=0){ME.light=false;SFX.click();toast('Your flashlight died.')}}
   if(ME.bat<25&&!GAME.hints.bat){GAME.hints.bat=1;toast('Battery low. Hold E at the charging dock between the bays.',5)}}
 
@@ -284,7 +284,7 @@ function drainEvents(){while(EVQ.length){const e=EVQ.shift();try{onEvent(e)}catc
 function onEvent(e){const me=NET.myId;
   switch(e.e){
   case 'night':{const p=e.pos&&e.pos[me];if(p){ME.x=p[0];ME.z=p[1];ME.ready=true;ME.yaw=0;ME.pitch=0;ME.vx=ME.vz=0}ME.bat=100;ME.stam=100;ME.light=true;ME.lastHp=100;ME.deathT=0;
-    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM or you're fired${e.ex?` · shift starts at ${fmtClock(-e.ex)}`:''}`,4.5);SFX.bell();ME.red=false;ME.drinkT=0;
+    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM or you're fired${e.ex?` · shift starts at ${fmtClock(-e.ex)}`:''}`,4.5);SFX.bell();ME.red=false;ME.drinkT=0;introAdds();
     if(e.n===1&&!GAME.hints.start){GAME.hints.start=1;setTimeout(()=>GAME.on&&toast('A truck is backing into Bay A. Unload it and shelve the boxes.',5),4500);
       setTimeout(()=>GAME.on&&toast('Your quota is top left. Keep the bar ahead of the white marker to stay on pace.',6),11000)}break}
   case 'radio':SFX.radio();toast(`Supervisor, on the radio: "${e.m}"`,6,'radio');break;
@@ -358,8 +358,8 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     if(tr.st===0)h+=`<div class="bay">BAY ${n} &middot; ${tr.stuck>0?'<span class="warn">door jammed open</span>':'empty'}</div>`;
     else{let s=tr.st===1?'truck backing in&hellip;':tr.st===3?'truck pulling out':tr.reject?'refused, leaving':`${tr.left} / ${tr.n} boxes &middot; leaves in ${mmss(Math.max(0,DOCK_TIME-tr.t))}`;
       h+=`<div class="bay live">BAY ${n} &middot; ${s}</div>`;
-      if(tr.st!==3)h+=`<div class="bay live" style="font-size:12.5px;color:#a69f8c">manifest ${tr.n} pcs, ${tr.kg} kg${tr.warn?` &middot; <span class="warn">scale reads ${tr.kg+tr.extra} kg</span>`:''}</div>`}});
-  h+=`<div class="bay" style="margin-top:6px;font-size:12.5px;color:#a69f8c">first aid: ${S.aidLeft} left</div>`+statusLines(me);
+      if(tr.st!==3)h+=`<div class="bay small">manifest ${tr.n} pcs, ${tr.kg} kg${tr.warn?` &middot; <span class="warn">scale reads ${tr.kg+tr.extra} kg</span>`:''}</div>`}});
+  h+=`<div class="bay small" style="margin-top:.4em">first aid: ${S.aidLeft} left</div>`+statusLines(me);
   $('cash').textContent=`$${Math.round(S.cash||0)}`;const hb=hotbarHTML(me);if(hb!==GAME.lastHb){$('hotbar').innerHTML=hb;GAME.lastHb=hb}
   $('tr').innerHTML=h;
   const ps=Object.values(S.players);

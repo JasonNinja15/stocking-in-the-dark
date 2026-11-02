@@ -35,50 +35,59 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 #lobbyList{list-style:none;padding:0;margin:0;min-width:260px;text-align:left}
 #lobbyList li{padding:6px 10px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
 .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
-/* hud */
-#hud{position:fixed;inset:0;pointer-events:none;z-index:10}
-#tl{position:absolute;left:18px;top:14px;text-shadow:0 1px 3px #000}
-#clock{font-size:34px;letter-spacing:.06em}
-#night{color:var(--dim);font-size:14px;letter-spacing:.2em}
-#quota{font-size:17px;margin-top:4px}
-#quota.ok{color:#8fd48a}#quota.behind{color:#f0b45a}#quota.far{color:#ff6a55}
+/* hud: dark work-tag panels with an amber edge, sized from the window so it reads on any screen */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10;--hud:clamp(13px,calc(.48vw + .78vh),22px);font-size:var(--hud);color:#f1ead6}
+.panel{background:linear-gradient(180deg,rgba(16,13,10,.88),rgba(9,8,7,.74));border:1px solid rgba(227,163,58,.3);box-shadow:0 .3em 1.4em rgba(0,0,0,.65),inset 0 0 0 1px rgba(0,0,0,.4);padding:.55em .85em;text-shadow:0 1px 2px #000}
+#tl{position:absolute;left:1em;top:1em;min-width:13.5em;border-left:.28em solid var(--amber)}
+#clock{font-size:2.15em;letter-spacing:.05em;line-height:1;color:#f6efdb;text-shadow:0 0 .5em rgba(227,163,58,.35),0 2px 3px #000}
+#night{color:#c4b99f;font-size:.8em;letter-spacing:.28em;margin-top:.25em}
+#quota{font-size:1.12em;margin-top:.35em}
+#quota.ok{color:#9fe09a}#quota.behind{color:#ffbf5e}#quota.far{color:#ff6a55}
 #clock.late{color:#ff6a55}#clock.ot{color:#ff3b2b;animation:blink 1s steps(2) infinite}
 /* quota progress; the white tick is where you should be by now to make quota at 6:00 */
-#qbar{width:210px;height:7px;margin-top:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);position:relative}
-#qbar i{position:absolute;left:0;top:0;bottom:0;background:#cfc6ae;transition:width .3s}
-#qbar b{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:#fff;box-shadow:0 0 3px #000}
-#qbar.ok i{background:#8fd48a}#qbar.behind i{background:#f0b45a}#qbar.far i{background:#ff6a55}
-#toast.radio{color:#f0c27a;font-style:italic}
-#tr{position:absolute;right:18px;top:14px;text-align:right;font-size:14px;line-height:1.5;text-shadow:0 1px 3px #000;max-width:46vw}
-.bay{opacity:.75}.bay.live{opacity:1}
+#qbar{width:100%;height:.6em;margin-top:.4em;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);position:relative}
+#qbar i{position:absolute;left:0;top:0;bottom:0;background:#e6dcc1;transition:width .3s}
+#qbar b{position:absolute;top:-.3em;bottom:-.3em;width:3px;margin-left:-1px;background:#fff;box-shadow:0 0 4px #000}
+#qbar.ok i{background:#9fe09a}#qbar.behind i{background:#ffbf5e}#qbar.far i{background:#ff6a55}
+#cash{color:#9fe09a;font-size:1em;margin-top:.35em;letter-spacing:.06em}
+#toast.radio{color:#ffd28a;font-style:italic}
+#toast.fake{color:#f0a28c}
+#tr{position:absolute;right:1em;top:1em;text-align:right;font-size:.9em;line-height:1.5;max-width:min(40vw,27em);border-right:.28em solid var(--amber)}
+.bay{color:#d6cdb6}.bay.live{color:#f6efdb}.bay.small,.bay .small{font-size:.85em;color:#c4b99f}
 .warn{color:#ff6a4a;animation:blink 1s steps(2) infinite}
+.warnline{color:#ff6a4a}
 @keyframes blink{50%{opacity:.35}}
-#bl{position:absolute;left:18px;bottom:18px;display:flex;flex-direction:column;gap:6px}
-.bar{width:210px;height:9px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);position:relative}
+#bl{position:absolute;left:1em;bottom:1em;display:flex;flex-direction:column;gap:.5em;border-left:.28em solid var(--amber);padding-right:5.6em}
+.bar{width:clamp(120px,16vw,290px);height:.7em;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);position:relative}
 .bar i{position:absolute;left:0;top:0;bottom:0;background:#ddd}
-.bar span{position:absolute;left:216px;top:-5px;font-size:12px;color:var(--dim);white-space:nowrap}
-#hpb i{background:#b92a20}#batb i{background:#e8d27a}#stb i{background:#8aa6c9}
-#cross{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;background:rgba(255,255,255,.75);border-radius:50%;box-shadow:0 0 2px #000}
-#cross.on{width:8px;height:8px;margin:-4px 0 0 -4px;background:transparent;border:2px solid rgba(255,230,170,.9)}
-#prompt{position:absolute;left:50%;top:calc(50% + 34px);transform:translateX(-50%);font-size:16px;text-shadow:0 1px 3px #000,0 0 6px #000;white-space:nowrap;text-align:center}
-#prompt kbd{border:1px solid rgba(255,255,255,.45);padding:0 5px;font-family:inherit;background:rgba(0,0,0,.5)}
-#toast{position:absolute;left:50%;top:21%;transform:translateX(-50%);font-size:20px;text-align:center;text-shadow:0 2px 5px #000;transition:opacity .4s;max-width:90vw}
-#big{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:clamp(28px,6vw,62px);text-align:center;text-shadow:0 0 14px #000,0 3px 0 #000;letter-spacing:.06em;transition:opacity .6s;font-family:'Creepster','Special Elite',cursive;color:#e9e1c8}
-#big small{display:block;font-family:'Special Elite',monospace;font-size:18px;color:#cfc6ae;letter-spacing:.15em;margin-top:16px;line-height:1.3;text-shadow:0 0 8px #000,0 0 3px #000}
-#plist{position:absolute;right:18px;bottom:18px;font-size:14px;text-align:right;line-height:1.6;text-shadow:0 1px 3px #000}
-#spect{position:absolute;left:50%;bottom:60px;transform:translateX(-50%);font-size:16px;color:#ff8f80;text-shadow:0 1px 3px #000}
-#keyhint{position:absolute;left:50%;top:16px;transform:translateX(-50%);font-size:12.5px;color:rgba(232,226,208,.55);white-space:nowrap;text-shadow:0 1px 2px #000}
+.bar span{position:absolute;left:calc(100% + .6em);top:50%;transform:translateY(-50%);font-size:.75em;color:#d6cdb6;letter-spacing:.16em;white-space:nowrap}
+#hpb i{background:#d0352a}#batb i{background:#f2dc80}#stb i{background:#93b4dc}
+#cross{position:absolute;left:50%;top:50%;width:.32em;height:.32em;transform:translate(-50%,-50%);background:rgba(255,255,255,.85);border-radius:50%;box-shadow:0 0 3px #000}
+#cross.on{width:.7em;height:.7em;background:transparent;border:2px solid #ffd68a;box-shadow:0 0 4px #000}
+#prompt{position:absolute;left:50%;top:calc(50% + 2.4em);transform:translateX(-50%);font-size:1.1em;text-align:center;max-width:min(86vw,44em);line-height:1.55;
+  background:rgba(9,8,7,.8);border:1px solid rgba(227,163,58,.4);padding:.3em .9em;text-shadow:0 1px 2px #000}
+#prompt:empty{display:none}
+#prompt kbd,.hb kbd{display:inline-block;min-width:1.3em;text-align:center;color:#16130c;background:#e3a33a;font-family:inherit;font-weight:bold;padding:0 .3em;margin:0 .15em;border-radius:2px;text-shadow:none}
+#prompt .arrow{font-size:1.25em;color:#ffd68a}
+#toast{position:absolute;left:50%;top:17%;transform:translateX(-50%);font-size:1.25em;text-align:center;max-width:min(84vw,40em);line-height:1.4;
+  background:rgba(9,8,7,.82);border:1px solid rgba(227,163,58,.35);padding:.45em 1em;transition:opacity .4s;text-shadow:0 1px 3px #000}
+#big{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:clamp(34px,6.5vw,84px);text-align:center;text-shadow:0 0 .3em #000,0 .05em 0 #000;letter-spacing:.06em;transition:opacity .6s;font-family:'Creepster','Special Elite',cursive;color:#f1e8cd;width:max-content;max-width:94vw}
+#big small{display:block;font-family:'Special Elite',monospace;font-size:clamp(15px,1.6vw,26px);color:#efe3c6;letter-spacing:.12em;margin-top:.7em;line-height:1.35;
+  background:rgba(9,8,7,.8);border:1px solid rgba(227,163,58,.35);padding:.35em .9em;text-shadow:0 1px 3px #000}
+#plist{position:absolute;left:1em;bottom:6.4em;font-size:.95em;text-align:left;line-height:1.6;border-left:.28em solid var(--amber)}
+#plist:empty{display:none}
+#spect{position:absolute;left:50%;bottom:4.5em;transform:translateX(-50%);font-size:1.05em;color:#ff9f90;background:rgba(9,8,7,.8);padding:.3em .8em}
+#keyhint{position:absolute;left:50%;top:.8em;transform:translateX(-50%);font-size:.78em;color:rgba(241,234,214,.82);white-space:nowrap;background:rgba(9,8,7,.55);padding:.2em .8em;text-shadow:0 1px 2px #000}
+#hotbar{position:absolute;right:1em;bottom:1em;display:flex;gap:.4em;flex-wrap:wrap;justify-content:flex-end;max-width:min(50vw,44em)}
+.hb{font-size:.85em;background:rgba(9,8,7,.84);border:1px solid rgba(227,163,58,.32);padding:.25em .55em;text-shadow:0 1px 2px #000}
+.hb.on{border-color:#ff5a3a;color:#ffb8a8}
+@media (max-width:1100px){#keyhint{display:none}}
+@media (max-width:760px){#tr{max-width:46vw;font-size:.78em}#hotbar{max-width:44vw}#bl{padding-right:4.6em}}
+@media (max-height:520px){#tr{font-size:.75em}#tl{min-width:11em}}
 #lockmsg{position:fixed;left:50%;top:60%;transform:translateX(-50%);z-index:15;font-size:18px;background:var(--panel);border:1px solid var(--line);padding:10px 18px;pointer-events:none}
 #fps{position:fixed;left:6px;bottom:2px;font-size:11px;color:#666;z-index:30}
 #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;z-index:50;font-size:18px;letter-spacing:.2em;color:var(--dim)}
 /* cash, hotbar, shop */
-#cash{color:#8fd48a;font-size:15px;margin-top:3px;letter-spacing:.06em}
-#hotbar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:70vw}
-.hb{font-size:12.5px;background:rgba(10,10,12,.7);border:1px solid rgba(255,255,255,.18);padding:3px 7px;text-shadow:0 1px 2px #000}
-.hb kbd{border:1px solid rgba(255,255,255,.45);padding:0 4px;margin-right:5px;font-family:inherit;font-size:11.5px}
-.hb.on{border-color:#ff5a3a;color:#ffb0a0}
-.warnline{color:#ff6a4a}
-#toast.fake{color:#e8a08a}
 #shop .card{max-width:1080px;max-height:94vh;overflow:hidden}
 #shopCols{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;overflow:auto;max-height:64vh;text-align:left;padding-right:4px}
 #shopCols h3{margin:0 0 6px;font-weight:400;letter-spacing:.12em;font-size:15px;color:var(--dim);text-transform:uppercase}
@@ -102,19 +111,19 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 <div id="loading">CLOCKING IN&hellip;</div>
 
 <div id="hud" class="hide">
-  <div id="tl"><div id="clock">12:00 AM</div><div id="night">NIGHT 1</div><div id="quota">Shelved 0 / 15</div><div id="qbar"><i></i><b></b></div><div id="cash">$0</div></div>
+  <div id="tl" class="panel"><div id="clock">12:00 AM</div><div id="night">NIGHT 1</div><div id="quota">Shelved 0 / 15</div><div id="qbar"><i></i><b></b></div><div id="cash">$0</div></div>
   <div id="hotbar"></div>
-  <div id="tr"></div>
+  <div id="tr" class="panel"></div>
   <div id="cross"></div>
   <div id="prompt"></div>
   <div id="toast"></div>
   <div id="big"></div>
-  <div id="bl">
+  <div id="bl" class="panel">
     <div class="bar" id="hpb"><i></i><span>HEALTH</span></div>
     <div class="bar" id="batb"><i></i><span>BATTERY</span></div>
     <div class="bar" id="stb"><i></i><span>STAMINA</span></div>
   </div>
-  <div id="plist"></div>
+  <div id="plist" class="panel"></div>
   <div id="spect" class="hide"></div>
   <div id="keyhint">WASD move · Shift run · F flashlight · E use · Q kick · G set down · 1-9 items · Esc pause</div>
 </div>
@@ -149,7 +158,8 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   &bull; <b>Something on the ceiling.</b> Some trailers hold a thing that bolts out and climbs the walls. Listen for tapping overhead, and shine your light up at it. If the tapping stops right above you, move.<br>
   &bull; <b>The dark.</b> Something walks the aisles where the lights are out. It only moves when no light is on it. Turn around often. Working lamps keep it back&hellip; while they work.</p>
   <p><b>Later nights bring more.</b> A night manager who writes up anyone standing around empty-handed (three write-ups and he comes for you). A shrink-wrapped figure that hunts by sound: walk, don't run. A truck driver who passes for a crewmate but makes no footsteps. Shelf slots that bite. A loudspeaker voice that isn't quite the supervisor's, with a wrong chime. And something out in the yard you shouldn't look at when a bay door jams open.</p>
-  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items are on <kbd>1</kbd>&ndash;<kbd>9</kbd>, the red headlamp on <kbd>H</kbd>. Hold <kbd>5</kbd> for the thermal scanner.</p>
+  <p><b>Power outages.</b> From night 2 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel.</p>
+  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items are on <kbd>1</kbd>&ndash;<kbd>9</kbd>, the red headlamp on <kbd>H</kbd>. Hold <kbd>5</kbd> for the thermal scanner. The <b>THIS WAY</b> board on the dock wall points to everything you have bought.</p>
   <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause</p>
   <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to four people can work a shift together. The quota grows with the crew. If you go down, you watch the others until the night ends.</p>
   </div>

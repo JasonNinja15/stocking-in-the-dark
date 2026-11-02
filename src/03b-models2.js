@@ -85,10 +85,10 @@ function makeForklift(){const g=new THREE.Group(),body=pivot(0,0,0,g);
   const beacon=new THREE.Mesh(GEO.sph,basic(0xffa020));beacon.scale.setScalar(.06);beacon.position.set(0,2.42,-.2);body.add(beacon);
   g.userData={body,lift,beacon};return g}
 
-// ---- a pallet load: four boxes shrink-wrapped onto a pallet (counts as four)
+// ---- a pallet load: eight boxes shrink-wrapped onto a pallet (counts as eight)
 function makePallet(){const g=new THREE.Group();part(GEO.box,MAT.pallet,1.1,.14,1.0,0,.07,0,g);
-  const k=BOX_KINDS[0];for(const dx of[-.28,.28])for(const dy of[0,1]){const m=new THREE.Mesh(k.geo,MAT.box[(dx>0?1:0)+dy*2]);m.position.set(dx,.14+dy*k.h,0);m.castShadow=true;m.receiveShadow=true;g.add(m)}
-  for(const y of[.3,.62,.88])part(GEO.box,MAT.wrap,1.14,.12,.54,0,y,0,g,{cast:false}); // bands of wrap
+  const k=BOX_KINDS[0];for(const dx of[-.28,.28])for(const dz of[-.25,.25])for(const dy of[0,1]){const m=new THREE.Mesh(k.geo,MAT.box[(dx>0?1:0)+dy*2]);m.position.set(dx,.14+dy*k.h,dz);m.castShadow=true;m.receiveShadow=true;g.add(m)}
+  for(const y of[.3,.62,.88])part(GEO.box,MAT.wrap,1.14,.12,1.04,0,y,0,g,{cast:false}); // bands of wrap
   return g}
 function makeParcel(c){const g=new THREE.Group();part(GEO.box,MAT.box[c%4],.46,.32,.4,0,.16,0,g);part(GEO.box,MAT.parcel[c],.47,.06,.41,0,.2,0,g,{cast:false});return g}
 function makeFlare(){const g=new THREE.Group();part(GEO.cyl,MAT.can,.025,.3,.025,0,.03,0,g,{rz:Math.PI/2});const tip=part(GEO.sph,MAT.flare,.04,.04,.04,.16,.03,0,g,{cast:false});g.userData={tip};return g}

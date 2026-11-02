@@ -108,14 +108,16 @@ function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&
   for(let k=0;k<n;k++){const sp=spots[k%spots.length];const K=randi(0,2),kind=BOX_KINDS[K];const m=Math.random()<mimP&&mimics<3;if(m)mimics++;
     S.boxes.push({id:boxSeq++,st:0,bay:i,x:sp.lx+rand(-.08,.08),y:sp.h,z:sp.lz+rand(-.12,.12),ry:rand(-.25,.25),k:K,f:Math.random()<.16,v:randi(0,3),h:'',s:-1,m,tw:rand(1,4)});sp.h+=kind.h}
   // frozen crates (more of them in the refrigerated trailers), and a forklift pallet just inside the door
-  if(owned('cold')){const nf=randi(1,2)+(BAYS[i].reefer?2:0);for(let k=0;k<nf;k++){const sp=spots[(n+k)%spots.length];
+  // never more frozen crates than the freezer has room for
+  if(owned('cold')){const room=SLOTS.filter(s=>s.cold&&s.box===-1).length-S.boxes.filter(b=>b.fz&&b.st!==2&&b.st!==4).length;
+    const nf=Math.max(0,Math.min(room,randi(1,2)+(BAYS[i].reefer?1:0)));for(let k=0;k<nf;k++){const sp=spots[(n+k)%spots.length];
     S.boxes.push({id:boxSeq++,st:0,bay:i,x:sp.lx+rand(-.06,.06),y:sp.h,z:sp.lz,ry:rand(-.2,.2),k:1,f:false,v:0,h:'',s:-1,m:false,fz:true,th:60,tw:9});sp.h+=BOX_KINDS[1].h}tr.n+=nf;tr.left+=nf}
   if(HOST.palDue>0&&Math.random()<.7){HOST.palDue--;S.pallets.push({id:palSeq++,st:0,bay:i,lx:0,lz:-1.15,ry:0,x:0,z:0})}
   if(tr.lurk)S.mons.push({id:monSeq++,ty:1,bay:i,st:'sleep',lx:LURK_LX,lz:LURK_HOME,x:BAYS[i].x+LURK_LX,y:0,z:tr.z+LURK_HOME,ry:Math.PI/2,a:0,litT:0,cd:0,wake:0,cold:!!BAYS[i].reefer,k:BAYS[i].reefer?1:0});
   if(tr.crawl)S.mons.push({id:monSeq++,ty:3,bay:i,st:'inside',x:BAYS[i].x,y:0,z:tr.z+CRAWL_HOME,ry:0,a:0,k:0,t:0,cd:0,side:Math.random()<.5?-1:1});
   S.bver++;emit({e:'truck',b:i,last})}
 function truckGone(i){const tr=S.trucks[i];let n=0;for(const b of S.boxes)if(b.st===0&&b.bay===i){b.st=4;if(!b.m&&!tr.reject)n++}
-  for(const p of S.pallets||[])if(p.st===0&&p.bay===i){p.st=4;if(!tr.reject)n+=4}
+  for(const p of S.pallets||[])if(p.st===0&&p.bay===i){p.st=4;if(!tr.reject)n+=8}
   S.lost+=n;S.mons=S.mons.filter(m=>!((m.ty===1||m.ty===3)&&m.bay===i));S.bver++;
   if(n)emit({e:'msg',m:`Bay ${BAYS[i].name} left with ${n} box${n>1?'es':''} still on board.`});
   Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0});
@@ -300,9 +302,10 @@ function stalkerUpdate(m,dt){m.life-=dt;if(m.life<=0){m.dead=true;emit({e:'fade'
 
 // ---------------------------------------------------------------- lamps
 // Dead fixtures stay dark unless someone has put a bulb in. While the generator has fuel the lamps don't fail
-// on their own (moths and the stalker can still put them out); when it runs dry, nothing comes back on.
+// on their own (moths and the stalker can still put them out). In a power outage nothing comes on unless the
+// generator has fuel.
 function lampOut(i,dur){if(!S.lamps[i])return;S.lamps[i]=0;HOST.lampT[i]=dur;emit({e:'lamp',i})}
-function lampsUpdate(dt){if(S.ot||(S.gen&&S.gen.out&&owned('gen')))return;const steady=owned('gen');for(let i=0;i<LAMPS.length;i++){
+function lampsUpdate(dt){if(S.ot)return;if(mainsDown()){if(S.lamps.some(x=>x))S.lamps=S.lamps.map(()=>0);return}const steady=owned('gen');for(let i=0;i<LAMPS.length;i++){
   if(LAMPS[i].dead&&!S.fixed.includes(i))continue;
   if(!S.lamps[i]){HOST.lampT[i]-=dt;if(HOST.lampT[i]<=0){S.lamps[i]=1;emit({e:'lampOn',i})}continue}
   HOST.lampNext[i]-=dt;if(HOST.lampNext[i]<=0){HOST.lampNext[i]=rand(25,50)*(i===0?1.8:i===3?.6:1);if(!steady)lampOut(i,rand(1.5,4.5))}}}

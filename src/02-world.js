@@ -61,8 +61,9 @@ function buildWorld(){
     const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.2,1.1),toon(0xffffff,{map:signTex([{t:'BAY '+b.name,bold:true,size:120}],{bg:'#c9a227',fg:'#16130c'})}));sign.position.set(b.x,DOOR_H+1.35,WH.z0+.02);ROOT.add(sign);
     // trailer walls collide only while a truck is docked
     const tc=[col(b.x-TRAIL_HW-.25,TZ_DOCK-TRAIL_LEN-.3,b.x-TRAIL_HW,TZ_DOCK,{dyn:true,on:false}),col(b.x+TRAIL_HW,TZ_DOCK-TRAIL_LEN-.3,b.x+TRAIL_HW+.25,TZ_DOCK,{dyn:true,on:false}),col(b.x-TRAIL_HW-.25,TZ_DOCK-TRAIL_LEN-.3,b.x+TRAIL_HW+.25,TZ_DOCK-TRAIL_LEN,{dyn:true,on:false})];
-    // a bay that isn't in service yet is boarded over on the inside
-    let boards=null;if(b.add){boards=new THREE.Group();for(let k=0;k<6;k++){const p=new THREE.Mesh(GEO.box,MAT.board);p.scale.set(DOOR_HW*2+.5,.32,.06);p.position.set(b.x,.35+k*.58,WH.z0+.07);p.rotation.z=rand(-.06,.06);p.castShadow=true;boards.add(p)}
+    // a bay that isn't in service yet: its steel door stays down, barred with two hazard beams
+    let boards=null;if(b.add){boards=new THREE.Group();const ht=TEX.hazard.clone();ht.repeat.set(12,.7);ht.needsUpdate=true;const hm=toon(0xffffff,{map:ht});for(const y of[.95,2.35]){const p=new THREE.Mesh(GEO.box,hm);p.scale.set(DOOR_HW*2+.7,.24,.08);p.position.set(b.x,y,WH.z0+.1);p.castShadow=true;boards.add(p);
+      for(const s of[-1,1]){const k=new THREE.Mesh(GEO.box,MAT.steel);k.scale.set(.14,.36,.14);k.position.set(b.x+s*(DOOR_HW+.2),y,WH.z0+.12);boards.add(k)}}
       const s2=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.55),toon(0xffffff,{map:signTex([{t:'NOT IN SERVICE',size:44,bold:true}],{w:384,h:140,bg:'#c9a227',fg:'#16130c'})}));s2.position.set(b.x,1.7,WH.z0+.11);boards.add(s2);ROOT.add(boards)}
     BAYV.push({door,panel,doorCol,trailCol:tc,ind,scr,boards});
   });
