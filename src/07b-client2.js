@@ -30,7 +30,9 @@ function syncExtras(dt,time){if(!S)return;const t=time;
     v.g.traverse(o=>{if(o.isMesh)PARCELPICK.push(o)})}
   for(const [id,v] of PV)if(!live.has(id)){ROOT.remove(v.g);PV.delete(id)}
   // elevator gates roll up into the car roof; the basement bulb flickers
-  if(S.elev&&owned('base')){const e=S.elev;for(const [car,lvl] of[[ADDV.carUp,0],[ADDV.carDn,1]]){const open=e.lvl===lvl?e.gate:0;car.gate.position.y=open*2.35;car.btn.material.color.set(e.st==='idle'?0x3aff7a:0xffa020)}
+  if(S.elev&&owned('base')){const e=S.elev;for(const [car,lvl] of[[ADDV.carUp,0],[ADDV.carDn,1]]){const open=e.lvl===lvl?e.gate:0;car.gate.position.y=open*2.35;car.btn.material.color.set(e.st==='idle'?0x3aff7a:0xffa020);
+      // while something is on the roof the hatch glows a dull red and jolts under its weight
+      const st=e.st==='stall'&&e.lvl===lvl;car.hatch.material.color.setRGB(st?.35+.25*Math.sin(t*7):.05,st?.04:.05,st?.03:.05);car.hatch.position.y=2.69-(st&&Math.random()<.05?.05:0)}
     ADDV.baseBulb.material.color.setScalar(Math.random()<.04?.2:1)}
   if(S.gen&&owned('gen')){const f=S.gen.fuel/100;ADDV.genGauge.scale.x=Math.max(.01,.36*f);ADDV.genGauge.material.color.set(f>.3?0x3aff7a:f>.12?0xffa020:(Math.sin(t*8)>0?0xff3020:0x400a08))}
   // forklift
@@ -195,7 +197,7 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'mgrFinal':if(e.p===me){toast('He lowers the clipboard. Don\'t stop moving.',5,'radio');ME.shake=Math.max(ME.shake,.4)}break;
   case 'boom':SFX.boom(P(e.x,e.z,0));ME.shake=Math.max(ME.shake,.25);break;
   case 'roof':SFX.roofStep(P(e.x,e.z,2.8));break;
-  case 'stall':SFX.thunk(P(ME.x,ME.z,2));if(AU.ready&&ADDV.lift)ADDV.lift.set(0,.1);if(Math.abs(ME.x-(e.lvl===0?-28.7:71.3))<3)toast('The elevator jerks to a stop. Something is on the roof. Keep your light on the hatch.',5,'radio');break;
+  case 'stall':SFX.thunk(P(ME.x,ME.z,2));if(AU.ready&&ADDV.lift)ADDV.lift.set(0,.1);if(Math.abs(ME.x-(e.lvl===0?-28.7:71.3))<3)toast('The elevator jerks to a stop. Something is on the roof. Shine your flashlight up at the hatch!',6,'radio');break;
   case 'unstall':SFX.thunk(P(ME.x,ME.z,2));break;
   case 'elevGo':SFX.thunk(P(e.lvl===0?-28.7:71.3,e.lvl===0?-9.3:0,1));break;
   case 'ding':SFX.ding(P(e.lvl===0?-28.7:71.3,e.lvl===0?-9.3:0,2.4));break;
@@ -236,6 +238,9 @@ function promptFor(t,me){switch(t.kind){
   case 'fuelrack':return me.can?'':'<kbd>E</kbd> Take a jerry can';
   case 'fslot':return t.ok?'<kbd>E</kbd> Set the pallet on the shelf':'Shelf is full';
   case 'fpal':return'<kbd>E</kbd> Lift the pallet';}return null}
+// stuck in the elevator: shown in the middle of the screen, how long the light has been on the hatch and how long before it opens
+function hatchNote(){const e=S.elev;if(!e||e.st!=='stall'||!owned('base')||!inCar(ME,e.lvl===0?CAR_UP:CAR_DN))return'';const k=clamp((e.hl||0)/ELEV_HOLD,0,1);
+  return`<span class="warnline">SOMETHING IS ON THE ROOF &middot; ${Math.max(0,Math.ceil(ELEV_WAIT-(e.ht||0)))}s</span><br>${ME.lightOn()?'Shine your light up at the hatch':'<kbd>F</kbd> Turn your flashlight on and shine it up at the hatch'} <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}
 function statusLines(me){let h='';
   if(mainsDown())h+=`<div class="bay warnline">POWER OUT &middot; charger slowed</div>`;
   if(owned('gen')&&S.gen)h+=`<div class="bay small${S.outage&&S.gen.fuel<25?' warnline':''}">generator ${S.outage?(S.gen.fuel>0?'running':'empty'):'on standby'} &middot; fuel ${Math.round(S.gen.fuel)}%</div>`;

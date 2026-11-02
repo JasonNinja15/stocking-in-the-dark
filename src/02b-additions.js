@@ -70,7 +70,7 @@ function buildAdditions(){
       sbox(MAT.steel,w,.06,d,mx,.03,mz,{cast:false});sbox(MAT.steel,w,.1,d,mx,H+.05,mz);                      // floor, roof
       for(const z of[C.z0,C.z1]){sbox(cw,w,H,.1,mx,H/2,z,{uv:[1,1]});acol('base',C.x0,z-.1,C.x1,z+.1)}
       if(lvl===1){sbox(cw,.1,H,d,C.x0,H/2,mz);acol('base',C.x0-.1,C.z0,C.x0+.1,C.z1)}
-      const hatch=new THREE.Mesh(GEO.box,MAT.dark);hatch.scale.set(.7,.05,.7);hatch.position.set(mx,H-.01,mz);g.add(hatch);
+      const hatch=new THREE.Mesh(GEO.box,MAT.dark.clone());hatch.scale.set(.7,.05,.7);hatch.position.set(mx,H-.01,mz);g.add(hatch);
       const gate=new THREE.Group();for(let i=0;i<9;i++){const b=new THREE.Mesh(GEO.box,MAT.cage);b.scale.set(.04,2.5,.04);b.position.set(0,1.25,C.z0+.15+i*(d-.3)/8);gate.add(b)}
       for(const y of[.2,1.25,2.4]){const b=new THREE.Mesh(GEO.box,MAT.cage);b.scale.set(.05,.05,d);b.position.set(0,y,mz);gate.add(b)}gate.position.x=C.x1;g.add(gate);
       const gcol=acol('base',C.x1-.1,C.z0,C.x1+.1,C.z1,{gate:lvl});

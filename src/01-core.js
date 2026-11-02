@@ -79,6 +79,14 @@ TEX.wall=ctex(256,256,(g,w,h)=>{for(let x=0;x<w;x++){const s=Math.sin(x/w*TAU*8)
   speckle(g,w,h,2500,'10,10,10',.3,2);for(let i=0;i<8;i++)wstain(g,w,h,rand(0,w),rand(0,h),rand(10,40),'20,18,14',.3);
   g.fillStyle='rgba(0,0,0,.4)';g.fillRect(0,0,w,3);
 },{rep:[1,1]});
+// the roll-up bay doors: the wall's blue-grey steel, but in horizontal slats, with a rubber seal and a pull handle
+TEX.rollDoor=ctex(256,512,(g,w,h)=>{const n=20,sh=(h-14)/n;
+  for(let i=0;i<n;i++){const y=i*sh,gr=g.createLinearGradient(0,y,0,y+sh);gr.addColorStop(0,'rgb(98,108,120)');gr.addColorStop(.55,'rgb(80,88,98)');gr.addColorStop(1,'rgb(52,57,64)');
+    g.fillStyle=gr;g.fillRect(0,y,w,sh);g.fillStyle='rgba(10,10,12,.7)';g.fillRect(0,y+sh-2,w,2);g.fillStyle='rgba(170,180,190,.35)';g.fillRect(0,y,w,1)}
+  for(let i=0;i<7;i++){const x=rand(0,w),l=rand(60,260);const gr=g.createLinearGradient(0,0,0,l);gr.addColorStop(0,'rgba(90,50,20,.45)');gr.addColorStop(1,'rgba(90,50,20,0)');g.fillStyle=gr;g.fillRect(x,0,rand(2,6),l)}
+  speckle(g,w,h,3000,'10,10,10',.3,2);for(let i=0;i<6;i++)wstain(g,w,h,rand(0,w),rand(h*.5,h),rand(10,40),'20,18,14',.3);
+  g.fillStyle='#4a4f55';g.fillRect(0,h-14,w,6);g.fillStyle='#141414';g.fillRect(0,h-8,w,8);       // bottom bar and rubber seal
+  g.fillStyle='#1c1e20';g.fillRect(w/2-22,h-34,44,9);g.fillStyle='rgba(180,185,190,.4)';g.fillRect(w/2-22,h-34,44,1)}); // pull handle
 TEX.ply=ctex(256,256,(g,w,h)=>{g.fillStyle='#6a5233';g.fillRect(0,0,w,h);for(let y=0;y<h;y+=2){g.fillStyle=`rgba(${Math.random()<.5?'40,28,14':'130,100,60'},${rand(.05,.25)})`;g.fillRect(0,y+Math.sin(y)*2,w,1)}
   for(let i=0;i<5;i++){g.fillStyle='rgba(20,12,6,.6)';g.beginPath();g.ellipse(rand(0,w),rand(0,h),rand(3,7),rand(2,4),0,0,TAU);g.fill()}
   g.fillStyle='rgba(0,0,0,.55)';for(let x=0;x<w;x+=64)g.fillRect(x,0,2,h);speckle(g,w,h,1500,'0,0,0',.4,2)},{rep:[2,9]});

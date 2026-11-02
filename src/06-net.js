@@ -35,7 +35,7 @@ function hostMsg(c,m){if(!m||!NET.conns.has(c.peer))return;
     if(isFinite(x)&&isFinite(z)&&!(p.tpT>0)){p.x=x>60?clamp(x,BASE.x0,BASE.x1):clamp(x,WH.x0,WH.x1);p.z=x>60?clamp(z,BASE.z0,BASE.z1):clamp(z,TZ_DOCK-TRAIL_LEN,WH.z1)}if(isFinite(yaw))p.yaw=yaw;if(isFinite(pitch))p.pitch=clamp(pitch,-1.5,1.5);p.light=!!light}return}
   if(m.t==='act'&&S){act(c.peer,m.a);return}}
 function hostSend(m){for(const c of NET.conns.values())if(c.open)try{c.send(m)}catch(e){}}
-function lobbyBroadcast(){hostSend({t:'lobby',players:NET.lobby,started:NET.started});if(!NET.started)renderLobby()}
+function lobbyBroadcast(){hostSend({t:'lobby',players:NET.lobby,started:NET.started,df:DIFFS[SET.diff]?SET.diff:1});if(!NET.started)renderLobby()}
 
 function netJoin(code){return new Promise((res,rej)=>{if(!window.Peer)return rej('The multiplayer library did not load. Are you offline?');
   const p=new Peer({debug:0});NET.peer=p;let done=false;
@@ -49,7 +49,7 @@ function netJoin(code){return new Promise((res,rej)=>{if(!window.Peer)return rej
 function clientMsg(m){if(!m)return;
   switch(m.t){
   case 'full':NET.closing=true;netClose();showMenu('That crew is full (4 workers max).');break;
-  case 'lobby':NET.lobby=m.players||[];if(!GAME.on)renderLobby();break;
+  case 'lobby':NET.lobby=m.players||[];NET.diff=m.df;if(!GAME.on)renderLobby();break;
   case 'start':clientStart();break;
   case 'tp':ME.x=m.x;ME.z=m.z;ME.ready=true;break;
   case 'b':if(S)applyBoxes(m.b);break;
@@ -69,7 +69,7 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S
   x:{cash:Math.round(S.cash||0),adds:S.adds,fixed:S.fixed,ab:S.aidBonus|0,ex:S.extra|0,shopT:Math.round(S.shopT||0),mouths:S.mouths||[],
     par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1]),
     fl:(S.flares||[]).map(f=>[f.id,r2(f.x),r2(f.z),Math.round(f.t)]),cold:S.cold&&[r2(S.cold.door),S.cold.open?1:0],conv:S.conv&&[S.conv.sel,S.conv.jam?1:0],
-    elev:S.elev&&[S.elev.lvl,S.elev.st,r2(S.elev.t),r2(S.elev.gate)],gen:S.gen&&[Math.round(S.gen.fuel),S.gen.out?1:0],
+    elev:S.elev&&[S.elev.lvl,S.elev.st,r2(S.elev.t),r2(S.elev.gate),r2(S.elev.hl||0),r2(S.elev.ht||0)],df:S.diff,gen:S.gen&&[Math.round(S.gen.fuel),S.gen.out?1:0],
     out:S.outage?1:0,fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage]},
   ev:NETEV.splice(0)}}
 function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1,b.fz?1:0,Math.round(b.th||0),b.ret?1:0,b.pri?1:0,b.m?1:0])}
@@ -89,7 +89,7 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
     parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8]})),
     flares:(x.fl||[]).map(a=>({id:a[0],x:a[1],z:a[2],t:a[3]}))});
   if(x.cold)S.cold={door:x.cold[0],open:!!x.cold[1]};if(x.conv)S.conv={sel:x.conv[0],jam:!!x.conv[1]};
-  if(x.elev)S.elev={lvl:x.elev[0],st:x.elev[1],t:x.elev[2],gate:x.elev[3]};if(x.gen)S.gen={fuel:x.gen[0],out:!!x.gen[1]};
+  if(x.elev)S.elev={lvl:x.elev[0],st:x.elev[1],t:x.elev[2],gate:x.elev[3],hl:x.elev[4],ht:x.elev[5]};if(x.df!=null)S.diff=x.df;if(x.gen)S.gen={fuel:x.gen[0],out:!!x.gen[1]};
   if(x.fork){const f=x.fork,mine=f[4]===NET.myId&&S.fork&&S.fork.drv===NET.myId;S.fork=Object.assign(S.fork||{},mine?{lift:f[3],drv:f[4],pal:f[5],pass:!!f[6]}:{x:f[0],z:f[1],ry:f[2],lift:f[3],drv:f[4],pal:f[5],pass:!!f[6]})}
   if(addsChanged)applyAdds();
   markSlots();applyColliders();

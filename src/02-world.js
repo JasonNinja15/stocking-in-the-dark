@@ -27,7 +27,9 @@ function buildWorld(){
 
   // outer walls; the north wall has the two bay openings
   const wt=.4,H=WH.h;
-  const wallSeg=(x0,x1,z,y0=0,y1=H)=>{const w=x1-x0,h=y1-y0;sbox(MAT.wall,w,h,wt,(x0+x1)/2,(y0+y1)/2,z,{cast:false,uv:[w/2.2,h/2.2]})};
+  // texture coordinates come from world position, so the ribs run on unbroken across the pieces around the bay doors
+  const wallSeg=(x0,x1,z,y0=0,y1=H)=>{const g=new THREE.BoxGeometry(x1-x0,y1-y0,wt).translate((x0+x1)/2,(y0+y1)/2,z),P=g.attributes.position,N=g.attributes.normal,U=g.attributes.uv;
+    for(let i=0;i<P.count;i++)U.setXY(i,(Math.abs(N.getX(i))>.5?P.getZ(i):P.getX(i))/2.2,P.getY(i)/2.2);sg(MAT.wall,g,false)};
   const xs=[WH.x0-wt];for(const b of [...BAYS].sort((a,c)=>a.x-c.x))xs.push(b.x-DOOR_HW,b.x+DOOR_HW);xs.push(WH.x1+wt); // west to east
   for(let i=0;i<xs.length;i+=2){wallSeg(xs[i],xs[i+1],WH.z0-wt/2);col(xs[i],WH.z0-wt,xs[i+1],WH.z0)}
   for(const b of BAYS)wallSeg(b.x-DOOR_HW,b.x+DOOR_HW,WH.z0-wt/2,DOOR_H,H);
@@ -49,7 +51,7 @@ function buildWorld(){
     for(const s of[-1,1]){sbox(MAT.rubber,.42,DOOR_H,.9,b.x+s*1.5,DOOR_H/2,WH.z0-.85);col(b.x+s*1.25,WH.z0-1.3,b.x+s*1.75,WH.z0-.4);
       sbox(MAT.rubber,.3,.35,.22,b.x+s*(DOOR_HW+.05),.55,WH.z0+.11)} // bumpers sit on the wall face, clear of the trailer
     // roll door
-    const door=new THREE.Group();const panel=new THREE.Mesh(GEO.box,toon(0x8a8f92,{map:TEX.wall}));panel.scale.set(DOOR_HW*2,DOOR_H,.08);panel.castShadow=true;panel.receiveShadow=true;door.add(panel);
+    const door=new THREE.Group();const panel=new THREE.Mesh(GEO.box,toon(0xc4cad0,{map:TEX.rollDoor}));panel.scale.set(DOOR_HW*2,DOOR_H,.08);panel.castShadow=true;panel.receiveShadow=true;door.add(panel);
     door.position.set(b.x,0,WH.z0-.05);ROOT.add(door);
     const doorCol=col(b.x-DOOR_HW,WH.z0-wt,b.x+DOOR_HW,WH.z0,{dyn:true});
     // status lamp above the door + the dock control panel
@@ -62,7 +64,8 @@ function buildWorld(){
     // trailer walls collide only while a truck is docked
     const tc=[col(b.x-TRAIL_HW-.25,TZ_DOCK-TRAIL_LEN-.3,b.x-TRAIL_HW,TZ_DOCK,{dyn:true,on:false}),col(b.x+TRAIL_HW,TZ_DOCK-TRAIL_LEN-.3,b.x+TRAIL_HW+.25,TZ_DOCK,{dyn:true,on:false}),col(b.x-TRAIL_HW-.25,TZ_DOCK-TRAIL_LEN-.3,b.x+TRAIL_HW+.25,TZ_DOCK-TRAIL_LEN,{dyn:true,on:false})];
     // a bay that isn't in service yet: its steel door stays down, barred with two hazard beams
-    let boards=null;if(b.add){boards=new THREE.Group();const ht=TEX.hazard.clone();ht.repeat.set(12,.7);ht.needsUpdate=true;const hm=toon(0xffffff,{map:ht});for(const y of[.95,2.35]){const p=new THREE.Mesh(GEO.box,hm);p.scale.set(DOOR_HW*2+.7,.24,.08);p.position.set(b.x,y,WH.z0+.1);p.castShadow=true;boards.add(p);
+    let boards=null;if(b.add){boards=new THREE.Group();const ht=TEX.hazard.clone();ht.repeat.set(6,.35);ht.needsUpdate=true; // stripes the same size as the floor markings
+      const hm=toon(0xffffff,{map:ht});for(const y of[.95,2.35]){const p=new THREE.Mesh(GEO.box,hm);p.scale.set(DOOR_HW*2+.7,.24,.08);p.position.set(b.x,y,WH.z0+.1);p.castShadow=true;boards.add(p);
       for(const s of[-1,1]){const k=new THREE.Mesh(GEO.box,MAT.steel);k.scale.set(.14,.36,.14);k.position.set(b.x+s*(DOOR_HW+.2),y,WH.z0+.12);boards.add(k)}}
       const s2=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.55),toon(0xffffff,{map:signTex([{t:'NOT IN SERVICE',size:44,bold:true}],{w:384,h:140,bg:'#c9a227',fg:'#16130c'})}));s2.position.set(b.x,1.7,WH.z0+.11);boards.add(s2);ROOT.add(boards)}
     BAYV.push({door,panel,doorCol,trailCol:tc,ind,scr,boards});

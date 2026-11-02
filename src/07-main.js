@@ -283,8 +283,8 @@ function evPos(e){if(e.x!==undefined)return{x:e.x,y:e.y??1,z:e.z};const v=MV.get
 function drainEvents(){while(EVQ.length){const e=EVQ.shift();try{onEvent(e)}catch(err){console.error(err)}}}
 function onEvent(e){const me=NET.myId;
   switch(e.e){
-  case 'night':{const p=e.pos&&e.pos[me];if(p){ME.x=p[0];ME.z=p[1];ME.ready=true;ME.yaw=0;ME.pitch=0;ME.vx=ME.vz=0}ME.bat=100;ME.stam=100;ME.light=true;ME.lastHp=100;ME.deathT=0;
-    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM or you're fired${e.ex?` · shift starts at ${fmtClock(-e.ex)}`:''}`,4.5);SFX.bell();ME.red=false;ME.drinkT=0;introAdds();
+  case 'night':{if(e.df!=null)S.diff=e.df;const p=e.pos&&e.pos[me];if(p){ME.x=p[0];ME.z=p[1];ME.ready=true;ME.yaw=0;ME.pitch=0;ME.vx=ME.vz=0}ME.bat=100;ME.stam=100;ME.light=true;ME.lastHp=100;ME.deathT=0;
+    big(`NIGHT ${e.n}${S.diff!==1&&DIFFS[S.diff]?` &middot; ${DIFFS[S.diff].name.toUpperCase()}`:''}`,`Shelve ${e.q} boxes before 6:00 AM or you're fired${e.ex?` · shift starts at ${fmtClock(-e.ex)}`:''}`,4.5);SFX.bell();ME.red=false;ME.drinkT=0;introAdds();
     if(e.n===1&&!GAME.hints.start){GAME.hints.start=1;setTimeout(()=>GAME.on&&toast('A truck is backing into Bay A. Unload it and shelve the boxes.',5),4500);
       setTimeout(()=>GAME.on&&toast('Your quota is top left. Keep the bar ahead of the white marker to stay on pace.',6),11000)}break}
   case 'radio':SFX.radio();toast(`Supervisor, on the radio: "${e.m}"`,6,'radio');break;
@@ -340,7 +340,8 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
       else if(t.kind==='exit')pr='<kbd>E</kbd> Exit';}
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?' &nbsp; <kbd>G</kbd> Set the pallet down':'');
-    const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;}
+    const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
+    const hn=hatchNote();if(hn)pr=hn;}
   if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
   $('cross').className=t&&(t.kind!=='slot'||t.ok)?'on':'';
   // a clock ticks through the last minute and overtime, only while the quota isn't met; double time for the final 10 s
@@ -392,6 +393,7 @@ function showPause(){if(!GAME.on)return;if(NET.mode==='solo')GAME.paused=true;$(
 function renderLobby(){show('lobby');$('code').textContent=NET.code||'-----';
   $('lobbyList').innerHTML=NET.lobby.map(p=>`<li><span class="dot" style="background:${p.col}"></span>${esc(p.name)}${p.id===NET.myId?' <span class="lbl">(you)</span>':''}</li>`).join('');
   $('lobbyStatus').textContent=NET.mode==='host'?(NET.lobby.length>1?`${NET.lobby.length} workers. Start when everyone is in.`:'Share the code. Waiting for your crew…'):'Waiting for the host to start the shift…';
+  const d=NET.mode==='host'?SET.diff:NET.diff;if(DIFFS[d])$('lobbyStatus').textContent+=` Difficulty: ${DIFFS[d].name}.`;
   $('bStart').classList.toggle('hide',NET.mode!=='host')}
 function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
   const crew=S&&Object.keys(S.players).length>1;
@@ -413,6 +415,10 @@ function clientStart(){S=newState();S.players={};EVQ.length=0;ME.ready=false;ent
 function quitToMenu(){GAME.on=false;netClose();S=null;clearVisuals();EVQ.length=0;NETEV.length=0;showMenu()}
 
 function bindUI(){
+  // difficulty: the host's (or a solo player's) choice runs the whole crew's night
+  const DIFF_NOTE=['Smaller quotas, monsters hit softer, and bad luck is rarer.','The shift as it was meant to be worked.','Bigger quotas, monsters hit harder, and bad luck comes far more often.'];
+  const setDiff=d=>{SET.diff=d;saveSet();document.querySelectorAll('#diffs button').forEach(b=>b.classList.toggle('on',+b.dataset.d===d));$('diffNote').textContent=DIFF_NOTE[d]+' (A crew plays on the host\'s setting.)'};
+  document.querySelectorAll('#diffs button').forEach(b=>b.onclick=()=>setDiff(+b.dataset.d));setDiff(DIFFS[SET.diff]?SET.diff:1);
   $('name').value=SET.name||'';$('name').addEventListener('input',()=>{SET.name=$('name').value;saveSet()});
   $('bSolo').onclick=()=>{auInit();startSolo()};
   $('bHost').onclick=async()=>{auInit();NET.code='';NET.lobby=[];NET.mode='host';renderLobby();$('lobbyStatus').textContent='Opening a crew room…';$('bStart').classList.add('hide');

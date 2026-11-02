@@ -56,6 +56,9 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 .bay{color:#d6cdb6}.bay.live{color:#f6efdb}.bay.small,.bay .small{font-size:.85em;color:#c4b99f}
 .warn{color:#ff6a4a;animation:blink 1s steps(2) infinite}
 .warnline{color:#ff6a4a}
+.meter{display:inline-block;vertical-align:middle;width:7em;height:.6em;border:1px solid #ffb84a;margin-left:.4em}.meter i{display:block;height:100%;background:#ffb84a}
+.diffs{gap:6px}.diffs button{min-width:0;padding:7px 14px;font-size:15px;opacity:.55}.diffs button.on{opacity:1;border-color:#ffb84a;color:#ffd890}
+.diffnote{font-size:13px;color:#a89e88;min-height:1.3em;max-width:30em;text-align:center}
 @keyframes blink{50%{opacity:.35}}
 #bl{position:absolute;left:1em;bottom:1em;display:flex;flex-direction:column;gap:.5em;border-left:.28em solid var(--amber);padding-right:5.6em}
 .bar{width:clamp(120px,16vw,290px);height:.7em;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);position:relative}
@@ -133,6 +136,8 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <h1>STOCKING IN<br>THE DARK</h1>
   <div class="sub">Dock 13 &middot; Night Receiving</div>
   <div class="row"><span class="lbl">Name</span><input id="name" maxlength="14" placeholder="Night worker"></div>
+  <div class="row diffs" id="diffs"><span class="lbl">Shift</span><button data-d="0">Easy</button><button data-d="1">Normal</button><button data-d="2">Hard</button></div>
+  <div class="diffnote" id="diffNote"></div>
   <button id="bSolo">Work Alone</button>
   <button id="bHost">Host a Crew</button>
   <div class="row"><input id="joinCode" maxlength="5" placeholder="CODE" style="width:110px;text-transform:uppercase;text-align:center;letter-spacing:.2em"><button id="bJoin" style="min-width:110px">Join Crew</button></div>
@@ -158,7 +163,8 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   &bull; <b>Something on the ceiling.</b> Some trailers hold a thing that bolts out and climbs the walls. Listen for tapping overhead, and shine your light up at it. If the tapping stops right above you, move.<br>
   &bull; <b>The dark.</b> Something walks the aisles where the lights are out. It only moves when no light is on it. Turn around often. Working lamps keep it back&hellip; while they work.</p>
   <p><b>Later nights bring more.</b> A night manager who writes up anyone standing around empty-handed (three write-ups and he comes for you). A shrink-wrapped figure that hunts by sound: walk, don't run. A truck driver who passes for a crewmate but makes no footsteps. Shelf slots that bite. A loudspeaker voice that isn't quite the supervisor's, with a wrong chime. And something out in the yard you shouldn't look at when a bay door jams open.</p>
-  <p><b>Power outages.</b> From night 2 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel.</p>
+  <p><b>Difficulty</b> is picked on the title screen: Easy has smaller quotas, softer monsters and rarer bad luck; Hard has bigger quotas, harder hits and much more bad luck. A crew plays on the host's setting.</p>
+  <p><b>Power outages.</b> From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel.</p>
   <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items are on <kbd>1</kbd>&ndash;<kbd>9</kbd>, the red headlamp on <kbd>H</kbd>. Hold <kbd>5</kbd> for the thermal scanner. The <b>THIS WAY</b> board on the dock wall points to everything you have bought.</p>
   <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause</p>
   <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to four people can work a shift together. The quota grows with the crew. If you go down, you watch the others until the night ends.</p>

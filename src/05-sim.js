@@ -8,22 +8,25 @@ function emit(e){EVQ.push(e);if(NET.host)NETEV.push(e)}
 // both behind the blanket pile at the nose. The sleeper lies curled sideways against the front wall.
 const LURK_HOME=-TRAIL_LEN+.75, LURK_LX=-1.0, CRAWL_HOME=-TRAIL_LEN+1.3;
 
-function newState(){return{night:1,t:0,phase:'play',inter:0,quota:15,shelved:0,lost:0,score:0,total:0,aidLeft:2,lamps:LAMPS.map(L=>L.dead?0:1),
+// difficulty, picked on the menu by whoever runs the world: the quota, how hard monsters hit, and how often bad luck strikes
+const DIFFS=[{name:'Easy',q:.7,dmg:.6,ev:.55},{name:'Normal',q:1,dmg:1,ev:1},{name:'Hard',q:1.3,dmg:1.35,ev:1.5}];
+const DF=()=>DIFFS[S&&DIFFS[S.diff]?S.diff:1],diffEv=()=>DF().ev;
+function newState(){return{night:1,diff:DIFFS[SET.diff]?SET.diff:1,t:0,phase:'play',inter:0,quota:15,shelved:0,lost:0,score:0,total:0,aidLeft:2,lamps:LAMPS.map(L=>L.dead?0:1),
   players:{},boxes:[],trucks:BAYS.map(()=>({st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,stuck:0})),mons:[],over:null,bver:0,
   cash:0,adds:[],fixed:[],aidBonus:0,extra:0}}
 function addPlayer(id,name,col){S.players[id]={id,name,col,x:0,z:-16,yaw:0,pitch:0,light:true,hp:100,dead:false,carry:-1,lastHurt:-99,inv:{},up:{},stack:[],can:false}}
 function spawnPoint(i){return{x:-2.4+(i%4)*1.6,z:-15.5}}
-function calcQuota(){const n=Math.max(1,Object.keys(S.players).length);return Math.round((10+S.night*5+addExtras().q)*(1+.45*(n-1)))}
+function calcQuota(){const n=Math.max(1,Object.keys(S.players).length);return Math.max(5,Math.round((10+S.night*5+addExtras().q)*(1+.45*(n-1))*DF().q))}
 
 function startNight(){
   S.t=0;S.phase='play';S.shelved=0;S.lost=0;S.aidLeft=2;S.boxes=[];S.mons=[];S.bver++;
   for(const s of SLOTS)s.box=-1;
   S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0}));
-  HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)*(i===0?1.8:i===3?.6:1));
-  HOST.nextTruck=6;HOST.nextStalker=rand(42,55)-Math.min(20,(S.night-1)*6);HOST.trucksTonight=0;HOST.lastTruck=false;S.ot=false;
+  HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)/diffEv()*(i===0?1.8:i===3?.6:1));
+  HOST.nextTruck=6;HOST.nextStalker=(rand(42,55)-Math.min(20,(S.night-1)*6))/diffEv();HOST.trucksTonight=0;HOST.lastTruck=false;S.ot=false;
   S.quota=calcQuota();nightSetup();
   const pos={};Object.values(S.players).forEach((p,i)=>{const sp=spawnPoint(i);Object.assign(p,{x:sp.x,z:sp.z,yaw:0,pitch:0,hp:100,dead:false,carry:-1,lastHurt:-99,tpT:.8});pos[p.id]=[sp.x,sp.z]});
-  emit({e:'night',n:S.night,q:S.quota,pos,ex:S.extra});
+  emit({e:'night',n:S.night,q:S.quota,pos,ex:S.extra,df:S.diff});
 }
 function endNight(){
   if(S.shelved>=S.quota){S.total+=S.shelved;S.phase='inter';S.inter=5;
@@ -72,7 +75,8 @@ function watched(x,y,z){for(const p of alivePlayers()){const dx=x-p.x,dy=y-1.6,d
   if((dx*fx+dy*fy+dz*fz)/d<.68)continue;if(segBlocked(p.x,p.z,x,z))continue;return true}return false}
 // a flashlight clicked off and on again while pointed at (x,y,z)
 function flashedBy(x,y,z){for(const p of alivePlayers())if(p.togs&&p.togs.length>=2&&litByP(p,x,y,z))return p;return null}
-function damage(p,amt){if(!p||p.dead)return;p.hp-=amt;p.lastHurt=S.t;if(p.hp<=0){p.hp=0;p.dead=true;dropCarry(p);emit({e:'died',p:p.id})}}
+// floor: the least health this hit can leave you with. Instant kills (999) stay instant kills on every difficulty.
+function damage(p,amt,floor=0){if(!p||p.dead)return;if(amt<999)amt=Math.round(amt*DF().dmg);if(floor)amt=Math.min(amt,Math.max(0,p.hp-floor));p.hp-=amt;p.lastHurt=S.t;if(p.hp<=0){p.hp=0;p.dead=true;dropCarry(p);emit({e:'died',p:p.id})}}
 function dropOne(p,id){const b=S.boxes.find(x=>x.id===id);if(!b)return;const tb=trailerAt(p.x,p.z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=p.x-BAYS[tb].x+rand(-.2,.2);b.z=p.z-S.trucks[tb].z}else{b.st=3;b.x=p.x+rand(-.3,.3);b.z=p.z+rand(-.3,.3)}b.y=0;b.h='';S.bver++}
 function dropCarry(p){dropOne(p,p.carry);for(const id of p.stack||[])dropOne(p,id);p.stack=[];p.carry=-1;p.can=false;if(S.fork&&S.fork.drv===p.id)S.fork.drv=''}
 function settleTruck(bay){const bs=S.boxes.filter(b=>b.st===0&&b.bay===bay).sort((a,b)=>a.y-b.y);
@@ -98,11 +102,11 @@ function simUpdate(dt){
 function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&HOST.trucksTonight===0;
   Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0});
   const n=Math.min(16,randi(6,9)+Math.min(5,S.night-1));
-  tr.lurk=!first&&Math.random()<Math.min(.55,.17+.09*(S.night-1));
-  tr.crawl=!first&&!tr.lurk&&!S.mons.some(m=>m.ty===3)&&Math.random()<Math.min(.4,.14+.06*(S.night-1));
+  tr.lurk=!first&&Math.random()<Math.min(.85,Math.min(.55,.17+.09*(S.night-1))*diffEv());
+  tr.crawl=!first&&!tr.lurk&&!S.mons.some(m=>m.ty===3)&&Math.random()<Math.min(.7,Math.min(.4,.14+.06*(S.night-1))*diffEv());
   tr.warn=tr.lurk||tr.crawl?Math.random()<.75:!first&&Math.random()<.1;tr.claw=tr.lurk&&Math.random()<.7;tr.n=n;tr.left=n;tr.kg=n*randi(18,30);tr.extra=randi(280,460);
   HOST.trucksTonight++;
-  const mimP=first?0:Math.min(.24,.06+.035*(S.night-1));
+  const mimP=first?0:Math.min(.24,.06+.035*(S.night-1))*diffEv();
   const spots=[];for(let r=5;r>=0;r--)for(const lx of[-.62,.62])spots.push({lx,lz:-2.0-r*1.55,h:0});
   let mimics=0;
   for(let k=0;k<n;k++){const sp=spots[k%spots.length];const K=randi(0,2),kind=BOX_KINDS[K];const m=Math.random()<mimP&&mimics<3;if(m)mimics++;
@@ -190,7 +194,7 @@ function settleMimic(m){const d=m.dest,s=d.s>=0?SLOTS[d.s]:null;m.dead=true;
 function monstersUpdate(dt){
   HOST.nextStalker-=dt;
   if(HOST.nextStalker<=0){const n=S.mons.filter(m=>m.ty===2).length,max=(S.night>=4?2:1)+(S.ot?1:0);
-    if(n<max){HOST.nextStalker=spawnStalker()?(S.ot?rand(8,14):Math.max(16,rand(30,52)-S.night*4)):4}else HOST.nextStalker=6}
+    if(n<max){HOST.nextStalker=spawnStalker()?(S.ot?rand(8,14):Math.max(16,rand(30,52)-S.night*4)/diffEv()):4}else HOST.nextStalker=6}
   for(const m of S.mons){const f=MON_UPD[m.ty];if(f)f(m,dt)}
   S.mons=S.mons.filter(m=>!m.dead)}
 
@@ -308,7 +312,7 @@ function lampOut(i,dur){if(!S.lamps[i])return;S.lamps[i]=0;HOST.lampT[i]=dur;emi
 function lampsUpdate(dt){if(S.ot)return;if(mainsDown()){if(S.lamps.some(x=>x))S.lamps=S.lamps.map(()=>0);return}const steady=owned('gen');for(let i=0;i<LAMPS.length;i++){
   if(LAMPS[i].dead&&!S.fixed.includes(i))continue;
   if(!S.lamps[i]){HOST.lampT[i]-=dt;if(HOST.lampT[i]<=0){S.lamps[i]=1;emit({e:'lampOn',i})}continue}
-  HOST.lampNext[i]-=dt;if(HOST.lampNext[i]<=0){HOST.lampNext[i]=rand(25,50)*(i===0?1.8:i===3?.6:1);if(!steady)lampOut(i,rand(1.5,4.5))}}}
+  HOST.lampNext[i]-=dt;if(HOST.lampNext[i]<=0){HOST.lampNext[i]=rand(25,50)/diffEv()*(i===0?1.8:i===3?.6:1);if(!steady)lampOut(i,rand(1.5,4.5))}}}
 
 // ---------------------------------------------------------------- player actions
 function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
