@@ -196,7 +196,7 @@ function boltMimic(m){m.st='bolt';m.t=0;m.path=null;const c=farCell();m.tx=c.x;m
 function roamTo(m){if(roamers()>5){boltMimic(m);return}
   m.st='run';m.t=0;m.path=null;m.dest=null;const taken=new Set(S.mons.filter(o=>o.dest&&o.dest.s>=0).map(o=>o.dest.s));
   const farFromAll=(x,z,r)=>alivePlayers().every(p=>Math.hypot(p.x-x,p.z-z)>r);
-  if(Math.random()<.65){const c=SLOTS.filter(s=>!s.old&&!s.add&&s.box===-1&&!taken.has(s.id)&&!S.mouths.includes(s.id)&&farFromAll(s.x,s.z,6));
+  if(Math.random()<.65){const c=SLOTS.filter(s=>!s.old&&!s.add&&s.box===-1&&!taken.has(s.id)&&farFromAll(s.x,s.z,6));
     for(let k=0;k<6&&c.length&&!m.dest;k++){const s=pick(c);for(const side of Math.random()<.5?[-1,1]:[1,-1]){const az=s.z+side*1.3,[i,j]=cellOf(s.x,az);if(!GRID.blk[j*GRID.nx+i]){m.dest={s:s.id,x:s.x,y:s.y,z:s.z,ax:s.x,az};break}}}}
   if(!m.dest)for(let k=0;k<30;k++){const i=randi(0,GRID.nx-1),j=randi(3,GRID.nz-1);if(GRID.blk[j*GRID.nx+i])continue;const x=GRID.x0+i+.5,z=GRID.z0+j+.5;
     if(lampZone(x,z,1)>=0||!farFromAll(x,z,7))continue;m.dest={s:-1,x,y:0,z,ax:x,az:z};break}
@@ -349,8 +349,8 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
   case 'place':{const b=B(p.carry),s=SLOTS[a.s];if(!b||!s||s.old||s.box!==-1||!slotOn(s))return;if(drv?tipD(s)>2.8:Math.hypot(p.x-s.x,p.z-s.z)>3.8)return;
     if(s.cold&&!b.fz)return emit({e:'msg',m:'Only frozen crates go in the freezer.',p:pid});
     if(!s.cold&&b.fz)return emit({e:'msg',m:'Frozen crates go in the cold storage room.',p:pid});
+    if(b.ret)return emit({e:'msg',m:'Damaged returns can\'t be shelved. They go in the basement shredder.',p:pid});
     // some slots tonight aren't slots
-    if(S.mouths.includes(s.id)){b.st=4;S.lost++;S.bver++;nextCarry();damage(p,25);emit({e:'mouth',p:pid,s:s.id,x:s.x,y:s.y,z:s.z});return}
     b.st=2;b.s=s.id;b.x=s.x+rand(-.15,.15);b.y=s.y;b.z=s.z+rand(-.08,.08);b.ry=rand(-.12,.12)+(s.rot?Math.PI/2:0);b.h='';b.m=false;s.box=b.id;nextCarry();S.shelved++;pay(b.pri?20:b.f?15:10);S.bver++;
     emit({e:'place',x:b.x,y:b.y,z:b.z});if(S.shelved===S.quota)emit({e:'quota'});break}
   case 'drop':{const b=B(p.carry);if(!b)return;let x=+a.x,z=+a.z;if(!isFinite(x)||!isFinite(z)||Math.hypot(x-p.x,z-p.z)>(drv?2.8:2.2)||insideAny(x,z,.15)){x=p.x;z=p.z}

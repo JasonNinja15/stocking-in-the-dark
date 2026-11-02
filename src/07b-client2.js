@@ -1,5 +1,5 @@
 // ===================================================================== client: additions, later-night monsters, items, the shop
-let FORK3D=null,GIANT=null,PASS3D=null;const PV=new Map(),PALV=new Map(),FLV=new Map(),MOUTHV=new Map();
+let FORK3D=null,GIANT=null,PASS3D=null;const PV=new Map(),PALV=new Map(),FLV=new Map();
 let PARCELPICK=[],PALPICK=[],FORKPICK=[];const SCAN=[];
 const FLARE_L=new THREE.PointLight(0xff4a2a,0,10,1.5),ROOM_L=new THREE.PointLight(0x9fc4ff,0,12,1.5);
 const REDL=new THREE.SpotLight(0xff2412,0,12,.5,.6,1.3);REDL.position.set(0,.12,0);REDL.target.position.set(0,-.4,-6);camera.add(REDL,REDL.target);
@@ -12,7 +12,7 @@ function buildExtrasVisuals(){FORK3D=makeForklift();ROOT.add(FORK3D);
   GIANT=makeGiant();GIANT.visible=false;ROOT.add(GIANT);PASS3D=makePassenger();PASS3D.visible=false;ROOT.add(PASS3D);ROOT.add(FLARE_L,ROOM_L);
   const tex=ctex(64,64,g=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,220,140,1)');gr.addColorStop(.45,'rgba(255,110,30,.7)');gr.addColorStop(1,'rgba(255,40,0,0)');g.fillStyle=gr;g.fillRect(0,0,64,64)},{aniso:1});
   for(let i=0;i<20;i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,fog:false}));s.visible=false;s.renderOrder=9;scene.add(s);SCAN.push(s)}
-  VM.can=makeCan();VM.can.position.set(-.16,-.36,-.55);VM.can.visible=false;VM.g.add(VM.can);VM.can.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=5}})}
+  VM.can=makeCan();VM.can.position.set(-.16,-.36,-.55);VM.can.visible=false;VM.g.add(VM.can);VM.can.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=5}});buildRoofVisuals()}
 const shown=o=>{for(let p=o.parent;p;p=p.parent)if(!p.visible)return false;return true};
 
 // ---------------------------------------------------------------- per-frame sync of the additions' moving parts
@@ -62,13 +62,65 @@ function syncExtras(dt,time){if(!S)return;const t=time;
   // a room light that follows you into the freezer or the basement
   if(ME.x>60&&owned('base')){ROOM_L.color.set(0xffc890);ROOM_L.position.set(77,2.8,0);ROOM_L.intensity=Math.random()<.04?.5:7}
   else if(owned('cold')&&ME.x>18&&ME.z<-9){ROOM_L.color.set(0x9fc4ff);ROOM_L.position.set(25.5,3,-16);ROOM_L.intensity=5}else ROOM_L.intensity=0;
-  // mouths: teeth only where your own light falls
-  const me=S.players[NET.myId];const ms=new Set(S.mouths||[]);
-  for(const id of ms){let g=MOUTHV.get(id);const s=SLOTS[id];if(!g){g=makeTeeth();g.position.set(s.x,s.y,s.z);ROOT.add(g);MOUTHV.set(id,g)}g.visible=!!(me&&ME.lightOn()&&litByP(me,s.x,s.y+.2,s.z))}
-  for(const [id,g] of MOUTHV)if(!ms.has(id)){ROOT.remove(g);MOUTHV.delete(id)}
-  // the thing in the yard
-  if(S.yard){GIANT.visible=true;const z=WH.z0-YARD_D[S.yard.stage];GIANT.position.x=BAYS[S.yard.bay].x;GIANT.position.z=damp(GIANT.position.z||z,z,1.5,dt);GIANT.position.y=-1.25;
-    GIANT.rotation.y=Math.PI*0;GIANT.userData.head.rotation.z=Math.sin(t*.3)*.2;GIANT.userData.arms.forEach((a,i)=>a.rotation.x=Math.sin(t*.4+i)*.05)}else GIANT.visible=false}
+  // the thing in the yard: each time it steps closer it stoops lower to see in, and at the last step its fingers
+  // come round the top of the door frame
+  if(S.yard){const y=S.yard,bx=BAYS[y.bay].x,z=WH.z0-YARD_D[y.stage],u=GIANT.userData,v=u.v||(u.v={walk:0,st:0});GIANT.visible=camera.position.x>-100;
+    if(!GIANT.position.z){GIANT.position.z=z}const oz=GIANT.position.z;GIANT.position.set(bx,-1.25,damp(oz,z,1.2,dt));const sp=Math.abs(GIANT.position.z-oz)/Math.max(dt,1e-3);
+    v.walk+=sp*dt*.55;v.st=damp(v.st,Math.min(1,sp/1.2),3,dt);v.cr=damp(v.cr||0,[0,.15,.4,1][y.stage],1.5,dt);v.ln=damp(v.ln||0,[0,.1,.35,1.25][y.stage],1.5,dt);GIANT.rotation.y=0;
+    const grip=y.stage===3?_yv.set(bx+DOOR_HW-.25,DOOR_H+.15,WH.z0-.35):null;
+    poseGiant(GIANT,{walk:v.walk,stride:v.st,crouch:v.cr,lean:v.ln,look:camera.position,hands:[null,grip],curl:[0,grip?.75:0],t});giantFade(GIANT,Math.hypot(bx-ME.x,GIANT.position.z-ME.z))}
+  else{GIANT.visible=false;GIANT.position.z=0}
+  syncRoof(dt,t)}
+const _yv=new THREE.Vector3(),_rv=new THREE.Vector3(),_rm=new THREE.Vector3(),_rh=new THREE.Vector3();
+
+// ---------------------------------------------------------------- up on the roof: the storm, and what comes out of it
+let ROOFG=null,SNOW=null,WIND=null;
+function buildRoofVisuals(){ROOFG=makeGiant();ROOFG.visible=false;ROOT.add(ROOFG);
+  // snow that wraps around the camera, falling and blowing sideways; only flakes in your beam really show
+  const N=3200,a=new Float32Array(N*3),sd=new Float32Array(N);for(let i=0;i<N;i++){a[i*3]=rand(-18,18);a[i*3+1]=rand(-8,8);a[i*3+2]=rand(-18,18);sd[i]=Math.random()}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(a,3));g.setAttribute('seed',new THREE.BufferAttribute(sd,1));
+  SNOW=new THREE.Points(g,new THREE.ShaderMaterial({uniforms:{t:{value:0},cam:{value:new THREE.Vector3()},fw:{value:new THREE.Vector3(0,0,-1)},lit:{value:1}},transparent:true,depthWrite:false,
+    vertexShader:`uniform float t,lit;uniform vec3 cam,fw;attribute float seed;varying float vA;
+      void main(){vec3 p=position;p.y-=t*(1.5+seed*1.3);p.x+=t*(4.+seed*2.5)+sin(t*1.3+seed*40.)*.7;p.z+=t*1.4+sin(t*.8+seed*23.)*.9;
+        vec3 r=mod(p-cam+vec3(18.,8.,18.),vec3(36.,16.,36.))-vec3(18.,8.,18.);vec3 w=cam+r;vec4 mv=viewMatrix*vec4(w,1.);float d=max(-mv.z,.05);
+        float beam=smoothstep(.9,.975,dot(normalize(r),fw))*lit*exp(-d*.07);vA=clamp(beam*1.2+.1*exp(-d*.3),0.,1.);
+        gl_PointSize=clamp((1.5+seed*1.6)*14./d,1.,9.);gl_Position=projectionMatrix*mv;}`,
+    fragmentShader:`varying float vA;void main(){vec2 c=gl_PointCoord-.5;float r=dot(c,c);if(r>.25)discard;gl_FragColor=vec4(.86,.9,1.,vA*(1.-r*4.));}`}));
+  SNOW.frustumCulled=false;SNOW.visible=false;scene.add(SNOW)}
+const FOG0={c:new THREE.Color(0x030305),d:.052},FOG_ROOF={c:new THREE.Color(0x07090d),d:.06};
+function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.myId];
+  // the storm: a lighter, bluer murk, snow in the air, wind, frost creeping in at the edges of your sight
+  scene.fog.color.lerp(up?FOG_ROOF.c:FOG0.c,1-Math.exp(-6*dt));scene.fog.density=damp(scene.fog.density,up?FOG_ROOF.d:FOG0.d,6,dt);AMB.intensity=damp(AMB.intensity,up?.07:.32,6,dt);
+  if(SNOW){SNOW.visible=up;if(up){const u=SNOW.material.uniforms;u.t.value=t;u.cam.value.copy(camera.position);camera.getWorldDirection(u.fw.value);u.lit.value=ME.lightOn()?1:.15}}
+  if(AU.ready){if(!WIND)WIND=loop('wind',null,1);if(WIND){WIND.P.panningModel='equalpower';WIND.P.refDistance=1e4;WIND.set(up?.55:0,up?.4:.25)}}
+  const fr=$('frost');if(fr){ME.cold=damp(ME.cold||0,up?1:0,up?.25:1.5,dt);fr.style.opacity=(ME.cold*.85).toFixed(3)}
+  if(ROOFV.beacon)ROOFV.beacon.material.color.set(Math.sin(t*2.2)>.6?0xff2a1a:0x2a0503);
+  if(ROOFV.lid){ROOFV.lid.visible=!S.stash;ROOFV.lid.rotation.x=-1.9}
+  // the thing itself
+  // (it ignores fog so it shows through the storm, so it is only drawn for someone up there, or watching someone up there)
+  const g=S.rg;ROOFG.visible=!!g&&camera.position.x<-100;if(!g){ROOFG.userData.v=null;return}
+  const u=ROOFG.userData;let v=u.v;if(!v)v=u.v={x:g.x,z:g.z,walk:0,st:0,k:0,hx:g.hx,hz:g.hz,hi:1};
+  const ox=v.x,oz=v.z;v.x=damp(v.x,g.x,4,dt);v.z=damp(v.z,g.z,4,dt);const sp=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3);
+  v.walk+=sp*dt*.5;v.st=damp(v.st,Math.min(1,sp/1.4),3,dt);v.k=damp(v.k,g.k,5,dt);v.hx=damp(v.hx,g.hx,6,dt);v.hz=damp(v.hz,g.hz,6,dt);
+  ROOFG.position.set(v.x,ROOF.gy,v.z);ROOFG.rotation.y=angLerp(ROOFG.rotation.y,g.ry,1-Math.exp(-3*dt));
+  const tg=S.players[g.tg],eat=g.st==='eat',reach=eat||g.st==='reach'||g.st==='retract';
+  const look=tg&&onRoof(tg)?(g.tg===NET.myId?camera.position:_rv.set(tg.x,1.5,tg.z)):camera.position;
+  let hand=null,curl=0,jaw=0;
+  if(reach){_rh.set(v.hx,.4,v.hz);ROOFG.updateMatrixWorld(true);const loc=ROOFG.worldToLocal(_rm.copy(_rh));if(!eat)v.hi=loc.x>=0?1:0;
+    const e=_rm.set(clamp(v.x,ROOF.x0+.3,ROOF.x1-.3),2.6,clamp(v.z,ROOF.z0+.3,ROOF.z1-.3)),k=v.k;
+    // up over the parapet first, then down across the roof towards you
+    if(k<.35){const rest=ROOFG.localToWorld(_yv.set(ROOFG.userData.arms[v.hi].s*2.1,.9,1.6)),a=clamp(k/.35,0,1);hand=rest.lerp(e,a*a*(3-2*a))}else hand=e.lerp(_rh,(k-.35)/.65);
+    curl=g.k>=1?.2:0;
+    if(eat){const lift=clamp(g.t/2.6,0,1),m=ROOFG.userData.head.localToWorld(_yv.set(0,-.1,1.4));hand=_rh.lerp(m,lift*lift*(3-2*lift));curl=Math.min(1,g.t*1.6);jaw=clamp((g.t-1.7)/1.2,0,1)}
+    _rh.copy(hand);hand=_rh}
+  const hands=[null,null];if(hand)hands[v.hi]=hand;const cl=[0,0];cl[v.hi]=curl;
+  poseGiant(ROOFG,{walk:v.walk,stride:v.st,lean:Math.min(1,v.k*1.25)+(g.st==='wait'?.15:0),crouch:v.k*.35,jaw,look,hands,curl:cl,t});
+  giantFade(ROOFG,Math.hypot(v.x-camera.position.x,v.z-camera.position.z))}
+// where a held player is: in its fist
+function rgHeldAt(id){const g=S.rg;if(!g||g.st!=='eat'||g.tg!==id||!ROOFG||!ROOFG.userData.v)return null;return giantHand(ROOFG,ROOFG.userData.v.hi,_rm)}
+// being lifted: the camera rides in its hand, turned to face what it's lifting you to
+function rgHeld(dt,me){const h=rgHeldAt(NET.myId);if(!h)return false;ME.vx=ME.vz=0;ME.fear=1;ME.shake=Math.max(ME.shake,.25);
+  const head=ROOFG.userData.head.getWorldPosition(_yv);camera.position.set(h.x,h.y+.45,h.z);camera.lookAt(head);camera.rotation.z+=Math.sin(performance.now()*.006)*.06;return true}
 
 // ---------------------------------------------------------------- driving the forklift
 function driveUpdate(dt,me){const f=S.fork,busy=!!ME.scare||S.phase!=='play';
@@ -93,12 +145,11 @@ function forkTarget(){const f=S.fork,t={x:f.x+Math.sin(f.ry)*1.55,z:f.z+Math.cos
 // ---------------------------------------------------------------- input for the new things (returns true if it used the key)
 function onKey2(code,me){
   if(code==='KeyH'){if(me.up&&me.up.red){ME.red=!ME.red;SFX.click()}else toast('You don\'t have a headlamp.');return true}
+  // number keys jump straight to that item on the hotbar; right click uses it
   const k=ITEM_KEYS[code];
-  if(k){if(k==='scanner')return true;const have=k==='cutter'?me.up&&me.up.cutter:(me.inv&&me.inv[k]>0);if(!have){SFX.deny();toast(`No ${SHOP[k].name.toLowerCase()}. They're sold between nights.`,2.5);return true}
-    if(k==='cutter'){const t=ME.target;if(t&&t.kind==='box')doAct({a:'use',k,b:t.b.id});else if(t&&t.kind==='parcel')doAct({a:'use',k,pc:t.id});
-      else{const m=looseMimic();if(m)doAct({a:'use',k,m:m.id});else toast('Look at a box to cut it open.',2)}return true}
-    if(k==='strobe'){ME.flash=Math.max(ME.flash,.55);SFX.strobe()}
-    doAct({a:'use',k});return true}
+  if(k){if(!haveItem(me,k)){SFX.deny();toast(`No ${SHOP[k].name.toLowerCase()}. They're sold between nights.`,2.5);return true}
+    if(ME.sel!==k){ME.sel=k;SFX.click()}return true}
+  if(code==='UseItem'){useSel(me);return true}
   if(ME.driving){
     if(code==='KeyQ'){doAct({a:'fork'});return true}
     if(code==='KeyE'){const t=ME.target;if(t&&t.kind==='fslot'){if(t.ok)doAct({a:'fplace',s:t.s.id});else SFX.deny()}else if(t&&t.kind==='fpal')doAct({a:'fpick'});
@@ -117,16 +168,30 @@ function onKey2(code,me){
     case 'elevCall':doAct({a:'elevCall',lvl:t.lvl});return true;
     case 'gen':if(me.can)doAct({a:'fuel'});else toast('Bring a jerry can from the fuel rack.',2.5);return true;
     case 'fuelrack':if(me.can)toast('You already have a can.',2);else if(me.carry>=0)toast('Your hands are full.',2);else doAct({a:'can'});return true;
-    case 'shred':if(me.carry<0)toast('Bring a box to feed it.',2);else doAct({a:'shred'});return true}}
+    case 'shred':if(me.carry<0)toast('Bring a box to feed it.',2);else doAct({a:'shred'});return true;
+    case 'ladder':case 'hatch':if(me.carry>=0||me.can){toast('You need both hands for the ladder.',2.5);SFX.deny()}else doAct({a:'climb'});return true;
+    case 'stash':doAct({a:'stash'});return true}}
   if(code==='KeyQ'&&ME.target&&ME.target.kind==='parcel'){if(ME.kickCD>0)return true;ME.kickCD=.8;ME.kickA=.35;doAct({a:'kick',pc:ME.target.id});return true}
   return false}
+// ---------------------------------------------------------------- the item hotbar: scroll to pick, right click to use
+const haveItem=(me,k)=>k==='cutter'||k==='scanner'?!!(me.up&&me.up[k]):!!(me.inv&&me.inv[k]>0);
+const heldItems=me=>me?Object.values(ITEM_KEYS).filter(k=>haveItem(me,k)):[];
+function curSel(me){const h=heldItems(me);if(!h.includes(ME.sel))ME.sel=h[0]||'';return ME.sel}
+function scrollItem(dir){const me=S&&S.players[NET.myId];if(!me||me.dead||S.phase!=='play')return;const h=heldItems(me);if(h.length<2)return;
+  const i=h.indexOf(curSel(me));ME.sel=h[(i+dir+h.length)%h.length];SFX.click()}
+function useSel(me){const k=curSel(me);if(!k){SFX.deny();toast('No items. They\'re sold between nights.',2.5);return}
+  if(k==='scanner')return; // held, see localUpdate2
+  if(k==='cutter'){const t=ME.target;if(t&&t.kind==='box')doAct({a:'use',k,b:t.b.id});else if(t&&t.kind==='parcel')doAct({a:'use',k,pc:t.id});
+    else{const m=looseMimic();if(m)doAct({a:'use',k,m:m.id});else toast('Look at a box to cut it open.',2)}return}
+  if(k==='strobe'){ME.flash=Math.max(ME.flash,.55);SFX.strobe()}
+  doAct({a:'use',k})}
 // a burst mimic within reach and roughly in front of you
 function looseMimic(){let best=null,bd=2.9;const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw);
   for(const m of S.mons){if(m.ty!==0)continue;const dx=m.x-ME.x,dz=m.z-ME.z,d=Math.hypot(dx,dz);if(d<bd&&(d<1||(dx*fx+dz*fz)/d>.5)){bd=d;best=m}}return best}
 // held E on the jam button for a moment clears it
 function localUpdate2(dt,me){const t=ME.target;
   if(t&&t.kind==='jam'&&K.KeyE&&S.conv&&S.conv.jam&&!ME.scare){ME.holdT=(ME.holdT||0)+dt;if(ME.holdT>1.2){ME.holdT=-99;doAct({a:'jam'})}}else if(!K.KeyE)ME.holdT=0;
-  ME.drinkT=Math.max(0,(ME.drinkT||0)-dt);ME.scan=!!(K.Digit5&&me.up&&me.up.scanner&&!ME.scare)}
+  ME.drinkT=Math.max(0,(ME.drinkT||0)-dt);ME.scan=!!(K.Mouse2&&curSel(me)==='scanner'&&!ME.scare)}
 function findTarget2(me,hit){const ud=hit.object.userData;
   if(ud.kind==='parcel'){ME.target={kind:'parcel',id:ud.id};return true}
   if(ud.kind==='pallet'){ME.target={kind:'pallet',id:ud.id};return true}
@@ -188,7 +253,10 @@ function updScare2(s,k,lunge){const g=s.g,u=g.userData;
   else if(s.ty===5){g.position.set(rand(-.02,.02),-1.9,lerp(-1.4,-.6,lunge(.2)));u.head.rotation.set(-.15,0,Math.sin(k*25)*.2);u.torso.rotation.x=.25}
   else if(s.ty===6){g.position.set(rand(-.02,.02),-1.84,lerp(-1.5,-.62,lunge(.16)));u.arms.forEach((a,i)=>{a.rotation.x=-1.9;a.rotation.z=(i?-1:1)*.3});u.head.rotation.set(-.25,0,0)}
   else if(s.ty===7){g.position.set(rand(-.02,.02),-1.66,lerp(-1.4,-.58,lunge(.16)));g.rotation.y=Math.PI;u.head.rotation.set(-.2,0,.85+Math.sin(k*30)*.15);u.arms.forEach(a=>a.rotation.x=-1.7);u.beam.visible=false;u.tag.visible=false}
-  else if(s.ty===9){g.position.set(0,lerp(-14.8,-13.75,lunge(.5)),-1.5);u.arms[0].rotation.x=lerp(0,-1.1,lunge(.6))}
+  else if(s.ty===9){ // its face, stooped right down to yours, and the grin opening
+    g.position.set(0,0,0);poseGiant(g,{crouch:.55,lean:.85,jaw:clamp(k*1.6-.15,0,1),t:k*3});giantFade(g,0);g.updateMatrixWorld(true);
+    const hl=g.worldToLocal(u.head.getWorldPosition(_yv));g.position.set(-hl.x+rand(-.02,.02),-hl.y-.35,-hl.z-lerp(3.2,1.25,lunge(.45)));
+    g.updateMatrixWorld(true);u.head.lookAt(camera.getWorldPosition(_rv));u.head.rotateZ(.35+Math.sin(k*20)*.05)}
   else if(s.ty===10){g.position.set(rand(-.01,.01),lerp(1.2,.12,lunge(.14)),-.5);g.rotation.set(0,0,Math.PI);u.arms.forEach((a,i)=>a.rotation.z=(i?-1:1)*.8)}
   else if(s.ty===13){g.position.set(rand(-.02,.02),-2.2,lerp(-1.5,-.6,lunge(.16)));u.head.rotation.set(-.2,0,.4+Math.sin(k*22)*.12);u.arms.forEach(a=>a.rotation.x=-1.6)}
   else if(s.ty===14){g.position.set(rand(-.02,.02),-1.1,lerp(-1.2,-.45,lunge(.22)));u.body.position.y=0;u.torso.rotation.x=.3;u.head.rotation.x=-.2;u.arms.forEach(a=>a.rotation.x=-1.5)}
@@ -213,7 +281,6 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'airhorn':SFX.airhorn(P(e.x,e.z,1.5));break;
   case 'squeal':SFX.squeal(P(e.x,e.z,e.y));break;
   case 'cut':SFX.cut(P(e.x,e.z,e.y));break;
-  case 'mouth':SFX.chomp(P(e.x,e.z,e.y));if(e.p===me){ME.shake=Math.max(ME.shake,.6);ME.flash=Math.max(ME.flash,.3);toast('That wasn\'t a shelf.',3)}break;
   case 'hands':SFX.hands(P(CONV.bx,e.z,1));if(e.p===me){ME.shake=Math.max(ME.shake,.7);ME.vx+=(CONV.bx-ME.x)*2;ME.vz+=(e.z-ME.z)*2;toast('Something grabbed you from the bin.',3)}break;
   case 'mothHit':SFX.mothHit(P(e.x,e.z,e.y));if(e.p===me){ME.shake=Math.max(ME.shake,.3);ME.flick=0}break;
   case 'smashBulb':SFX.smashBulb(P(e.x,e.z,5));break;
@@ -227,7 +294,17 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'unstall':SFX.thunk(P(ME.x,ME.z,2));break;
   case 'elevGo':SFX.thunk(P(e.lvl===0?-28.7:71.3,e.lvl===0?-9.3:0,1));break;
   case 'ding':SFX.ding(P(e.lvl===0?-28.7:71.3,e.lvl===0?-9.3:0,2.4));break;
-  case 'tp':if(e.p===me){ME.x=e.x;ME.z=e.z;ME.vx=ME.vz=0}break;
+  case 'tp':if(e.p===me){ME.x=e.x;ME.z=e.z;ME.vx=ME.vz=0;
+      if(e.climb){const f=$('fade');if(f){f.style.transition='none';f.style.opacity=1;requestAnimationFrame(()=>{f.style.transition='opacity .9s';f.style.opacity=0})}
+        for(let i=0;i<5;i++)setTimeout(()=>SFX.step(true,false),i*120);ME.yaw=e.climb>0?Math.PI*.75:Math.PI*.25;ME.pitch=0;
+        if(e.climb>0&&!GAME.hints.roof){GAME.hints.roof=1;toast('The roof. It\'s snowing hard and nothing up here is lit. Someone keeps a supply crate at the far end.',6)}}}break;
+  case 'stash':if(e.p===me){SFX.ok();toast(`Someone stashed supplies up here: +1 ${SHOP[e.k].name.toLowerCase()}.`,3.5)}break;
+  case 'gnear':if(onRoof(ME)){SFX.boom(P(ME.x+40,ME.z,ROOF.gy));toast('Something very big is walking around out in the storm.',4)}break;
+  case 'gstep':{const d=Math.hypot(e.x-ME.x,e.z-ME.z);if(onRoof(ME)){SFX.boom(P(e.x,e.z,ROOF.gy));ME.shake=Math.max(ME.shake,clamp(1-d/45,0,1)*.45)}break}
+  case 'greach':if(onRoof(ME)){SFX.creak(P(S.rg?S.rg.x:ME.x,S.rg?S.rg.z:ME.z,6));toast('Its hand is coming over the edge. Get out from under it.',4,'radio')}break;
+  case 'ggrab':if(e.p===me){SFX.scare(9);ME.flash=.6;ME.fear=1}else{const v=AV.get(e.p);if(v)SFX.scream({x:v.x,y:4,z:v.z})}break;
+  case 'chomp':SFX.chomp(P(e.x,e.z,ROOF.gy+18));break;
+  case 'gflinch':if(onRoof(ME))SFX.boom(P(e.x,e.z,ROOF.gy+10));break;
   case 'coldDoor':SFX.thunk(P((COLD.dx0+COLD.dx1)/2,COLD.z1,1));break;
   case 'lever':SFX.lever(P(e.x,e.z,1.2));break;
   case 'jam':SFX.deny();toast('The conveyor jammed. Hold E on the red button by the bins.',4);break;
@@ -248,13 +325,18 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   }}
 
 // ---------------------------------------------------------------- HUD bits
-function hotbarHTML(me){if(!me||!me.inv)return'';const items=[];
-  for(const [code,k] of Object.entries(ITEM_KEYS)){const n=k==='cutter'||k==='scanner'?(me.up[k]?'':0):me.inv[k]||0;if(n===0)continue;items.push(`<span class="hb"><kbd>${code.slice(5)}</kbd>${SHOP[k].name.replace('Spare ','').replace('Thermal ','')}${n?` ×${n}`:''}</span>`)}
-  if(me.up.red)items.push(`<span class="hb${ME.red?' on':''}"><kbd>H</kbd>Headlamp</span>`);return items.join('')}
+const ITEM_ICON={batt:'Battery',flare:'Flare',cutter:'Cutter',strobe:'Strobe',scanner:'Scanner',horn:'Horn',drink:'Drink',remote:'Remote',bulb:'Bulb'};
+const ITEM_USE={batt:'swap in a fresh battery',flare:'light a flare',cutter:'cut open the box you\'re looking at',strobe:'flash it',scanner:'hold to see warm bodies',horn:'blast it',drink:'drink it',remote:'shut the nearest bay door',bulb:'fit it under a dead fixture'};
+function hotbarHTML(me){if(!me||!me.inv)return'';const sel=curSel(me),items=[];
+  for(const [code,k] of Object.entries(ITEM_KEYS)){if(!haveItem(me,k))continue;const n=k==='cutter'||k==='scanner'?'':me.inv[k];
+    items.push(`<span class="hb${k===sel?' sel':''}"><small>${code.slice(5)}</small>${ITEM_ICON[k]}${n?`<b>${n}</b>`:''}</span>`)}
+  const name=sel?`<div class="hbname">${SHOP[sel].name} &middot; <kbd>Right click</kbd> ${ITEM_USE[sel]}${items.length>1?' &middot; scroll to switch':''}</div>`:'';
+  const lamp=me.up.red?`<span class="hb lamp${ME.red?' on':''}"><small>H</small>Headlamp</span>`:'';
+  return items.length||lamp?`${name}<div class="hbrow">${items.join('')}${lamp}</div>`:''}
 function promptFor(t,me){switch(t.kind){
   case 'fork':return owned('fork')?'<kbd>E</kbd> Drive the forklift':'Broken forklift';
   case 'pallet':return'Pallet load: forklift only';
-  case 'parcel':return'<kbd>Q</kbd> Kick off the belt'+(me.up&&me.up.cutter?' &nbsp; <kbd>3</kbd> Cut':'');
+  case 'parcel':return'<kbd>Q</kbd> Kick off the belt'+(curSel(me)==='cutter'?' &nbsp; <kbd>Right click</kbd> Cut':'');
   case 'cold':return S.cold&&S.cold.open?'<kbd>E</kbd> Close the freezer':'<kbd>E</kbd> Open the freezer';
   case 'lever':return`<kbd>E</kbd> Switch bin (now <b style="color:${PARCEL_CSS[S.conv.sel]}">${PARCEL_NAMES[S.conv.sel]}</b>)`;
   case 'jam':return S.conv&&S.conv.jam?'Hold <kbd>E</kbd> Clear the jam':'Jam clear button';
@@ -263,6 +345,9 @@ function promptFor(t,me){switch(t.kind){
   case 'gen':return me.can?'<kbd>E</kbd> Refuel the generator':`Generator: ${Math.round(S.gen.fuel)}% fuel`;
   case 'fuelrack':return me.can?'':'<kbd>E</kbd> Take a jerry can';
   case 'shred':{const b=me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;return!b?'Shredder':b.ret?'<kbd>E</kbd> Shred the damaged return (counts toward quota)':'<kbd>E</kbd> Shred it <span class="warn">(good stock: counts as lost)</span>'}
+  case 'ladder':return me.carry>=0||me.can?'Roof ladder (you need both hands)':'<kbd>E</kbd> Climb to the roof';
+  case 'hatch':return'<kbd>E</kbd> Climb back down';
+  case 'stash':return S.stash?'<kbd>E</kbd> Look in the supply crate':'The crate is empty tonight';
   case 'fslot':return t.ok?'<kbd>E</kbd> Set the pallet on the shelf':'Shelf is full';
   case 'fpal':return'<kbd>E</kbd> Lift the pallet';}return null}
 // stuck in the elevator: shown in the middle of the screen, how long the light has been on the hatch and how long before it opens
@@ -283,14 +368,15 @@ function carryNote(me){if(!me)return'';
   const b=me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;if(!b)return'';const n=1+(me.stack?me.stack.length:0);
   let s=n>1?`Carrying ${n} boxes`:'';
   if(b.fz)s+=(s?' &middot; ':'')+`<span style="color:#9fd4ff">Frozen: thaws in ${Math.max(0,Math.ceil(b.th||0))}s${inCold(ME)?'':` &middot; freezer ${dirTo((COLD.dx0+COLD.dx1)/2,COLD.z1+.6)}`}</span>`;
+  else if(b.ret)s+=(s?' &middot; ':'')+`<span style="color:#d9a35a">Damaged return: shred it &middot; ${ME.x>60?`shredder ${dirTo(SHRED.x,SHRED.z)}`:`basement elevator ${dirTo(CAR_UP.x1,(CAR_UP.z0+CAR_UP.z1)/2)}`}</span>`;
   else if(ME.x>60)s+=(s?' &middot; ':'')+`Shelves are upstairs &middot; elevator ${dirTo(CAR_DN.x1,0)}`;
   if(b.pri)s+=(s?' &middot; ':'')+'<span style="color:#ff7a5a">Priority</span>';return s}
 // the first night after something is bought, say what it's for and where it is
 const ADD_INTRO={fork:'The forklift is parked by the dock, just east of where you start. Some trailers have a pallet of eight boxes inside the door. Lift it with E, set it on any top shelf.',
   cold:'Cold storage is in the north-east corner, under the blue light. Frozen crates (pale blue) go on its shelves within 60 seconds of leaving the trailer.',
   conv:'The sorting conveyor is on the south wall, behind you as you start. Set its lever to the colour of the next parcel to reach the end.',
-  base:'The freight elevator is on the west wall, past Bay A. Ten returns wait in the basement for the shelves.',
-  gen:'The generator is on the west wall by the office. If the power fails, it keeps the lights and the charger running while it has fuel.',
+  base:'The freight elevator is on the west wall, past Bay A. Ten damaged returns wait in the basement. They can\'t be shelved: feed them to the shredder down there.',
+  gen:'The generator is on the west wall near the roof ladder. If the power fails, it keeps the lights and the charger running while it has fuel.',
   bayc:'Bay C is open in the north-west corner. Its refrigerated trucks bring more boxes, and more frozen crates if you have cold storage.'};
 function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const fresh=(S.adds||[]).filter(k=>!seen.has(k));if(!fresh.length)return;
   fresh.forEach((k,i)=>{seen.add(k);setTimeout(()=>GAME.on&&S&&S.phase==='play'&&toast(ADD_INTRO[k],6.5),5200+i*7000)});
@@ -303,8 +389,9 @@ function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)retu
   $('shopCash').textContent=`$${Math.round(S.cash||0)}`;$('shopNight').textContent=`Night ${S.night} done. Night ${S.night+1} is next.`;
   const card=(k,it,ownedNow,extra='')=>{const can=!ownedNow&&S.cash>=it.price;return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+it.price}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" ${can?'':'disabled'}>Buy</button>`}</div>`};
   $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">+${it.q} boxes to quota · +${it.time} s of shift</div>`)).join('');
-  $('shopItems').innerHTML=Object.entries(SHOP).map(([k,it])=>{const have=it.once?!!me.up[k]:k==='aid'?(S.aidBonus||0):(me.inv[k]||0);
-    return card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${it.key?` · key ${it.key}`:''}</div>`:it.key&&!it.once?`<div class="tag">key ${it.key}</div>`:it.key?`<div class="tag">key ${it.key}</div>`:'')}).join('');
+  $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.needs||me.up[it.needs]).map(([k,it])=>{const have=it.once?!!me.up[k]:k==='aid'?(S.aidBonus||0):(me.inv[k]||0);
+    const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
+    return card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${where?` · ${where}`:''}</div>`:where?`<div class="tag">${where}</div>`:'')}).join('');
   // the crew votes: more than half ready and the next night starts
   const n=Object.keys(S.players).length,v=(S.votes||[]).length,need=Math.floor(n/2)+1,mine=(S.votes||[]).includes(NET.myId);
   $('bShopGo').textContent=n<2?`Start night ${S.night+1}`:mine?'Not done yet':`Done: start night ${S.night+1}`;$('bShopGo').classList.toggle('on',mine);$('bShopGo').classList.remove('hide');

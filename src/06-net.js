@@ -32,7 +32,7 @@ function hostMsg(c,m){if(!m||!NET.conns.has(c.peer))return;
     lobbyBroadcast();return}
   if(m.t==='me'&&S){const p=S.players[c.peer];if(p&&Array.isArray(m.p)){const [x,z,yaw,pitch,light,fx,fz,fry]=m.p;
     if(S.fork&&S.fork.drv===c.peer&&isFinite(fx)&&isFinite(fz)){S.fork.x=fx;S.fork.z=fz;S.fork.ry=+fry||0}
-    if(isFinite(x)&&isFinite(z)&&!(p.tpT>0)){p.x=x>60?clamp(x,BASE.x0,BASE.x1):clamp(x,WH.x0,WH.x1);p.z=x>60?clamp(z,BASE.z0,BASE.z1):clamp(z,TZ_DOCK-TRAIL_LEN,WH.z1)}if(isFinite(yaw))p.yaw=yaw;if(isFinite(pitch))p.pitch=clamp(pitch,-1.5,1.5);p.light=!!light}return}
+    if(isFinite(x)&&isFinite(z)&&!(p.tpT>0)){const up=x<-100;p.x=x>60?clamp(x,BASE.x0,BASE.x1):up?clamp(x,ROOF.x0,ROOF.x1):clamp(x,WH.x0,WH.x1);p.z=x>60?clamp(z,BASE.z0,BASE.z1):up?clamp(z,ROOF.z0,ROOF.z1):clamp(z,TZ_DOCK-TRAIL_LEN,WH.z1)}if(isFinite(yaw))p.yaw=yaw;if(isFinite(pitch))p.pitch=clamp(pitch,-1.5,1.5);p.light=!!light}return}
   if(m.t==='act'&&S){act(c.peer,m.a);return}}
 function hostSend(m){for(const c of NET.conns.values())if(c.open)try{c.send(m)}catch(e){}}
 function lobbyBroadcast(){hostSend({t:'lobby',players:NET.lobby,started:NET.started,df:DIFFS[SET.diff]?SET.diff:1});if(!NET.started)renderLobby()}
@@ -66,11 +66,12 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S
   tr:S.trucks.map(t=>[t.st,r2(t.z),r2(t.door),Math.round(t.t),t.warn?1:0,t.claw?1:0,t.left,t.n,t.reject?1:0,t.kg||0,t.extra||0,r2(t.stuck||0)]),
   mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0,m.tg||'']),
   // the additions' moving parts
-  x:{cash:Math.round(S.cash||0),adds:S.adds,fixed:S.fixed,ab:S.aidBonus|0,ex:S.extra|0,shopT:Math.round(S.shopT||0),vo:S.votes||[],mouths:S.mouths||[],
+  x:{cash:Math.round(S.cash||0),adds:S.adds,fixed:S.fixed,ab:S.aidBonus|0,ex:S.extra|0,shopT:Math.round(S.shopT||0),vo:S.votes||[],
     par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1]),
     fl:(S.flares||[]).map(f=>[f.id,r2(f.x),r2(f.z),Math.round(f.t)]),cold:S.cold&&[r2(S.cold.door),S.cold.open?1:0],conv:S.conv&&[S.conv.sel,S.conv.jam?1:0],
     elev:S.elev&&[S.elev.lvl,S.elev.st,r2(S.elev.t),r2(S.elev.gate),r2(S.elev.hl||0),r2(S.elev.ht||0)],df:S.diff,gen:S.gen&&[Math.round(S.gen.fuel),S.gen.out?1:0],
-    out:S.outage?1:0,fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage]},
+    out:S.outage?1:0,fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage],st:S.stash?1:0,
+    rg:S.rg&&[RG_ST.indexOf(S.rg.st),r2(S.rg.x),r2(S.rg.z),r3(S.rg.ry),r2(S.rg.k),r2(S.rg.hx),r2(S.rg.hz),S.rg.tg||'',r2(S.rg.t)]},
   ev:NETEV.splice(0)}}
 function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1,b.fz?1:0,Math.round(b.th||0),b.ret?1:0,b.pri?1:0,b.m?1:0])}
 function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11],fz:!!a[12],th:a[13],ret:!!a[14],pri:!!a[15],m:!!a[16]}));
@@ -85,7 +86,8 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
   m.tr.forEach((a,i)=>Object.assign(S.trucks[i],{st:a[0],z:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]}));
   S.mons=m.mo.map(a=>({id:a[0],ty:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],a:a[6],k:a[7],v:a[8],f:!!a[9],tg:a[10]||''}));
   const x=m.x||{};const addsChanged=JSON.stringify(x.adds||[])!==JSON.stringify(S.adds||[]);
-  Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],mouths:x.mouths||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1]}:null,
+  Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1]}:null,stash:!!x.st,
+    rg:x.rg?{st:RG_ST[x.rg[0]],x:x.rg[1],z:x.rg[2],ry:x.rg[3],k:x.rg[4],hx:x.rg[5],hz:x.rg[6],tg:x.rg[7],t:x.rg[8]}:null,
     parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8]})),
     flares:(x.fl||[]).map(a=>({id:a[0],x:a[1],z:a[2],t:a[3]}))});
   if(x.cold)S.cold={door:x.cold[0],open:!!x.cold[1]};if(x.conv)S.conv={sel:x.conv[0],jam:!!x.conv[1]};

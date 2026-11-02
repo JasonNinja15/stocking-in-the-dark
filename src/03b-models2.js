@@ -42,13 +42,54 @@ function makeDriver(){const g=makeWorker('#c9c3a8','');const u=g.userData;u.tag.
   part(GEO.cyl,toon(0x2c3a5a),.17,.06,.19,0,.12,.02,u.head);part(GEO.box,toon(0x2c3a5a),.18,.02,.14,0,.1,.18,u.head);
   u.head.rotation.z=.85;u.ty=7;return g}
 
-// ---- the thing in the yard: impossibly tall and thin, standing in the fog past the bay doors
-function makeGiant(){const g=new THREE.Group();
-  part(GEO.cyl,MAT.giant,.35,6.5,.3,0,9.5,0,g,{cast:false});part(GEO.sph,MAT.giant,.6,.4,.4,0,12.8,0,g,{cast:false});
-  for(const s of[-1,1]){part(GEO.cyl,MAT.giant,.12,7,.12,s*.75,6.6,.1,g,{rz:s*.06,cast:false});part(GEO.cyl,MAT.giant,.16,6.5,.16,s*.25,3.2,0,g,{cast:false})}
-  const head=pivot(0,13.6,0,g);part(GEO.sph,MAT.giant,.38,.5,.38,0,0,0,head,{cast:false});for(const s of[-1,1])part(GEO.sph,MAT.giantEye,.05,.03,.02,s*.13,.04,.36,head,{cast:false});
-  const arms=[];for(const s of[-1,1]){const a=pivot(s*.75,12.6,0,g);part(GEO.cyl,MAT.giant,.1,8,.1,0,-4,0,a,{cast:false});arms.push(a)}
-  g.userData={head,arms,ty:9};return g}
+// ---- the thing in the yard: twenty metres of starved, chalk-white body standing out in the weather. Legs like
+// pylons, a hunched rib cage, arms that hang down past its knees to fingers longer than you are tall, and a small
+// head on a long neck, tipped to one side, with two pinprick eyes and a grin that opens much too far.
+const GI={HIP:13.4,TH:7,SH:6.6,UA:8.4,FA:8};
+function makeGiant(){const g=new THREE.Group(),M=MAT.giant.clone(),D=MAT.giantDark,T=MAT.giantTooth.clone(),o={cast:false},body=pivot(0,0,0,g);
+  const legs=[];for(const s of[-1,1]){const hip=pivot(s*.85,GI.HIP,0,body);part(GEO.cyl,M,.3,GI.TH,.3,0,-GI.TH/2,0,hip,o);part(GEO.sph,M,.44,2.4,.46,0,-1.7,.02,hip,o);
+    const knee=pivot(0,-GI.TH,0,hip);part(GEO.sph,M,.36,.42,.36,0,0,0,knee,o);part(GEO.cyl,M,.21,GI.SH,.21,0,-GI.SH/2,0,knee,o);part(GEO.sph,M,.3,1.7,.33,0,-1.6,-.07,knee,o);
+    const foot=pivot(0,-GI.SH,0,knee);part(GEO.box,M,.34,.14,1.6,0,-.07,.5,foot,o);for(let f=-1;f<=1;f++)part(GEO.cyl,M,.04,.5,.04,f*.1,-.1,1.4,foot,{rx:Math.PI/2,cast:false});legs.push({hip,knee,foot})}
+  part(GEO.sph,M,1.0,.55,.5,0,GI.HIP+.2,0,body,o);
+  const torso=pivot(0,GI.HIP+.4,0,body);
+  part(GEO.cyl,M,.42,5,.42,0,2.5,-.05,torso,o);part(GEO.sph,M,.92,1.7,.6,0,3.45,.05,torso,o);part(GEO.sph,M,.62,1.3,.44,0,1.35,.04,torso,o);
+  for(let i=0;i<6;i++)for(const s of[-1,1])part(GEO.box,MAT.giantShade,.42-Math.abs(i-2.5)*.04,.05,.05,s*.3,2.45+i*.38,.57-Math.abs(i-2.5)*.01,torso,{rz:s*(.25+i*.03),cast:false});                     // the gaps between its ribs
+  for(let i=0;i<7;i++)part(GEO.sph,M,.13,.13,.13,0,.9+i*.62,-.4,torso,o);                                           // spine knuckles
+  part(GEO.sph,M,.75,.45,.42,0,5,-.12,torso,o);for(const s of[-1,1])part(GEO.cyl,M,.17,1.6,.17,s*.76,5.1,0,torso,{rz:s*(Math.PI/2-.2),cast:false}); // hunched shoulders, sloping collarbones
+  const neck=pivot(0,5.15,.15,torso);part(GEO.cyl,M,.16,2,.16,0,1,0,neck,o);
+  const head=pivot(0,2,0,neck);part(GEO.sph,M,.46,.8,.52,0,.38,0,head,o);
+  for(const s of[-1,1]){part(GEO.sph,D,.13,.1,.06,s*.18,.5,.46,head,o);part(GEO.sph,MAT.flare,.013,.013,.013,s*.18,.5,.515,head,o)} // deep sockets, a pinprick in each
+  part(GEO.sph,D,.4,.26,.34,0,-.02,.24,head,o);                           // the inside of its mouth
+  for(let i=0;i<12;i++)part(GEO.fang,T,.022,.1,.022,-.27+i*.049,.0,.52,head,{rx:Math.PI,cast:false});
+  const jaw=pivot(0,.04,.1,head);part(GEO.sph,M,.42,.24,.46,0,-.14,.08,jaw,o);for(let i=0;i<11;i++)part(GEO.fang,T,.02,.09,.02,-.24+i*.048,-.02,.46,jaw,o);
+  const arms=[];for(const s of[-1,1]){const sh=pivot(s*1.5,4.95,0,torso);part(GEO.sph,M,.3,.3,.3,0,0,0,sh,o);
+    part(GEO.cyl,M,.15,GI.UA,.15,0,0,GI.UA/2,sh,{rx:Math.PI/2,cast:false});part(GEO.sph,M,.24,.24,1.9,0,0,1.9,sh,o);const el=pivot(0,0,GI.UA,sh);part(GEO.sph,M,.22,.22,.22,0,0,0,el,o);
+    part(GEO.cyl,M,.12,GI.FA,.12,0,0,GI.FA/2,el,{rx:Math.PI/2,cast:false});part(GEO.sph,M,.19,.19,1.7,0,0,1.6,el,o);const wr=pivot(0,0,GI.FA,el);part(GEO.box,M,.5,.12,.7,0,0,.3,wr,o);
+    const fingers=[];for(let f=0;f<4;f++){const fp=pivot(-.2+f*.135,0,.62,wr);fp.rotation.y=(f-1.5)*.07;part(GEO.cyl,M,.042,1.9,.042,0,0,.95,fp,{rx:Math.PI/2,cast:false});
+      const tip=pivot(0,0,1.9,fp);part(GEO.cyl,M,.035,1.1,.035,0,0,.55,tip,{rx:Math.PI/2,cast:false});fingers.push({fp,tip})}
+    const th=pivot(-s*.28,0,.2,wr);th.rotation.y=-s*.6;part(GEO.cyl,M,.045,1.3,.045,0,0,.65,th,{rx:Math.PI/2,cast:false});
+    sh.up.set(s,1,0).normalize();arms.push({sh,el,wr,fingers,s})}
+  g.userData={body,legs,torso,neck,head,jaw,arms,mats:[M,T],ty:9};return g}
+// Pose it. walk: stride phase; stride/crouch/lean/jaw 0..1; look: a world point its head turns to; hands: world points
+// for the two hands (null hangs that arm at its side); curl: how closed each hand is.
+const _gv=new THREE.Vector3(),_gs=new THREE.Vector3(),_gup=new THREE.Vector3();
+function poseGiant(g,{walk=0,stride=0,crouch=0,lean=0,jaw=0,look=null,hands=[null,null],curl=[0,0],t=0}={}){const u=g.userData;let H=0;
+  u.legs.forEach((l,i)=>{const ph=walk+i*Math.PI,sw=Math.sin(ph)*.3*stride,a=-(crouch*1.15)-sw,b=.22+crouch*2.1+Math.max(0,-Math.cos(ph))*.45*stride;
+    l.hip.rotation.x=a;l.knee.rotation.x=b;l.foot.rotation.x=-(a+b);H=Math.max(H,GI.TH*Math.cos(a)+GI.SH*Math.cos(a+b)+.14)});
+  u.body.position.y=H-GI.HIP;
+  u.torso.rotation.set(.16+lean*1.2+crouch*.35,0,Math.sin(t*.23)*.04);u.neck.rotation.set(.5-lean*.55-crouch*.2,0,0);u.jaw.rotation.x=.3+jaw*.75;
+  g.updateMatrixWorld(true);
+  if(look){u.head.lookAt(look);u.head.rotateZ(.32+Math.sin(t*.37)*.07)}else u.head.rotation.set(.25,0,.3);
+  for(let i=0;i<2;i++){const A=u.arms[i];A.sh.getWorldPosition(_gs);
+    if(hands[i])_gv.copy(hands[i]);else{_gv.set(A.s*2.1,.9+Math.sin(t*.5+i*2)*.25,1.6+lean*3+Math.sin(t*.31+i)*.2);g.localToWorld(_gv)}
+    _gup.set(A.s*.3,1,-.45).transformDirection(g.matrixWorld);A.sh.up.copy(_gup);
+    const d=clamp(_gv.distanceTo(_gs),1,(GI.UA+GI.FA)*.995),c1=clamp((GI.UA*GI.UA+d*d-GI.FA*GI.FA)/(2*GI.UA*d),-1,1),c2=clamp((GI.UA*GI.UA+GI.FA*GI.FA-d*d)/(2*GI.UA*GI.FA),-1,1);
+    A.sh.lookAt(_gv);A.sh.rotateX(-Math.acos(c1));A.el.rotation.x=Math.PI-Math.acos(c2);A.wr.rotation.x=.25+curl[i]*.3;
+    for(const f of A.fingers){f.fp.rotation.x=.2+curl[i]*1.1;f.tip.rotation.x=.25+curl[i]*1.3}}}
+// world position of a hand's palm
+function giantHand(g,i,out){return g.userData.arms[i].wr.localToWorld(out.set(0,0,.9))}
+// faint at a distance (like something seen through weather), bone-white up close
+function giantFade(g,d){const u=g.userData,k=clamp((d-8)/60,0,1);u.mats[0].emissive.setScalar(lerp(.2,.075,k));u.mats[0].color.setScalar(lerp(.9,.5,k));u.mats[1].emissive.setScalar(lerp(.15,.05,k))}
 
 // ---- what rides on the elevator roof (only ever seen through the hatch)
 function makeRoofThing(){const g=new THREE.Group(),head=pivot(0,0,0,g);
@@ -96,9 +137,6 @@ function makeCan(){const g=new THREE.Group();part(GEO.box,MAT.can,.24,.34,.13,0,
 // grey hands that come up out of a sorting bin
 function makeHands(){const g=new THREE.Group(),sk=toon(0x8a8478);for(let i=0;i<3;i++){const a=pivot(rand(-.25,.25),0,rand(-.25,.25),g);part(GEO.cyl,sk,.04,.8,.04,0,.4,0,a);
   for(let f=-1.5;f<=1.5;f++)part(GEO.cyl,sk,.012,.18,.012,f*.025,.88,0,a,{rz:f*.2});a.rotation.set(rand(-.4,.4),0,rand(-.4,.4))}return g}
-// a rack slot that is a mouth: a gum line and teeth under the deck, only there when light falls on it
-function makeTeeth(){const g=new THREE.Group();part(GEO.box,MAT.gum,1.8,.05,.06,0,-.05,.5,g,{cast:false});part(GEO.box,MAT.gum,1.8,.05,.06,0,-.05,-.5,g,{cast:false});
-  for(let i=0;i<14;i++)for(const s of[-1,1])part(GEO.fang,MAT.tooth,.025,.14+Math.random()*.06,.025,-.85+i*.13,-.12,s*.5,g,{rx:Math.PI,cast:false});return g}
 
 // ---- the blind one: far too tall and thin, grey and hairless, a smooth face with no eyes at all, only a mouth
 // that hangs open. Its head is always cocked, listening. Long arms, longer fingers.

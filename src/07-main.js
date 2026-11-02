@@ -70,7 +70,10 @@ addEventListener('blur',()=>{for(const k in K)K[k]=false});
 document.addEventListener('mousemove',e=>{if(!GAME.on||!locked()||GAME.paused)return;const s=.0021*SET.sens;ME.yaw-=e.movementX*s;ME.pitch=clamp(ME.pitch-e.movementY*s,-1.45,1.45)});
 canvas.addEventListener('mousedown',e=>{auInit();if(!GAME.on)return;if(!locked()){reqLock();return}
   const me=S&&S.players[NET.myId];if(me&&me.dead){specCycle(e.button===2?-1:1);return}
-  if(e.button===0)onKey('KeyE');else if(e.button===2)onKey('KeyQ')});
+  if(e.button===0)onKey('KeyE');else if(e.button===2){K.Mouse2=true;onKey('UseItem')}});
+addEventListener('mouseup',e=>{if(e.button===2)K.Mouse2=false});
+// the scroll wheel walks the item hotbar
+canvas.addEventListener('wheel',e=>{if(!GAME.on||!locked()||GAME.paused)return;e.preventDefault();if(e.deltaY)scrollItem(Math.sign(e.deltaY))},{passive:false});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('pointerlockchange',()=>{if(locked()){GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
   else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')){showPause()}});
@@ -102,7 +105,8 @@ function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.s
   const drv=ME.driving,reach=drv?4.8:3.3,many=(me.up&&me.up.hand)||drv;
   if(drv){ME.target=S.fork.pal>=0||!carrying?forkTarget():null;if(ME.target||S.fork.pal>=0)return;RC.far=reach}
   if(carrying){let best=null,bt=reach;for(const s of SLOTS){if(Math.abs(s.x-ME.x)>6||Math.abs(s.z-ME.z)>6||(drv&&s.cold)||!slotOn(s))continue;const hx=s.rot?.55:.97,hz=s.rot?.97:.55;const t=rayBox(RC.ray,s.x-hx,s.y,s.z-hz,s.x+hx,s.y+1.08,s.z+hz);if(t!==null&&t<bt){bt=t;best=s}}
-    if(best){ME.target={kind:'slot',s:best,ok:!best.old&&best.box===-1};return}}
+    const cb=S.boxes.find(x=>x.id===me.carry),ret=!!(cb&&cb.ret);
+    if(best){ME.target={kind:'slot',s:best,ok:!ret&&!best.old&&best.box===-1,ret};return}}
   const hits=RC.intersectObjects(BOXPICK.concat(INTER,PARCELPICK,PALPICK,FORKPICK),false);
   for(const h of hits){const ud=h.object.userData;if(!shown(h.object)||(drv&&ud.kind!=='box'))continue;
     // (parcels ride on top of the belt, inside its collider, so they can't be hidden behind it)
@@ -115,7 +119,7 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   ME.hurt=Math.max(0,ME.hurt-dt*.7);ME.flash=Math.max(0,ME.flash-dt*2.2);ME.kickCD-=dt;ME.kickA=Math.max(0,ME.kickA-dt);
   if(ME.scare)updScare(dt);else ME.shake=Math.max(0,ME.shake-dt*1.4);
   if(me.dead){ME.deathT+=dt;spectate(dt);findTarget(null);return}
-  ME.deathT=0;localUpdate2(dt,me);if(grabUpdate(dt,me)){findTarget(null);return}
+  ME.deathT=0;localUpdate2(dt,me);if(grabUpdate(dt,me)||rgHeld(dt,me)){findTarget(null);return}
   const busy=!!ME.scare||S.phase!=='play';
   if(ME.driving){driveUpdate(dt,me);batteryUpdate(dt,busy,me);findTarget(me);return}
   const fw=busy?0:(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),st=busy?0:(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0);
@@ -130,14 +134,15 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   // never strand anyone outside: if the trailer they're in isn't docked, put them back by the bay door
   // the basement is its own room, far off to the east
   if(ME.x>60){p.x=clamp(p.x,BASE.x0+.3,BASE.x1-.3);p.z=clamp(p.z,BASE.z0+.3,BASE.z1-.3)}
+  else if(onRoof(ME)){p.x=clamp(p.x,ROOF.x0+.5,ROOF.x1-.5);p.z=clamp(p.z,ROOF.z0+.5,ROOF.z1-.5)} // up on the roof, the parapet stops you
   else{if(p.z<WH.z0-.3){let bi=-1;for(let i=0;i<BAYS.length;i++)if(Math.abs(p.x-BAYS[i].x)<TRAIL_HW+.4)bi=i;
       const tr=bi>=0?S.trucks[bi]:null;if(!tr||(tr.st!==2&&tr.st!==3)){if(bi>=0)p.x=BAYS[bi].x;p.z=WH.z0+1.2}}
     p.x=clamp(p.x,WH.x0+.3,WH.x1-.3);p.z=clamp(p.z,TZ_DOCK-TRAIL_LEN+.3,WH.z1-.3)}
   const sp=Math.hypot(p.x-ME.x,p.z-ME.z)/Math.max(dt,1e-4);ME.x=p.x;ME.z=p.z;
-  const fit=me&&me.up&&me.up.stam; // the stamina upgrade
-  if(run&&sp>1){if(!(ME.drinkT>0))ME.stam-=dt*(fit?14:21);if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16)*(fit?1.5:1));if(ME.exh&&ME.stam>35)ME.exh=false}
+  const fit=me&&me.up?(me.up.stam2?2:me.up.stam?1.5:1):1; // the stamina upgrades
+  if(run&&sp>1){if(!(ME.drinkT>0))ME.stam-=dt*21/fit;if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16)*fit);if(ME.exh&&ME.stam>35)ME.exh=false}
   // head bob + footsteps
-  if(sp>.3){const ph0=ME.stepPh;ME.stepPh+=dt*sp*(run?1.9:2.15);if(Math.floor(ph0/Math.PI)!==Math.floor(ME.stepPh/Math.PI))SFX.step(ME.z<WH.z0,run)}
+  if(sp>.3){const ph0=ME.stepPh;ME.stepPh+=dt*sp*(run?1.9:2.15);if(Math.floor(ph0/Math.PI)!==Math.floor(ME.stepPh/Math.PI))(onRoof(ME)?SFX.crunch(run):SFX.step(ME.z<WH.z0,run))}
   ME.bob=damp(ME.bob,sp>.3?1:0,6,dt);
   batteryUpdate(dt,busy,me);
   if(carry&&!GAME.hints.carry&&S.night===1){GAME.hints.carry=1;toast('Look at an empty shelf and press E to shelve it.',4.5)}
@@ -286,7 +291,8 @@ function syncAvatars(dt,time){const live=new Set();let si=0;
     const ox=v.x,oz=v.z;v.x=damp(v.x,p.x,11,dt);v.z=damp(v.z,p.z,11,dt);v.yaw=angLerp(v.yaw,p.yaw,1-Math.exp(-12*dt));v.pitch=damp(v.pitch,p.pitch,12,dt);
     const sp=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3);const w0=v.walk;v.walk+=dt*sp*2.3;
     if(sp>.4&&Math.floor(w0/Math.PI)!==Math.floor(v.walk/Math.PI)&&Math.hypot(v.x-ME.x,v.z-ME.z)<16)SFX.step(v.z<WH.z0,sp>4,{x:v.x,y:.1,z:v.z});
-    const g=v.g,u=g.userData,drv=S.fork&&S.fork.drv===p.id;g.visible=!p.dead;g.position.set(v.x,drv?.75:0,v.z);g.rotation.y=drv?S.fork.ry:v.yaw+Math.PI;if(drv){u.legs.forEach(l=>l.rotation.x=-1.4)}
+    const g=v.g,u=g.userData,drv=S.fork&&S.fork.drv===p.id;g.visible=!p.dead;g.position.set(v.x,drv?.75:0,v.z);
+    const held=rgHeldAt(p.id);if(held)g.position.set(held.x,held.y-1.1,held.z); // in the giant's fistg.rotation.y=drv?S.fork.ry:v.yaw+Math.PI;if(drv){u.legs.forEach(l=>l.rotation.x=-1.4)}
     const a=Math.min(1,sp/3);u.legs[0].rotation.x=Math.sin(v.walk)*.6*a;u.legs[1].rotation.x=-Math.sin(v.walk)*.6*a;
     if(p.carry>=0){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.25,10,dt))}else{u.arms[0].rotation.x=-Math.sin(v.walk)*.5*a;u.arms[1].rotation.x=-.9}
     u.torch.rotation.x=-v.pitch;u.head.rotation.x=-v.pitch*.6;u.beam.visible=!!p.light;
@@ -301,7 +307,7 @@ function syncLamps(dt){let pool=0;LAMPV.forEach((L,i)=>{let on;
   if(on&&Math.random()<(i===3?.035:.008))L.fl=rand(.05,.25);if(L.fl>0){L.fl-=dt;lv*=Math.random()<.5?.12:1}
   // a dead fixture with a new bulb borrows one of the pooled lights
   let light=L.light;if(!light&&on&&pool<LAMPV.pool.length){light=LAMPV.pool[pool++];light.position.set(LAMPS[i].x,5,LAMPS[i].z)}
-  if(light)light.intensity=(L.light?17:15)*lv;L.bulb.material.color.setRGB(lerp(.1,1,lv),lerp(.08,.85,lv),lerp(.06,.62,lv));L.cone.material.opacity=.035*lv;
+  if(light)light.intensity=(L.light?17:15)*lv;L.bulb.material.color.setRGB(lerp(.1,1,lv),lerp(.08,.85,lv),lerp(.06,.62,lv));L.cone.material.uniforms.lv.value=lv;
   if(AU.ready){if(!L.hum)L.hum=loop('hum',{x:LAMPS[i].x,y:5,z:LAMPS[i].z},.35);L.hum.set(lv*.35,.03)}});
   for(;pool<LAMPV.pool.length;pool++)LAMPV.pool[pool].intensity=0}
 function syncWorld(dt,time){applyColliders();syncTrucks();syncAvatars(dt,time);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time)}
@@ -309,7 +315,7 @@ function clearVisuals(){for(const m of BM.values())ROOT.remove(m);BM.clear();for
   for(const v of TV)v.g.visible=false;for(const s of REMOTE_SPOTS)s.intensity=0;setViewBox(null);if(ME.scare){camera.remove(ME.scare.g);ME.scare=null}
   for(const s of SLOTS)s.box=-1;BOXPICK.length=0;
   for(const v of PV.values())ROOT.remove(v.g);PV.clear();for(const g of PALV.values())ROOT.remove(g);PALV.clear();for(const v of FLV.values()){ROOT.remove(v.g);v.lp&&v.lp.stop()}FLV.clear();
-  for(const g of MOUTHV.values())ROOT.remove(g);MOUTHV.clear();for(const v of MV.values())v.l2&&v.l2.stop();if(GIANT)GIANT.visible=false;if(PASS3D)PASS3D.visible=false;FLARE_L.intensity=0;ROOM_L.intensity=0}
+  for(const v of MV.values())v.l2&&v.l2.stop();if(GIANT)GIANT.visible=false;if(ROOFG){ROOFG.visible=false;ROOFG.userData.v=null}if(PASS3D)PASS3D.visible=false;FLARE_L.intensity=0;ROOM_L.intensity=0}
 
 // ===================================================================== events
 function evPos(e){if(e.x!==undefined)return{x:e.x,y:e.y??1,z:e.z};const v=MV.get(e.id);if(v)return{x:v.g.position.x,y:1.4,z:v.g.position.z};return null}
@@ -366,8 +372,8 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     const p2=t&&promptFor(t,me);
     if(p2!==null&&p2!==undefined)pr=p2;
     else if(t){if(t.kind==='box'&&ME.driving)pr='<kbd>E</kbd> Load onto the forks';
-      else if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Pick up another':'<kbd>E</kbd> Pick up')+' &nbsp; <kbd>Q</kbd> Kick'+(me.up&&me.up.cutter?' &nbsp; <kbd>3</kbd> Cut':'');
-      else if(t.kind==='slot')pr=t.ok?'<kbd>E</kbd> Shelve box':'Shelf is full';
+      else if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Pick up another':'<kbd>E</kbd> Pick up')+(t.b.ret?' damaged return <span class="warn">(shredder only)</span>':'')+' &nbsp; <kbd>Q</kbd> Kick'+(curSel(me)==='cutter'?' &nbsp; <kbd>Right click</kbd> Cut':'');
+      else if(t.kind==='slot')pr=t.ret?'<span class="warn">Returns can\'t be shelved: shred them in the basement</span>':t.ok?'<kbd>E</kbd> Shelve box':'Shelf is full';
       else if(t.kind==='charger')pr=ME.bat>=99.5?'Flashlight fully charged':ME.charging?`Charging&hellip; ${Math.floor(ME.bat)}%`:'Hold <kbd>E</kbd> Charge flashlight';
       else if(t.kind==='aid')pr=S.aidLeft>0?`<kbd>E</kbd> First aid (${S.aidLeft} left tonight)`:'First-aid cabinet is empty';
       else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=!bayOn(t.bay)?`Bay ${BAYS[t.bay].name}: not in service`:tr.st===0&&tr.stuck>0?`<kbd>E</kbd> Close the Bay ${BAYS[t.bay].name} door`:tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
@@ -531,7 +537,7 @@ async function init(){
   applyQuality();bindUI();saveNote();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,CONV,showMenu,renderShop,K,onKey2,
+  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,
 
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});

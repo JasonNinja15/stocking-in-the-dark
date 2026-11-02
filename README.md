@@ -12,7 +12,7 @@ Pick **Easy**, **Normal** or **Hard** on the title screen. In a crew, the host's
 |---|---|---|---|
 | Quota | 70% | 100% | 130% |
 | Monster damage | 60% | 100% | 135% |
-| Bad luck (sleepers, crawlers, mimics, outages, jams, lamp failures, stalker visits, elevator stalls, shelf mouths, the driver, the wrong voice) | about half as often | as listed below | about 1.5 times as often |
+| Bad luck (sleepers, crawlers, mimics, outages, jams, lamp failures, stalker visits, elevator stalls, the driver, the wrong voice) | about half as often | as listed below | about 1.5 times as often |
 
 Things that end your shift outright (the sleeper reaching you, the night manager's third write-up) do so on every difficulty.
 
@@ -44,9 +44,16 @@ Things that end your shift outright (the sleeper reaching you, the night manager
 | **The shrink-wrap** | Night 4 | A person wrapped in pallet film, standing among the wrapped pallets in the south-east. It's blind and hunts sound: running, kicking, dropping boxes, the forklift, a loaded carry-upgrade stack, the air horn. | Walk, don't run, and don't bump into it (about 50 damage). It gives up and goes home after 18 quiet seconds. |
 | **The blind one** | Every power outage | The moment the power fails, something very tall, grey and eyeless steps out of the dark somewhere far from you. It hunts by sound (running, kicking, dropping boxes, the air horn, the shake flashlight), and it feels footsteps: walk within 3 m of it and it knows where you are. Light does nothing to it, but it will not step into lamp light or near a flare. | Stand still when it is close; it gives up and wanders off. A fuelled generator keeps the lamps on, and the lamps are the safe ground. It hits hard (55 damage). |
 | **The driver** | Night 5 | Sometimes a trucker climbs out of a cab. He looks like a crewmate (in a crew he even wears one of their names), his torch never flickers and he makes no footsteps. Within 8 m he follows you, at a slow, stiff walk. | Walk away from him (about 35 damage if he reaches you). An air horn or the strobe stuns him. The thermal scanner shows him cold. |
-| **Shelf mouths** | Night 5 | Two empty lower slots a night are mouths. The deck sags and there are teeth under it that only show in your light. | Shine your light on a slot before you shelve into it. A box put in a mouth is lost, and so is 25 health. |
 | **The wrong voice** | Night 2 / 6 | From night 2 the loudspeaker sometimes calls out a priority parcel somewhere dark (double pay). From night 6, half of those calls use a chime played upside down and out of tune and a voice too slow and low. | There's no parcel at a wrong-voice location, only a stalker waiting in the dark. |
-| **The thing in the yard** | Night 7, and every overtime | When a truck leaves, its bay door jams open for 14 seconds. Something enormous stands out in the fog. Each time you stare at it, it steps closer. | Don't look out of an open bay. Close the door at its panel, or with the bay door remote. On the fourth look it reaches in (80 damage). |
+| **The thing in the yard** | Night 7, and every overtime | Something twenty metres tall, white and starved-thin, with arms that hang past its knees and a small head tipped to one side. When a truck leaves, its bay door jams open for 14 seconds and it stands out in the fog. Each time you stare at it, it steps closer and stoops lower, until at the fourth step its face is in the doorway and its fingers are round the frame. | Don't look out of an open bay. Close the door at its panel, or with the bay door remote. On the fourth look it reaches in (80 damage). It is also out there whenever someone is on the roof (see below). |
+
+## The roof
+
+A steel ladder in the south-west corner (where the office used to be) goes up through a hatch to the roof. Up there it is snowing hard and nothing is lit: the storm only thins the view a little, but at night you only see what your flashlight is on. Footsteps crunch, the wind never stops, and frost creeps in at the edges of your sight. You need both hands for the ladder, so set down boxes and jerry cans first.
+
+- **Why go up.** Someone keeps a supply crate at the far (north-east) end of the roof. Once a night, the first person to open it gets a free battery, flare, energy drink, air horn or strobe.
+- **What comes.** Stay up there for a few seconds (about 9 on Normal, 6 on Hard) and the thing in the yard walks in out of the storm, a pale shape far off that slowly gets bigger. It walks round the building to whoever is closest to an edge, leans over the parapet and slowly reaches across the roof, its face peering down at you. The hand follows you at walking pace, so keep moving and you can get out from under it. It can reach about 11 m in from the edge, so the middle of the roof is out of its reach, but the hatch is in a corner. If its hand closes on you, it lifts you up to its mouth and you're dead.
+- **Getting away.** Climb back down the hatch, stay in the middle, or flash it in the face with the strobe: it snatches its hand back and takes longer to try again. It gives up after a while and walks off into the storm, then comes back later.
 
 ## Between nights: the shop
 
@@ -63,24 +70,25 @@ After each night you survive, the crew's pay buys things. The money is shared, a
 | Cold Storage | $250 | +6 | +45 s | A freezer room in the north-east corner, under a pulsing blue light. Trucks bring extra frozen crates (pale blue), never more than its 15 shelves have room for. Get each one onto a freezer shelf within 60 s of picking it up, or it spoils; the prompt points you to the freezer. E opens the door; from inside, just walk up to it. It swings shut after a few seconds unless a box is left in the doorway. | Three frost figures, hidden behind stacks of frozen stock. They move only while the door is shut and no light is on them. One grab (30 damage) and they all go back to their corners. |
 | Sorting Conveyor | $300 | +8 | +45 s | About four parcels a minute ride the belt along the south wall, each worth a box. Set the lever (E) to the colour of the parcel at the end and it drops into its bin. Nothing is lost while you're busy elsewhere: parcels wait at the end until the lever matches. Sometimes it jams: hold E on the red button by the bins. | Hands come out of the bins for anyone within reach for 2.5 s (20 damage). Some parcels are mimics: kick them off the belt. |
 | Repaired Forklift | $350 | +8 | +45 s | Parked by the dock, just east of where you start. E to climb in, W/S to drive, A/D to steer. Three pallets of **eight** boxes a night come in trucks, just inside the door. E lifts one, E sets it on any top shelf (8 boxes shelved in one trip), G puts it down, Q gets out. With no pallet up, the forks carry up to three loose boxes, like the Carry Upgrade: E loads the box you're looking at, E shelves one on any shelf, G sets one down. Getting out sets any boxes still on the forks down in front of it. | Its engine draws the stalker and the shrink-wrap. Sometimes a passenger sits on the forks. Light on it for 3 s and it's gone. Leave it dark for 7 s and it lunges (40 damage). |
-| Basement Returns | $400 | +6 | +60 s | Ten damaged returns wait in a cage downstairs. Ride the freight elevator (west wall) down and bring them up to the shelves, or feed them to the shredder by the cage: a shredded return counts toward quota but pays half. Shredding good stock counts as lost; shredding a mimic kills it. | Something sits in the cage corner, knees up. Stand around down there without handling a box (25 s on Normal, about 34 on Easy, 20 on Hard; you get a warning partway) and it crawls over, takes hold and drags you to the shredder. Mash E to tear free (20 damage). Getting back to work before it reaches you sends it back. Sometimes the elevator stops halfway and something walks on its roof (only when someone in the car has a working flashlight). Shine your light up at the hatch for 2.5 s and it moves again; a meter in the middle of the screen shows how long. After 18 s the hatch opens (45 damage), but you can't run from a stopped car, so it never takes you below 12 health. |
-| Generator Room | $300 | 0 | +40 s | Backup power (see power outages). It burns fuel only during an outage; a full tank lasts two minutes, and each jerry can from the rack by the office adds half a tank. It also stops lamps flickering out on their own. | Moths circle the lamps and break bulbs after 14 s. Shine your light on one and it follows the beam. Lead it 7 m from its lamp and it loses interest. They also circle flares instead. |
+| Basement Returns | $400 | +6 | +60 s | Ten damaged returns wait in a cage downstairs. Ride the freight elevator (west wall) down and feed them to the shredder by the cage. Returns are for the shredder only: they can't be shelved, and each one shredded counts toward quota ($5). Shredding good stock counts as lost; shredding a mimic kills it. | Something sits in the cage corner, knees up. Stand around down there without handling a box (25 s on Normal, about 34 on Easy, 20 on Hard; you get a warning partway) and it crawls over, takes hold and drags you to the shredder. Mash E to tear free (20 damage). Getting back to work before it reaches you sends it back. Sometimes the elevator stops halfway and something walks on its roof (only when someone in the car has a working flashlight). Shine your light up at the hatch for 2.5 s and it moves again; a meter in the middle of the screen shows how long. After 18 s the hatch opens (45 damage), but you can't run from a stopped car, so it never takes you below 12 health. |
+| Generator Room | $300 | 0 | +40 s | Backup power (see power outages). It burns fuel only during an outage; a full tank lasts two minutes, and each jerry can from the rack by the roof ladder adds half a tank. It also stops lamps flickering out on their own. | Moths circle the lamps and break bulbs after 14 s. Shine your light on one and it follows the beam. Lead it 7 m from its lamp and it loses interest. They also circle flares instead. |
 | Bay C | $500 | +10 | +60 s | A third dock in the north-west corner for refrigerated trailers. | The sleepers in those trailers are colder: they creep faster, but light halves the speed of their charge. |
 
-**Equipment (yours).**
+**Equipment (yours).** Items you carry sit on the **hotbar** at the bottom of the screen. Scroll the mouse wheel to pick one (or press its number), and right click to use it.
 
-| Item | Price | Key | What it does |
+| Item | Price | Hotbar key | What it does |
 |---|---|---|---|
 | Better flashlight | $150 | | Brighter and wider. Monsters notice it from farther away. The battery lasts twice as long. |
 | Spare batteries (2) | $20 | 1 | A full charge anywhere. |
 | Flares (2) | $25 | 2 | 35 s of red light on the floor. The stalker and the sleeper won't cross it, the crawler won't hang over it, and moths circle it. |
 | Box cutter | $60 | 3 | Cut into the box or parcel you're looking at. Kills a mimic for good; ruins a real box. |
 | Strobe (3) | $70 | 4 | Stops a charging sleeper, scatters the crawler, drives off mimics, moths and the passenger, stuns the driver, kills a stalker in its cone. |
-| Thermal scanner | $120 | hold 5 | Warm things glow through walls within 15 m: sleepers, crawlers, mimics, the passenger, your crew. The driver, the frost figures and the shrink-wrap stay dark. |
+| Thermal scanner | $120 | 5 (hold right click) | Warm things glow through walls within 15 m: sleepers, crawlers, mimics, the passenger, your crew. The driver, the frost figures and the shrink-wrap stay dark. |
 | Air horn (3) | $40 | 6 | Lures the shrink-wrap to the sound and stuns the driver. |
 | Energy drinks (2) | $15 | 7 | 20 s of running without getting tired. |
 | Shake flashlight | $100 | hold R | Charges your battery about 7% a second, anywhere, even in an outage. Anything that hunts by sound hears it. |
 | Stamina upgrade | $90 | | Sprint half again as long (drains at two-thirds the rate) and recover 50% faster. |
+| Stamina upgrade II | $160 | | Shows up in the shop once you own the first one. Sprint twice as long as at the start (drains at half the rate) and recover twice as fast. |
 | Bay door remote | $90 | 8 | Slams the nearest bay shut: a docked truck leaves at once, its crawler is shut out for good, and a jammed door closes. It won't fire while anyone is inside that trailer. |
 | Lamp bulb | $50 | 9 | Stand under a dead fixture to bring it back for the rest of the run. Three fixtures at most. |
 | Carry Upgrade | $110 | | Carry up to three boxes at once. Crewmates see the whole stack. Slower, and loud enough for the shrink-wrap to hear. |
@@ -95,10 +103,11 @@ After each night you survive, the crew's pay buys things. The money is shared, a
 | Shift | Run (uses stamina) |
 | Mouse | Look |
 | E / left click | Pick up, shelve, use. Hold at the charger. |
-| Q / right click | Kick |
+| Q | Kick |
 | G | Set the box down |
 | F | Flashlight on/off |
-| 1 to 9 | Use an item (hold 5 for the thermal scanner) |
+| Mouse wheel | Pick an item on the hotbar (number keys 1 to 9 jump to one) |
+| Right click | Use the picked item (hold it for the thermal scanner) |
 | H | Red headlamp on/off |
 | R (hold) | Shake flashlight: charge the battery anywhere, loudly |
 | Esc | Pause (solo) / menu (crew) |

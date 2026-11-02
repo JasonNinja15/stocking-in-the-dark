@@ -34,7 +34,11 @@ const CAR_UP={x0:-30,x1:-27.5,z0:-10.5,z1:-8.1}, CAR_DN={x0:70,x1:72.5,z0:-1.2,z
 // the basement shredder by the returns cage, and the corner something sits in
 const SHRED={x:76.6,z:-5.25}, HUNCH={x:83.2,z:5.2}, STRUGGLE_N=14;
 const CAR_OFF={x:CAR_DN.x0-CAR_UP.x0,z:CAR_DN.z0-CAR_UP.z0};
-const GEN={x:-28.6,z:11.9}, FUELR={x:-25.2,z:13.2}, FORK_HOME={x:7.6,z:-15.2,ry:-Math.PI/2}, SHRINK_HOME={x:25.4,z:13.4}, OFFICE_DOOR={x:-23.65,z:12.8};
+const GEN={x:-28.6,z:11.9}, FUELR={x:-25.2,z:13.2}, FORK_HOME={x:7.6,z:-15.2,ry:-Math.PI/2}, SHRINK_HOME={x:25.4,z:13.4}, MGR_SPOT={x:-28.3,z:18.2}; // the night manager comes and goes by the roof ladder
+// the roof is its own space far off to the west (like the basement to the east), the same size as the warehouse below it.
+// The ladder in the south-west corner comes up through the hatch; the stash is a supply crate someone left at the far end.
+const ROOF={ox:-200,x0:-230,x1:-170,z0:-20,z1:20,gy:-7.3}, LADDER={x:-29.5,z:19.1}, HATCH={x:-229.1,z:18.9}, STASH={x:-172.4,z:-18.2};
+const onRoof=p=>p.x<-100;
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
 const BOX_KINDS=[{w:.55,h:.42,d:.5,slow:.95},{w:.74,h:.56,d:.64,slow:.86},{w:.92,h:.72,d:.8,slow:.74}];
 const VEST=['#ff7a1a','#a4e33a','#38d4e8','#ff4fa8'];
@@ -187,7 +191,8 @@ const MAT={
   frost:toon(0xffffff,{map:TEX.frostSkin}),frostCold:toon(0x6f9ab8),coldSkin:toon(0xb9d2e2,{map:TEX.lskin}),ice:toon(0xd8ecf6),
   suit:toon(0x26282e),shirt:toon(0xd4d2c8),clip:toon(0x7a5a32),paper2:toon(0xe6e1d2),tie:toon(0x5a1414),
   wrap:toon(0xffffff,{map:TEX.wrap}),wing:toon(0xffffff,{map:TEX.wing,side:THREE.DoubleSide,alphaTest:.5,transparent:false}),mothBody:toon(0x8a8070),
-  giant:basic(0x23232a,{fog:false}),giantEye:basic(0xd8d4c4,{fog:false}),
+  giant:toon(0xd9d5ca,{map:TEX.lskin,fog:false,emissive:0x262421}),giantDark:basic(0x070606,{fog:false}),giantShade:toon(0x8e897e,{fog:false,emissive:0x121110}),giantTooth:toon(0xe6e0c8,{fog:false,emissive:0x1a1914}),
+  snow:toon(0xc5ced8),snowDim:toon(0x8f99a6),hvac:toon(0x5a6066),
   parcel:[toon(0xc8352a),toon(0x2e5fb8),toon(0xd8b22a)],chute:toon(0x15161a),belt:toon(0x222326),
   reefer:toon(0xd9dbd8,{map:TEX.ribs}),genY:toon(0x6a6a2a),can:toon(0xa8261c),flare:basic(0xff4a2a),cage:toon(0x55585c),board:toon(0x8b6a43,{map:TEX.pallet}),
   stalkBody:toon(0x1c1c22),stalkFace:toon(0xffffff,{map:TEX.face}),mimicLeg:toon(0x16120e),tongue:toon(0x9a2a2a),

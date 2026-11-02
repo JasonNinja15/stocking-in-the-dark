@@ -109,17 +109,17 @@ function buildWorld(){
   // dock area steel columns
   for(const x of[-5.5,5.5])for(const z of[-12.5]){sbox(MAT.steel,.45,WH.h,.45,x,WH.h/2,z);sbox(MAT.hazard,.5,1.2,.5,x,.6,z,{uv:[1,1]});col(x-.25,z-.25,x+.25,z+.25)}
 
-  // ---- office (south-west)
-  {const z=14,x1=-21,h=3.2;
-    const wall=(x0,x1_,z0,z1)=>{sbox(MAT.wall,Math.max(.15,x1_-x0),h,Math.max(.15,z1-z0),(x0+x1_)/2,h/2,(z0+z1)/2,{uv:[2,1.3]});col(x0,z0,x1_,z1)};
-    wall(WH.x0,-24.4,z-.08,z+.08);wall(-22.9,x1,z-.08,z+.08);sbox(MAT.wall,1.5,h-2.3,.16,-23.65,2.3+(h-2.3)/2,z);
-    wall(x1-.08,x1+.08,z,WH.z1);sbox(MAT.dark,9.2,.12,6.1,(WH.x0+x1)/2,h+.06,(z+WH.z1)/2);
-    sbox(MAT.desk,1.8,.08,.8,-27,.78,18.6);for(const dx of[-.8,.8])for(const dz of[-.35,.35])sbox(MAT.dark,.06,.78,.06,-27+dx,.39,18.6+dz);col(-27.95,18.15,-26.05,19.05);
-    sbox(MAT.paper,.6,.5,.5,-26.6,1.07,18.8);const scr=new THREE.Mesh(new THREE.PlaneGeometry(.42,.32),MAT.screen);scr.position.set(-26.6,1.09,18.54);scr.rotation.y=Math.PI;ROOT.add(scr);LAMPV.crt=scr;
-    sbox(MAT.dark,.5,.05,.5,-27.3,.48,17.7);sbox(MAT.dark,.5,.55,.05,-27.3,.75,17.45);col(-27.6,17.4,-27,18);
-    sbox(MAT.steel,.6,1.4,.6,-29.6,.7,15);col(-29.95,14.65,-29.25,15.35);
-    sbox(MAT.paper,.5,.02,.4,-27.5,.83,18.5,{ry:.3,cast:false});
-    const cal=new THREE.Mesh(new THREE.PlaneGeometry(.6,.8),toon(0xffffff,{map:signTex([{t:'NOVEMBER',size:52},{t:'X X X X',size:46},{t:'X X X ?',size:46}],{w:256,h:340})}));cal.position.set(-29.98,1.7,17.5);cal.rotation.y=Math.PI/2;ROOT.add(cal);}
+  // ---- the roof ladder (south-west corner): steel rungs bolted to the west wall, up through a hatch in the ceiling
+  {const {x,z}=LADDER,wx=WH.x0+.12;
+    for(const s of[-1,1])sbox(MAT.steel,.07,WH.h+.2,.07,wx+.06,(WH.h+.2)/2,z+s*.27);
+    for(let y=.3;y<WH.h;y+=.3)sbox(MAT.steel,.05,.05,.54,wx+.06,y,z,{cast:false});
+    for(const s of[-1,1])for(const y of[2.4,4.6])sbox(MAT.dark,.16,.06,.06,wx-.02,y,z+s*.27,{cast:false});
+    sbox(MAT.dark,1.3,.02,1.3,x+.1,WH.h-.02,z,{cast:false});
+    const sky=new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.1).rotateX(Math.PI/2),basic(0x1b2533));sky.position.set(x+.1,WH.h-.04,z);ROOT.add(sky);
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(.9,.42),toon(0xffffff,{map:signTex([{t:'ROOF ACCESS',size:62,bold:true},{t:'AUTHORISED STAFF ONLY',size:30}],{w:300,h:140})}));
+    s.position.set(wx+.01,2.1,z-.85);s.rotation.y=Math.PI/2;ROOT.add(s);
+    const hit=new THREE.Mesh(GEO.box,MAT.steel);hit.scale.set(.7,2.6,.9);hit.position.set(wx+.3,1.3,z);hit.userData={kind:'ladder'};hit.visible=false;ROOT.add(hit);INTER.push(hit);
+    col(WH.x0,z-.35,WH.x0+.25,z+.35)}
 
   // ---- exit door (south wall), always locked
   {const ex=12;sbox(MAT.door,1.3,2.3,.12,ex,1.15,WH.z1-.06);const d=new THREE.Mesh(GEO.box,MAT.door);d.scale.set(1.3,2.3,.14);d.position.set(ex,1.15,WH.z1-.07);d.userData={kind:'exit'};d.visible=false;ROOT.add(d);INTER.push(d);
@@ -138,17 +138,31 @@ function buildWorld(){
   // (the forklift is its own object now: broken until the crew pays to fix it)
 
   // ---- lamps: 4 working pendants + some dead fixtures
+  // the light cone is a real volume: each pixel marches its view ray through the cone, and the cone's far wall
+  // glows where you see it edge-on, so it still reads as a shaft of light when you stand right under it
+  const beamMat=()=>new THREE.ShaderMaterial({uniforms:{lv:{value:1}},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.BackSide,
+    vertexShader:`varying vec3 vW;varying vec3 vA;varying vec3 vN;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;vA=(modelMatrix*vec4(0.,2.55,0.,1.)).xyz;vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*viewMatrix*w;}`,
+    fragmentShader:`uniform float lv;varying vec3 vW;varying vec3 vA;varying vec3 vN;
+      void main(){vec3 o=cameraPosition,d=vW-o;float tE=length(d);d/=tE;float t0=max(0.,tE-8.),st=(tE-t0)/32.,acc=0.;
+        float j=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453); // jittered steps: grain instead of bands
+        for(int i=0;i<32;i++){vec3 x=o+d*(t0+(float(i)+j)*st);float h=vA.y-x.y;if(h<0.||h>5.1)continue;
+          float R=h*.51,r=length(x.xz-vA.xz);if(r>R)continue;float e=r/max(R,.001);
+          acc+=(.4+2.*smoothstep(.72,1.,e)*(1.-smoothstep(.97,1.,e)))*(1.-.55*h/5.1);}
+        float hw=clamp((vA.y-vW.y)/5.1,0.,1.),g=1.-abs(dot(normalize(vN),d));
+        float wall=(.35+1.6*g*g*g)*(1.-.65*hw)*(1.-smoothstep(.85,1.,hw)); // the shaft's edge, fading out before the floor
+        float f=exp(-pow(.052*max(tE-3.,0.),2.));gl_FragColor=vec4(vec3(1.,.70,.42)*(acc*st*.04+wall*.07)*lv*f,1.);}`});
   const fixture=(x,z)=>{scyl(MAT.dark,.015,.015,WH.h-5.5,x,5.5+(WH.h-5.5)/2,z,{cast:false});
     const g=new THREE.ConeGeometry(.55,.4,14,1,true);g.translate(x,5.35,z);sg(MAT.shade,g,false);
     const b=new THREE.Mesh(GEO.sph,MAT.bulbOn.clone());b.scale.setScalar(.13);b.position.set(x,5.2,z);ROOT.add(b);return b};
   // dead fixtures get their light from a small shared pool once someone screws in a new bulb
   for(const L of LAMPS){const bulb=fixture(L.x,L.z);let light=null;
     if(!L.dead){light=new THREE.PointLight(0xffb36a,0,13,1.7);light.position.set(L.x,5.0,L.z);ROOT.add(light)}
-    const cone=new THREE.Mesh(new THREE.ConeGeometry(2.6,5.1,24,1,true),new THREE.MeshBasicMaterial({color:0xffb36a,transparent:true,opacity:.035,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:true}));
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(2.6,5.1,24,1,true),beamMat());
     cone.position.set(L.x,2.6,L.z);ROOT.add(cone);
     LAMPV.push({light,bulb,cone,lvl:1,hum:null});}
   LAMPV.pool=[];for(let i=0;i<MAX_BULBS;i++){const l=new THREE.PointLight(0xffc68a,0,12,1.7);ROOT.add(l);LAMPV.pool.push(l)}
 
+  buildRoof();
   flushStatics(ROOT);
   buildAdditions();
   buildGrid();

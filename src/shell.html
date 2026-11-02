@@ -83,14 +83,22 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 #plist:empty{display:none}
 #spect{position:absolute;left:50%;bottom:4.5em;transform:translateX(-50%);font-size:1.05em;color:#ff9f90;background:rgba(9,8,7,.8);padding:.3em .8em}
 #keyhint{position:absolute;left:50%;top:.8em;transform:translateX(-50%);font-size:.78em;color:rgba(241,234,214,.82);white-space:nowrap;background:rgba(9,8,7,.55);padding:.2em .8em;text-shadow:0 1px 2px #000}
-#hotbar{position:absolute;right:1em;bottom:1em;display:flex;gap:.4em;flex-wrap:wrap;justify-content:flex-end;max-width:min(50vw,44em)}
-.hb{font-size:.85em;background:rgba(9,8,7,.84);border:1px solid rgba(227,163,58,.32);padding:.25em .55em;text-shadow:0 1px 2px #000}
+#hotbar{position:absolute;left:50%;bottom:1em;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:.35em;max-width:min(56vw,46em)}
+.hbrow{display:flex;gap:.3em;flex-wrap:wrap;justify-content:center}
+.hbname{font-size:.8em;background:rgba(9,8,7,.78);padding:.15em .7em;text-shadow:0 1px 2px #000;white-space:nowrap}
+.hbname kbd{display:inline-block;color:#16130c;background:#e3a33a;font-family:inherit;font-weight:bold;padding:0 .3em;border-radius:2px;text-shadow:none}
+.hb{position:relative;font-size:.8em;min-width:4.6em;text-align:center;background:rgba(9,8,7,.84);border:1px solid rgba(227,163,58,.28);padding:.95em .45em .4em;text-shadow:0 1px 2px #000;color:#cfc6ae}
+.hb small{position:absolute;left:.3em;top:.1em;font-size:.75em;color:#8d846f}
+.hb b{position:absolute;right:.3em;top:.05em;font-weight:400;color:#ffd68a;font-size:.9em}
+.hb.sel{border:2px solid #ffd68a;color:#fff3d6;background:rgba(48,36,16,.9);transform:translateY(-.25em)}
 .hb.on{border-color:#ff5a3a;color:#ffb8a8}
 @media (max-width:1100px){#keyhint{display:none}}
 @media (max-width:760px){#tr{max-width:46vw;font-size:.78em}#hotbar{max-width:44vw}#bl{padding-right:4.6em}}
 @media (max-height:520px){#tr{font-size:.75em}#tl{min-width:11em}}
 #lockmsg{position:fixed;left:50%;top:60%;transform:translateX(-50%);z-index:15;font-size:18px;background:var(--panel);border:1px solid var(--line);padding:10px 18px;pointer-events:none}
 #fps{position:fixed;left:6px;bottom:2px;font-size:11px;color:#666;z-index:30}
+#frost{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 52%,rgba(150,180,215,.16) 76%,rgba(215,232,255,.5) 100%)}
+#fade{position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0;background:#000}
 #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;z-index:50;font-size:18px;letter-spacing:.2em;color:var(--dim)}
 /* cash, hotbar, shop */
 #shop .card{max-width:1080px;max-height:94vh;overflow:hidden}
@@ -113,6 +121,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 </head>
 <body>
 <canvas id="c" tabindex="0"></canvas>
+<div id="frost"></div><div id="fade"></div>
 <div id="loading">CLOCKING IN&hellip;</div>
 
 <div id="hud" class="hide">
@@ -130,7 +139,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   </div>
   <div id="plist" class="panel"></div>
   <div id="spect" class="hide"></div>
-  <div id="keyhint">WASD move · Shift run · F flashlight · E use · Q kick · G set down · 1-9 items · Esc pause</div>
+  <div id="keyhint">WASD move · Shift run · F flashlight · E use · Q kick · G set down · scroll + right click items · Esc pause</div>
 </div>
 <div id="lockmsg" class="hide">Click to clock back in</div>
 
@@ -165,11 +174,12 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   &bull; <b>Trailers that breathe.</b> Check the manifest (top right) for a weight mismatch, and listen before you go in. Something sleeps behind the blankets at the back. Get too close and it sits up. Keep your light off it, or it growls and then comes for you. In the dark it only moves while you aren't looking at it. Use the panel beside the bay door to send a bad truck away.<br>
   &bull; <b>Something on the ceiling.</b> Some trailers hold a thing that bolts out and climbs the walls. Listen for tapping overhead, and shine your light up at it. If the tapping stops right above you, move.<br>
   &bull; <b>The dark.</b> Something walks the aisles where the lights are out. It only moves when no light is on it. Turn around often. Working lamps keep it back&hellip; while they work.</p>
-  <p><b>Later nights bring more.</b> A night manager who writes up anyone standing around empty-handed (three write-ups and he comes for you). A shrink-wrapped figure that hunts by sound: walk, don't run. A truck driver who passes for a crewmate but makes no footsteps. Shelf slots that bite. A loudspeaker voice that isn't quite the supervisor's, with a wrong chime. And something out in the yard you shouldn't look at when a bay door jams open.</p>
+  <p><b>Later nights bring more.</b> A night manager who writes up anyone standing around empty-handed (three write-ups and he comes for you). A shrink-wrapped figure that hunts by sound: walk, don't run. A truck driver who passes for a crewmate but makes no footsteps. A loudspeaker voice that isn't quite the supervisor's, with a wrong chime. And something out in the yard you shouldn't look at when a bay door jams open.</p>
+  <p><b>The roof.</b> A ladder in the south-west corner climbs to the roof, where it is snowing hard and only your flashlight shows anything. A supply crate up there gives one free item a night. Don't stay near the edges: the thing in the yard walks up to the building and reaches over the parapet, slowly. Keep moving, keep to the middle, or go back down the hatch.</p>
   <p><b>Difficulty</b> is picked on the title screen: Easy has smaller quotas, softer monsters and rarer bad luck; Hard has bigger quotas, harder hits and much more bad luck. A crew plays on the host's setting.</p>
   <p><b>Power outages.</b> From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel. And something that lives in the dark comes out: it can't see you, but it hears you, and it feels footsteps close by. Stand still.</p>
-  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items are on <kbd>1</kbd>&ndash;<kbd>9</kbd>, the red headlamp on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold <kbd>5</kbd> for the thermal scanner. The <b>THIS WAY</b> board on the dock wall points to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
-  <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause</p>
+  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items sit on the hotbar at the bottom of the screen: <kbd>scroll</kbd> (or a number key) to pick one, <kbd>right click</kbd> to use it. The red headlamp is on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold right click with the thermal scanner picked to use it. The <b>THIS WAY</b> board on the dock wall points to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
+  <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>Scroll</kbd> pick item &middot; <kbd>Right click</kbd> use item &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause</p>
   <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to four people can work a shift together. The quota grows with the crew. If you go down, you watch the others in third person until the night ends: move the mouse to look around, click or use the arrow keys to switch.</p>
   </div>
   <button id="bHowBack">Back</button>

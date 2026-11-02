@@ -152,6 +152,7 @@ const SFX={
   writeup(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.2,ref:2});for(let i=0;i<9;i++)nz(d,{t:i*.07,dur:.06,a:.004,g:.22,f:rand(3000,4500),q:4});
     voice(d,{t:.75,dur:.35,a:.03,rel:.15,f0:105,f1:88,v:'eh',v2:'oo',rasp:20,raspD:.3,noise:.1,sub:.2,g:.3,drive:2})},
   boom(pos){if(!AU.ready)return;const d=dest(pos,{rev:.8,gain:1.6,ref:12,roll:.6});tone(d,{f:44,f2:26,dur:1.4,a:.01,g:.8});nz(d,{dur:.6,a:.01,g:.4,type:'lowpass',f:160})},
+  crunch(run){if(!AU.ready)return;const d=dest(null,{rev:.05,gain:run?.75:.55});nz(d,{dur:.16,a:.004,g:.35,f:rand(1300,1900),q:.8});nz(d,{t:.03,dur:.1,a:.002,g:.25,type:'lowpass',f:500})},
   roofStep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.25,gain:1.2,ref:2});tone(d,{f:90,f2:50,dur:.18,a:.002,g:.5});nz(d,{dur:.08,a:.002,g:.2,f:700,q:2})},
   hatch(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1});tone(d,{type:'sawtooth',f:180,f2:120,dur:.9,a:.2,g:.06})},
   chomp(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.3});nz(d,{dur:.1,a:.002,g:.6,f:900,q:1});tone(d,{f:120,f2:50,dur:.25,g:.6});nz(d,{t:.12,dur:.3,a:.02,g:.25,f:500,q:3})},
@@ -227,6 +228,9 @@ function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.create
   else if(kind==='lift'){const f=filt('lowpass',220);osc('sawtooth',62).connect(f);osc('sawtooth',63.5).connect(f);amp(f,.5);const n=filt('bandpass',500,2);ns().connect(n);amp(n,.2)}
   else if(kind==='gen'){const f=filt('lowpass',380);osc('sawtooth',30).connect(f);osc('square',60).connect(f);const a=amp(f,.4);lfoTo(a.gain,15,.12);const n=filt('lowpass',600);ns().connect(n);amp(n,.15)}
   else if(kind==='flare'){const f=filt('bandpass',3500,.8);ns().connect(f);const a=amp(f,.4);lfoTo(a.gain,9,.12)}
+  else if(kind==='wind'){ // a storm over a flat roof: a broad roar, a whistle that rises and falls, gusts
+    const f=filt('lowpass',420);ns().connect(f);const a=amp(f,.55);lfoTo(a.gain,.11,.3);lfoTo(f.frequency,.07,220);
+    const w=filt('bandpass',900,9);ns().connect(w);const b=amp(w,.18);lfoTo(w.frequency,.13,420);lfoTo(b.gain,.19,.16)}
   else if(kind==='hum'){const f=filt('lowpass',500);osc('sawtooth',120).connect(f);amp(f,.35);const n=filt('highpass',6000);ns().connect(n);amp(n,.05)}
   else if(kind==='amb'){const f=filt('lowpass',130);osc('sawtooth',55).connect(f);osc('sawtooth',55.35).connect(f);amp(f,.5);const n=filt('lowpass',220);ns().connect(n);amp(n,.55);
     const w=filt('bandpass',420,1.2);ns().connect(w);const a=amp(w,.12);lfoTo(a.gain,.06,.1);lfoTo(w.frequency,.045,180)}
