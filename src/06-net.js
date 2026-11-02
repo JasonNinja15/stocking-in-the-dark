@@ -30,7 +30,9 @@ function hostMsg(c,m){if(!m||!NET.conns.has(c.peer))return;
     if(NET.started&&S){addPlayer(pl.id,pl.name,pl.col);const sp=spawnPoint(Object.keys(S.players).length-1);Object.assign(S.players[pl.id],sp);
       c.send({t:'start',id:pl.id});c.send({t:'b',b:boxSnap()});c.send({t:'tp',x:sp.x,z:sp.z});emit({e:'msg',m:`${pl.name} clocked in.`})}
     lobbyBroadcast();return}
-  if(m.t==='me'&&S){const p=S.players[c.peer];if(p&&Array.isArray(m.p)){const [x,z,yaw,pitch,light]=m.p;if(isFinite(x)&&isFinite(z)){p.x=clamp(x,WH.x0,WH.x1);p.z=clamp(z,TZ_DOCK-TRAIL_LEN,WH.z1)}if(isFinite(yaw))p.yaw=yaw;if(isFinite(pitch))p.pitch=clamp(pitch,-1.5,1.5);p.light=!!light}return}
+  if(m.t==='me'&&S){const p=S.players[c.peer];if(p&&Array.isArray(m.p)){const [x,z,yaw,pitch,light,fx,fz,fry]=m.p;
+    if(S.fork&&S.fork.drv===c.peer&&isFinite(fx)&&isFinite(fz)){S.fork.x=fx;S.fork.z=fz;S.fork.ry=+fry||0}
+    if(isFinite(x)&&isFinite(z)&&!(p.tpT>0)){p.x=x>60?clamp(x,BASE.x0,BASE.x1):clamp(x,WH.x0,WH.x1);p.z=x>60?clamp(z,BASE.z0,BASE.z1):clamp(z,TZ_DOCK-TRAIL_LEN,WH.z1)}if(isFinite(yaw))p.yaw=yaw;if(isFinite(pitch))p.pitch=clamp(pitch,-1.5,1.5);p.light=!!light}return}
   if(m.t==='act'&&S){act(c.peer,m.a);return}}
 function hostSend(m){for(const c of NET.conns.values())if(c.open)try{c.send(m)}catch(e){}}
 function lobbyBroadcast(){hostSend({t:'lobby',players:NET.lobby,started:NET.started});if(!NET.started)renderLobby()}
@@ -60,25 +62,41 @@ function netClose(){NET.closing=true;try{NET.peer&&NET.peer.destroy()}catch(e){}
 // ---- snapshots
 const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
 function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S.inter),q:S.quota,sh:S.shelved,lo:S.lost,sc:S.score,to:S.total,ai:S.aidLeft,la:S.lamps,bv:S.bver,ov:S.over,
-  pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry]),
-  tr:S.trucks.map(t=>[t.st,r2(t.z),r2(t.door),Math.round(t.t),t.warn?1:0,t.claw?1:0,t.left,t.n,t.reject?1:0,t.kg||0,t.extra||0]),
+  pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry,p.inv||{},p.up||{},p.stack||[],p.can?1:0,p.wu|0]),
+  tr:S.trucks.map(t=>[t.st,r2(t.z),r2(t.door),Math.round(t.t),t.warn?1:0,t.claw?1:0,t.left,t.n,t.reject?1:0,t.kg||0,t.extra||0,r2(t.stuck||0)]),
   mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0]),
+  // the additions' moving parts
+  x:{cash:Math.round(S.cash||0),adds:S.adds,fixed:S.fixed,ab:S.aidBonus|0,ex:S.extra|0,shopT:Math.round(S.shopT||0),mouths:S.mouths||[],
+    par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1]),
+    fl:(S.flares||[]).map(f=>[f.id,r2(f.x),r2(f.z),Math.round(f.t)]),cold:S.cold&&[r2(S.cold.door),S.cold.open?1:0],conv:S.conv&&[S.conv.sel,S.conv.jam?1:0],
+    elev:S.elev&&[S.elev.lvl,S.elev.st,r2(S.elev.t),r2(S.elev.gate)],gen:S.gen&&[Math.round(S.gen.fuel),S.gen.out?1:0],
+    fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage]},
   ev:NETEV.splice(0)}}
-function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1])}
-function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11]}));
-  for(const s of SLOTS)s.box=-1;for(const b of S.boxes)if((b.st===2||b.st===3)&&b.s>=0&&SLOTS[b.s])SLOTS[b.s].box=b.id}
+function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1,b.fz?1:0,Math.round(b.th||0),b.ret?1:0,b.pri?1:0,b.m?1:0])}
+function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11],fz:!!a[12],th:a[13],ret:!!a[14],pri:!!a[15],m:!!a[16]}));
+  markSlots()}
+function markSlots(){for(const s of SLOTS)s.box=-1;for(const b of S.boxes)if((b.st===2||b.st===3)&&b.s>=0&&SLOTS[b.s])SLOTS[b.s].box=b.id;
+  for(const p of S.pallets||[])if(p.st===2&&p.s>=0&&SLOTS[p.s])SLOTS[p.s].box=-(1000+p.id)}
 function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,inter:m.it,quota:m.q,shelved:m.sh,lost:m.lo,score:m.sc,total:m.to,aidLeft:m.ai,lamps:m.la,over:m.ov});
   const seen=new Set();
-  for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry});
+  for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry,inv,up,stack,can,wu]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry,inv,up,stack,can:!!can,wu});
     if(id!==NET.myId)Object.assign(p,{x,z,yaw,pitch,light:!!light});else if(!p.init){p.init=1;p.x=x;p.z=z}}
   for(const id in S.players)if(!seen.has(id))delete S.players[id];
-  m.tr.forEach((a,i)=>Object.assign(S.trucks[i],{st:a[0],z:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10]}));
+  m.tr.forEach((a,i)=>Object.assign(S.trucks[i],{st:a[0],z:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]}));
   S.mons=m.mo.map(a=>({id:a[0],ty:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],a:a[6],k:a[7],v:a[8],f:!!a[9]}));
-  applyColliders();
+  const x=m.x||{};const addsChanged=JSON.stringify(x.adds||[])!==JSON.stringify(S.adds||[]);
+  Object.assign(S,{cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,mouths:x.mouths||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1]}:null,
+    parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8]})),
+    flares:(x.fl||[]).map(a=>({id:a[0],x:a[1],z:a[2],t:a[3]}))});
+  if(x.cold)S.cold={door:x.cold[0],open:!!x.cold[1]};if(x.conv)S.conv={sel:x.conv[0],jam:!!x.conv[1]};
+  if(x.elev)S.elev={lvl:x.elev[0],st:x.elev[1],t:x.elev[2],gate:x.elev[3]};if(x.gen)S.gen={fuel:x.gen[0],out:!!x.gen[1]};
+  if(x.fork){const f=x.fork,mine=f[4]===NET.myId&&S.fork&&S.fork.drv===NET.myId;S.fork=Object.assign(S.fork||{},mine?{lift:f[3],drv:f[4],pal:f[5],pass:!!f[6]}:{x:f[0],z:f[1],ry:f[2],lift:f[3],drv:f[4],pal:f[5],pass:!!f[6]})}
+  if(addsChanged)applyAdds();
+  markSlots();applyColliders();
   for(const e of m.ev||[])EVQ.push(e)}
 function netTick(dt){
   if(NET.mode==='host'&&NET.started&&S){NET.snapT-=dt;
     if(S.bver!==NET.sentBver||NET.boxT<=0){NET.sentBver=S.bver;NET.boxT=3;hostSend({t:'b',b:boxSnap()})}NET.boxT-=dt;
     if(NET.snapT<=0){NET.snapT=1/15;if(NET.conns.size)hostSend(snap());else NETEV.length=0}}
-  else if(NET.mode==='client'&&NET.hostConn&&NET.hostConn.open&&ME.ready){NET.meT-=dt;if(NET.meT<=0){NET.meT=1/20;try{NET.hostConn.send({t:'me',p:[r2(ME.x),r2(ME.z),r3(ME.yaw),r3(ME.pitch),ME.lightOn()?1:0]})}catch(e){}}}}
+  else if(NET.mode==='client'&&NET.hostConn&&NET.hostConn.open&&ME.ready){NET.meT-=dt;if(NET.meT<=0){NET.meT=1/20;try{NET.hostConn.send({t:'me',p:[r2(ME.x),r2(ME.z),r3(ME.yaw),r3(ME.pitch),ME.lightOn()?1:0].concat(ME.driving&&S.fork?[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry)]:[])})}catch(e){}}}}
 function doAct(a){if(NET.mode==='client'){try{NET.hostConn&&NET.hostConn.open&&NET.hostConn.send({t:'act',a})}catch(e){}}else act(NET.myId,a)}

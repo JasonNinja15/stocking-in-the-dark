@@ -15,14 +15,24 @@ function saveSet(){try{localStorage.setItem('gs-settings',JSON.stringify(SET))}c
 
 // layout (metres). +x east, +z south, the loading dock is the north wall (z = -20).
 const WH={x0:-30,x1:30,z0:-20,z1:20,h:7};
-const BAYS=[{x:-12,name:'A'},{x:12,name:'B'}];
+// Bay C is boarded up until the crew buys it; its trailers are refrigerated
+const BAYS=[{x:-12,name:'A'},{x:12,name:'B'},{x:-24,name:'C',add:'bayc',reefer:true}];
 const TZ_DOCK=-20.25, TZ_FAR=-64, TRAIL_LEN=14, TRAIL_HW=1.25, TRAIL_H=2.9;
 const DOOR_HW=1.7, DOOR_H=3.6;
 // one in-game minute per real second
 const HOUR=60, SHIFT_HOURS=6, DOCK_TIME=115, SHIFT_END=HOUR*SHIFT_HOURS, OVERTIME=60, LAST_TRUCK_AT=HOUR*5+8;
 const CEIL_Y=6.25; // where the crawler hangs, just under the trusses
 const RACK_ROWS=[-6,-1,4,9], RACK_COLS=[-27,-8,11], RACK_LEN=16, RACK_LEVELS=[0.14,1.34,2.54];
-const LAMPS=[{x:0,z:-13.5,r:3.6},{x:-9.5,z:1.5,r:3.2},{x:9.5,z:6.5,r:3.2},{x:-3,z:15.5,r:3.4}];
+// four working lamps, then the dead fixtures a bought bulb can bring back (up to MAX_BULBS of them)
+const LAMPS=[{x:0,z:-13.5,r:3.6},{x:-9.5,z:1.5,r:3.2},{x:9.5,z:6.5,r:3.2},{x:-3,z:15.5,r:3.4},
+  ...[[-19,-13.5],[19,-13.5],[-19,6.5],[19,1.5],[0,6.5],[0,-3.5],[19,11.5],[-19,11.5]].map(([x,z])=>({x,z,r:3.0,dead:true}))];
+const MAX_BULBS=3;
+// the additions' footprints
+const COLD={x0:21,x1:WH.x1,z0:WH.z0,z1:-12.5,dx0:24.6,dx1:26.0};           // freezer room, door in its south wall
+const CONV={z:18.4,x0:-12.6,x1:-2.75,y:.85,bx:-2.2,bins:[17.25,18.4,19.55],lever:{x:-5.2,z:16.95},jam:{x:-3.05,z:17.7}};
+const CAR_UP={x0:-30,x1:-27.5,z0:-10.5,z1:-8.1}, CAR_DN={x0:70,x1:72.5,z0:-1.2,z1:1.2}, BASE={x0:70,x1:84,z0:-6,z1:6};
+const CAR_OFF={x:CAR_DN.x0-CAR_UP.x0,z:CAR_DN.z0-CAR_UP.z0};
+const GEN={x:-28.6,z:11.9}, FUELR={x:-25.2,z:13.2}, FORK_HOME={x:4.5,z:15.5,ry:.5}, SHRINK_HOME={x:25.4,z:13.4}, OFFICE_DOOR={x:-23.65,z:12.8};
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
 const BOX_KINDS=[{w:.55,h:.42,d:.5,slow:.95},{w:.74,h:.56,d:.64,slow:.86},{w:.92,h:.72,d:.8,slow:.74}];
 const VEST=['#ff7a1a','#a4e33a','#38d4e8','#ff4fa8'];
@@ -84,7 +94,13 @@ TEX.pallet=ctex(128,128,(g,w,h)=>{g.fillStyle='#7d6037';g.fillRect(0,0,w,h);for(
 TEX.vest=ctex(64,64,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);g.fillStyle='#c9cdd2';g.fillRect(0,22,w,7);g.fillRect(0,42,w,7);g.fillRect(12,0,7,h);g.fillRect(45,0,7,h)});
 
 function boxTex(kind){return ctex(256,256,(g,w,h)=>{
-  const old=kind==='old';g.fillStyle=old?'#6e5435':'#a77a48';g.fillRect(0,0,w,h);
+  const old=kind==='old'||kind==='ret';g.fillStyle=kind==='frozen'?'#93a8b6':old?'#6e5435':'#a77a48';g.fillRect(0,0,w,h);
+  if(kind==='frozen'){speckle(g,w,h,5000,'235,245,255',.5,2);g.fillStyle='rgba(30,70,120,.9)';g.font='bold 30px Courier New';g.textAlign='center';g.fillText('KEEP',w/2,h*.36);g.fillText('FROZEN',w/2,h*.5);
+    g.font='bold 16px Courier New';g.fillText('-18 °C',w/2,h*.66);g.strokeStyle='rgba(30,70,120,.8)';g.lineWidth=4;g.strokeRect(20,20,w-40,h-40);for(let i=0;i<8;i++)stain(g,rand(0,w),rand(0,h),rand(20,50),'240,248,255',.45);return}
+  if(kind==='pri'){g.fillStyle='rgba(200,30,20,.92)';g.fillRect(0,h*.4,w,h*.2);g.fillRect(w*.42,0,w*.16,h);g.fillStyle='#fff3e8';g.font='bold 30px Courier New';g.textAlign='center';g.fillText('PRIORITY',w/2,h*.535);speckle(g,w,h,800,'40,25,10',.3,2);return}
+  if(kind==='ret'){g.fillStyle='rgba(25,18,12,.85)';g.textAlign='center';speckle(g,w,h,3000,'200,195,180',.12,2);for(let i=0;i<6;i++)stain(g,rand(0,w),rand(0,h),rand(20,60),'30,22,12',.45);
+    g.save();g.translate(w/2,h*.45);g.rotate(-.2);g.strokeStyle='rgba(170,30,25,.85)';g.lineWidth=5;g.strokeRect(-86,-26,172,52);g.fillStyle='rgba(170,30,25,.85)';g.font='bold 36px Courier New';g.fillText('RETURN',0,13);g.restore();
+    g.strokeStyle='rgba(20,12,6,.8)';g.lineWidth=3;g.beginPath();g.moveTo(w*.1,h*.8);g.lineTo(w*.3,h*.72);g.lineTo(w*.45,h*.86);g.stroke();return}
   for(let i=0;i<300;i++){g.fillStyle=`rgba(${Math.random()<.5?'70,45,20':'190,150,100'},${rand(.05,.2)})`;g.fillRect(0,rand(0,h),w,1)}
   speckle(g,w,h,1200,'40,25,10',.3,2);
   g.fillStyle=kind==='fragile'?'rgba(190,40,30,.85)':'rgba(205,175,120,.75)';g.fillRect(0,h*.44,w,h*.12);
@@ -99,6 +115,13 @@ function boxTex(kind){return ctex(256,256,(g,w,h)=>{
   if(old){speckle(g,w,h,3000,'200,195,180',.12,2);for(let i=0;i<6;i++)stain(g,rand(0,w),rand(0,h),rand(20,60),'30,22,12',.4)}
 })}
 TEX.box=[boxTex(0),boxTex(1),boxTex(2),boxTex(3)];TEX.fragile=boxTex('fragile');TEX.old=boxTex('old');
+TEX.frozen=boxTex('frozen');TEX.ret=boxTex('ret');TEX.pri=boxTex('pri');
+// moth wings: pale dusty fans whose markings make a face when they open
+TEX.wing=ctex(256,256,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='#cfc6b4';g.beginPath();g.moveTo(10,128);g.quadraticCurveTo(60,8,246,30);g.quadraticCurveTo(220,150,246,226);g.quadraticCurveTo(60,250,10,128);g.fill();
+  speckle(g,w,h,2500,'90,80,70',.25,2);g.fillStyle='#0c0a08';g.beginPath();g.ellipse(150,96,30,20,.2,0,TAU);g.fill();g.fillStyle='#e8e2d2';g.beginPath();g.arc(156,92,5,0,TAU);g.fill();
+  g.strokeStyle='rgba(30,22,16,.75)';g.lineWidth=4;g.beginPath();g.moveTo(110,178);g.quadraticCurveTo(170,196,226,170);g.stroke();for(let i=0;i<6;i++){g.beginPath();g.moveTo(20,128);g.lineTo(240,20+i*40);g.strokeStyle='rgba(80,70,60,.25)';g.lineWidth=1;g.stroke()}},{aniso:1});
+TEX.frostSkin=ctex(128,128,(g,w,h)=>{g.fillStyle='#6d8494';g.fillRect(0,0,w,h);speckle(g,w,h,3000,'240,248,255',.6,2);for(let i=0;i<8;i++)crack(g,rand(0,w),rand(0,h),randi(5,12),'60,90,120',.5)},{rep:[2,2]});
+TEX.wrap=ctex(128,128,(g,w,h)=>{g.fillStyle='#aab3b7';g.fillRect(0,0,w,h);for(let i=0;i<40;i++){g.strokeStyle=`rgba(${Math.random()<.5?'235,240,242':'70,78,82'},${rand(.15,.45)})`;g.lineWidth=rand(1,3);const y=rand(0,h);g.beginPath();g.moveTo(0,y);g.lineTo(w,y+rand(-14,14));g.stroke()}},{rep:[1,2]});
 
 function signTex(lines,{w=512,h=256,bg='#d8d2bd',fg='#141210',border=true,dirt=true,font='Special Elite'}={}){return ctex(w,h,(g)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);if(border){g.strokeStyle=fg;g.lineWidth=10;g.strokeRect(12,12,w-24,h-24)}
   g.fillStyle=fg;g.textAlign='center';g.textBaseline='middle';const n=lines.length;
@@ -146,6 +169,13 @@ const MAT={
   bulbOn:basic(0xffd7a0),bulbOff:toon(0x2a2824),shade:toon(0x23352b),
   red:basic(0xff2a1a),green:basic(0x2aff6a),screen:basic(0x2f7a5e),
   skin:toon(0xc9a184),hat:toon(0xe0b51c),pants:toon(0x262a33),
-  lurkSkin:toon(0xffffff,{map:TEX.lskin}),lurkDark:toon(0x35302a),lurkRib:toon(0x3a362f),crawlSkin:toon(0xb7ab9c),crawlFace:toon(0xffffff,{map:TEX.cface}),hair:toon(0x0b0a0a),tooth:toon(0xe8e0c8),gum:toon(0x5a1414),eye:basic(0xfff2a0),
+  lurkSkin:toon(0xffffff,{map:TEX.lskin}),lurkDark:toon(0x35302a),lurkRib:toon(0x3a362f),lurkEye:toon(0xcfc7a8),crawlSkin:toon(0xb7ab9c),crawlFace:toon(0xffffff,{map:TEX.cface}),hair:toon(0x0b0a0a),tooth:toon(0xe8e0c8),gum:toon(0x5a1414),eye:basic(0xfff2a0),
+  frozen:toon(0xffffff,{map:TEX.frozen}),ret:toon(0xffffff,{map:TEX.ret}),pri:toon(0xffffff,{map:TEX.pri}),
+  frost:toon(0xffffff,{map:TEX.frostSkin}),frostCold:toon(0x6f9ab8),coldSkin:toon(0xb9d2e2,{map:TEX.lskin}),ice:toon(0xd8ecf6),
+  suit:toon(0x26282e),shirt:toon(0xd4d2c8),clip:toon(0x7a5a32),paper2:toon(0xe6e1d2),tie:toon(0x5a1414),
+  wrap:toon(0xffffff,{map:TEX.wrap}),wing:toon(0xffffff,{map:TEX.wing,side:THREE.DoubleSide,alphaTest:.5,transparent:false}),mothBody:toon(0x8a8070),
+  giant:basic(0x23232a,{fog:false}),giantEye:basic(0xd8d4c4,{fog:false}),
+  parcel:[toon(0xc8352a),toon(0x2e5fb8),toon(0xd8b22a)],chute:toon(0x15161a),belt:toon(0x222326),
+  reefer:toon(0xd9dbd8,{map:TEX.ribs}),genY:toon(0x6a6a2a),can:toon(0xa8261c),flare:basic(0xff4a2a),cage:toon(0x55585c),board:toon(0x8b6a43,{map:TEX.pallet}),
   stalkBody:toon(0x1c1c22),stalkFace:toon(0xffffff,{map:TEX.face}),mimicLeg:toon(0x16120e),tongue:toon(0x9a2a2a),
 };

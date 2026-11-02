@@ -3,9 +3,9 @@ const RT=new THREE.WebGLRenderTarget(4,4,{type:THREE.HalfFloatType,depthBuffer:t
 RT.depthTexture=new THREE.DepthTexture(4,4);RT.depthTexture.type=THREE.UnsignedIntType;
 const POST=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
   uniforms:{tCol:{value:RT.texture},tDep:{value:RT.depthTexture},res:{value:new THREE.Vector2(4,4)},time:{value:0},near:{value:camera.near},far:{value:camera.far},
-    hurt:{value:0},flash:{value:0},fear:{value:0},lowhp:{value:0},dead:{value:0},edgeW:{value:1}},
+    hurt:{value:0},flash:{value:0},fear:{value:0},lowhp:{value:0},dead:{value:0},edgeW:{value:1},scan:{value:0}},
   vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`,
-  fragmentShader:`precision highp float;uniform sampler2D tCol,tDep;uniform vec2 res;uniform float time,near,far,hurt,flash,fear,lowhp,dead,edgeW;varying vec2 vUv;
+  fragmentShader:`precision highp float;uniform sampler2D tCol,tDep;uniform vec2 res;uniform float time,near,far,hurt,flash,fear,lowhp,dead,edgeW,scan;varying vec2 vUv;
   float W(vec2 uv){float d=texture2D(tDep,uv).r;float vz=(near*far)/((far-near)*d-far);return -1.0/vz;}
   float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
   void main(){vec2 uv=vUv;
@@ -29,6 +29,7 @@ const POST=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
     col=floor(col*40.+.5)/40.;
     col=mix(col,vec3(1.,.96,.92),flash);
     col=mix(col,vec3(lum*.55,0.,0.),dead*.75);
+    col=mix(col,vec3(lum*.25,lum*.4,lum*.9+.03),scan*.85); // thermal scanner: the world goes cold blue
     gl_FragColor=vec4(col,1.);}`});
 const postScene=new THREE.Scene(),postCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
 postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),POST));
@@ -63,7 +64,7 @@ const locked=()=>document.pointerLockElement===canvas;
 function reqLock(){try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}}
 addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;K[e.code]=true;
   if(GAME.on&&!GAME.paused&&!e.repeat)onKey(e.code);
-  if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG'].includes(e.code))e.preventDefault()});
+  if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(e.code))e.preventDefault()});
 addEventListener('keyup',e=>{K[e.code]=false});
 addEventListener('blur',()=>{for(const k in K)K[k]=false});
 document.addEventListener('mousemove',e=>{if(!GAME.on||!locked()||GAME.paused)return;const s=.0021*SET.sens;ME.yaw-=e.movementX*s;ME.pitch=clamp(ME.pitch-e.movementY*s,-1.45,1.45)});
@@ -72,14 +73,15 @@ canvas.addEventListener('mousedown',e=>{auInit();if(!GAME.on)return;if(!locked()
   if(e.button===0)onKey('KeyE');else if(e.button===2)onKey('KeyQ')});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('pointerlockchange',()=>{if(locked()){GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
-  else if(GAME.on&&!GAME.overShown){showPause()}});
+  else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')){showPause()}});
 
 function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||S.phase!=='play')return;
+  if(code!=='KeyF'&&onKey2(code,me))return;
   if(code==='KeyF'){if(ME.bat>0)ME.light=!ME.light;SFX.click();return}
   if(code==='KeyE'){const t=ME.target;if(!t)return;
     if(t.kind==='box')doAct({a:'pick',b:t.b.id});
     else if(t.kind==='slot'){if(t.ok)doAct({a:'place',s:t.s.id});else SFX.deny()}
-    else if(t.kind==='panel'){if(S.trucks[t.bay].st===2)doAct({a:'panel',b:t.bay});else SFX.deny()}
+    else if(t.kind==='panel'){const tr=S.trucks[t.bay];if(tr.st===2||(tr.st===0&&tr.stuck>0)||!bayOn(t.bay))doAct({a:'panel',b:t.bay});else SFX.deny()}
     else if(t.kind==='aid')doAct({a:'aid'});
     else if(t.kind==='exit'){SFX.locked();toast('Locked. Nobody leaves before 6:00 AM.')}
     return}
@@ -92,25 +94,28 @@ function rayBox(ray,x0,y0,z0,x1,y1,z1){const o=ray.origin,d=ray.direction;let t0
 let BOXPICK=[];
 const GHOST=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1).translate(0,.5,0)),new THREE.LineBasicMaterial({color:0x9dff9a,transparent:true,opacity:.75,fog:false,depthWrite:false}));GHOST.visible=false;scene.add(GHOST);
 function updGhost(me){const t=ME.target;const b=t&&t.kind==='slot'&&me&&me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;GHOST.visible=!!b;if(!b)return;
-  const K=BOX_KINDS[b.k];GHOST.scale.set(K.w,K.h,K.d);GHOST.position.set(t.s.x,t.s.y+.01,t.s.z);GHOST.material.color.set(t.ok?0x9dff9a:0xff6a5a);GHOST.material.opacity=.45+Math.sin(performance.now()/160)*.25}
+  const K=BOX_KINDS[b.k];GHOST.scale.set(t.s.rot?K.d:K.w,K.h,t.s.rot?K.w:K.d);GHOST.position.set(t.s.x,t.s.y+.01,t.s.z);GHOST.material.color.set(t.ok?0x9dff9a:0xff6a5a);GHOST.material.opacity=.45+Math.sin(performance.now()/160)*.25}
 function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.scare)return;
   RC.setFromCamera({x:0,y:0},camera);RC.far=3.1;const carrying=me.carry>=0;
-  if(carrying){let best=null,bt=3.3;for(const s of SLOTS){if(Math.abs(s.x-ME.x)>4.5||Math.abs(s.z-ME.z)>4.5)continue;const t=rayBox(RC.ray,s.x-.97,s.y,s.z-.55,s.x+.97,s.y+1.08,s.z+.55);if(t!==null&&t<bt){bt=t;best=s}}
-    if(best){ME.target={kind:'slot',s:best,ok:!best.old&&best.box<0};return}}
-  const hits=RC.intersectObjects(BOXPICK.concat(INTER),false);
-  for(const h of hits){const ud=h.object.userData;if(segBlocked(ME.x,ME.z,h.point.x-(h.point.x-ME.x)*.08,h.point.z-(h.point.z-ME.z)*.08))break;
-    if(ud.kind==='box'){const b=S.boxes.find(x=>x.id===ud.id);if(!b||b.st===2||b.st===1)break;if(!carrying)ME.target={kind:'box',b};break}
-    if(ud.kind)ME.target={kind:ud.kind,bay:ud.bay};break}}
+  if(ME.driving){ME.target=forkTarget();return}
+  if(carrying){let best=null,bt=3.3;for(const s of SLOTS){if(Math.abs(s.x-ME.x)>4.5||Math.abs(s.z-ME.z)>4.5||!slotOn(s))continue;const hx=s.rot?.55:.97,hz=s.rot?.97:.55;const t=rayBox(RC.ray,s.x-hx,s.y,s.z-hz,s.x+hx,s.y+1.08,s.z+hz);if(t!==null&&t<bt){bt=t;best=s}}
+    if(best){ME.target={kind:'slot',s:best,ok:!best.old&&best.box===-1};return}}
+  const hits=RC.intersectObjects(BOXPICK.concat(INTER,PARCELPICK,PALPICK,FORKPICK),false);
+  for(const h of hits){const ud=h.object.userData;if(!shown(h.object))continue;if(segBlocked(ME.x,ME.z,h.point.x-(h.point.x-ME.x)*.08,h.point.z-(h.point.z-ME.z)*.08))break;
+    if(ud.kind==='box'){const b=S.boxes.find(x=>x.id===ud.id);if(!b||b.st===2||b.st===1)break;if(!carrying||(me.up&&me.up.hand&&(me.stack||[]).length<2))ME.target={kind:'box',b};break}
+    if(findTarget2(me,h))break;if(ud.kind)ME.target={kind:ud.kind,bay:ud.bay};break}}
 
 function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   if(me.hp<ME.lastHp-.5){ME.hurt=Math.min(1,ME.hurt+.9);if(!ME.scare)SFX.hurt()}ME.lastHp=me.hp;
   ME.hurt=Math.max(0,ME.hurt-dt*.7);ME.flash=Math.max(0,ME.flash-dt*2.2);ME.kickCD-=dt;ME.kickA=Math.max(0,ME.kickA-dt);
   if(ME.scare)updScare(dt);else ME.shake=Math.max(0,ME.shake-dt*1.4);
   if(me.dead){ME.deathT+=dt;spectate(dt);findTarget(null);return}
-  ME.deathT=0;
+  ME.deathT=0;localUpdate2(dt,me);
   const busy=!!ME.scare||S.phase!=='play';
+  if(ME.driving){driveUpdate(dt,me);batteryUpdate(dt,busy,me);findTarget(me);return}
   const fw=busy?0:(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),st=busy?0:(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0);
-  const carry=me.carry>=0?S.boxes.find(b=>b.id===me.carry):null,slow=carry?BOX_KINDS[carry.k].slow:1;
+  // a hand-truck stack is heavier; a jerry can slows you a little
+  const carry=me.carry>=0?S.boxes.find(b=>b.id===me.carry):null,slow=(carry?BOX_KINDS[carry.k].slow:1)*Math.pow(.85,me.stack?me.stack.length:0)*(me.can?.9:1);
   const moving=fw||st,run=(K.ShiftLeft||K.ShiftRight)&&fw>0&&!ME.exh&&ME.stam>0;
   const spd=(run?5.3:3.05)*slow;
   const sx=-Math.sin(ME.yaw),sz=-Math.cos(ME.yaw),rx=Math.cos(ME.yaw),rz=-Math.sin(ME.yaw);
@@ -118,20 +123,17 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   ME.vx=damp(ME.vx,tx,10,dt);ME.vz=damp(ME.vz,tz,10,dt);
   const p={x:ME.x+ME.vx*dt,z:ME.z+ME.vz*dt};collideCircle(p,.32);
   // never strand anyone outside: if the trailer they're in isn't docked, put them back by the bay door
-  if(p.z<WH.z0-.3){let bi=-1;for(let i=0;i<BAYS.length;i++)if(Math.abs(p.x-BAYS[i].x)<TRAIL_HW+.4)bi=i;
-    const tr=bi>=0?S.trucks[bi]:null;if(!tr||(tr.st!==2&&tr.st!==3)){if(bi>=0)p.x=BAYS[bi].x;p.z=WH.z0+1.2}}
-  p.x=clamp(p.x,WH.x0+.3,WH.x1-.3);p.z=clamp(p.z,TZ_DOCK-TRAIL_LEN+.3,WH.z1-.3);
+  // the basement is its own room, far off to the east
+  if(ME.x>60){p.x=clamp(p.x,BASE.x0+.3,BASE.x1-.3);p.z=clamp(p.z,BASE.z0+.3,BASE.z1-.3)}
+  else{if(p.z<WH.z0-.3){let bi=-1;for(let i=0;i<BAYS.length;i++)if(Math.abs(p.x-BAYS[i].x)<TRAIL_HW+.4)bi=i;
+      const tr=bi>=0?S.trucks[bi]:null;if(!tr||(tr.st!==2&&tr.st!==3)){if(bi>=0)p.x=BAYS[bi].x;p.z=WH.z0+1.2}}
+    p.x=clamp(p.x,WH.x0+.3,WH.x1-.3);p.z=clamp(p.z,TZ_DOCK-TRAIL_LEN+.3,WH.z1-.3)}
   const sp=Math.hypot(p.x-ME.x,p.z-ME.z)/Math.max(dt,1e-4);ME.x=p.x;ME.z=p.z;
-  if(run&&sp>1){ME.stam-=dt*21;if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16));if(ME.exh&&ME.stam>35)ME.exh=false}
+  if(run&&sp>1){if(!(ME.drinkT>0))ME.stam-=dt*21;if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16));if(ME.exh&&ME.stam>35)ME.exh=false}
   // head bob + footsteps
   if(sp>.3){const ph0=ME.stepPh;ME.stepPh+=dt*sp*(run?1.9:2.15);if(Math.floor(ph0/Math.PI)!==Math.floor(ME.stepPh/Math.PI))SFX.step(ME.z<WH.z0,run)}
   ME.bob=damp(ME.bob,sp>.3?1:0,6,dt);
-  // battery + charger
-  ME.charging=false;
-  // holding E at the charger counts as charging even when full, so the battery never drains there
-  if(ME.target&&ME.target.kind==='charger'&&K.KeyE&&!busy){ME.charging=true;if(ME.bat<100){ME.bat=Math.min(100,ME.bat+dt*24);if(Math.random()<dt*6)SFX.charge()}}
-  if(ME.lightOn()&&!ME.charging){ME.bat=Math.max(0,ME.bat-dt*.6);if(ME.bat<=0){ME.light=false;SFX.click();toast('Your flashlight died.')}}
-  if(ME.bat<25&&!GAME.hints.bat){GAME.hints.bat=1;toast('Battery low. Hold E at the charging dock between the bays.',5)}
+  batteryUpdate(dt,busy,me);
   if(carry&&!GAME.hints.carry&&S.night===1){GAME.hints.carry=1;toast('Look at an empty shelf and press E to shelve it.',4.5)}
   // camera
   const bobY=Math.sin(ME.stepPh*2)*.045*ME.bob*(run?1.4:1),bobX=Math.cos(ME.stepPh)*.03*ME.bob;
@@ -140,6 +142,12 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   VM.g.position.set(bobX*.3,bobY*.4-ME.kickA*.15,0);
   me.x=ME.x;me.z=ME.z;me.yaw=ME.yaw;me.pitch=ME.pitch;me.light=ME.lightOn();
   findTarget(me);updGhost(me);}
+function batteryUpdate(dt,busy,me){
+  ME.charging=false;
+  // holding E at the charger counts as charging even when full, so the battery never drains there
+  if(ME.target&&ME.target.kind==='charger'&&K.KeyE&&!busy){ME.charging=true;if(ME.bat<100){ME.bat=Math.min(100,ME.bat+dt*24);if(Math.random()<dt*6)SFX.charge()}}
+  if(ME.lightOn()&&!ME.charging){ME.bat=Math.max(0,ME.bat-dt*(me.up&&me.up.fl2?.3:.6));if(ME.bat<=0){ME.light=false;SFX.click();toast('Your flashlight died.')}}
+  if(ME.bat<25&&!GAME.hints.bat){GAME.hints.bat=1;toast('Battery low. Hold E at the charging dock between the bays.',5)}}
 
 function spectate(dt){
   if(ME.deathT<2.2||!Object.values(S.players).some(p=>!p.dead&&p.id!==NET.myId)){ // fall to the floor
@@ -149,12 +157,13 @@ function spectate(dt){
 
 // ---- jumpscares
 function startScare(ty){if(ME.scare){camera.remove(ME.scare.g)}
-  const g=ty===1?makeLurker():ty===2?makeStalker():ty===3?makeCrawler():makeMimic(1,randi(0,3),false);g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=6}});
-  camera.add(g);ME.scare={t:0,ty,g};toastT=0;bigT=0;SCARE_L.color.set(ty===2||ty===3?0x9fb4ff:0xff5a3a);SFX.scare(ty);ME.flash=.9;ME.shake=1;ME.fear=1}
+  const g=makeScare2(ty)||(ty===1?makeLurker():ty===2?makeStalker():ty===3?makeCrawler():makeMimic(1,randi(0,3),false));g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=6}});
+  camera.add(g);ME.scare={t:0,ty,g};toastT=0;bigT=0;SCARE_L.color.set([2,3,6,9,10].includes(ty)?0x9fb4ff:0xff5a3a);SFX.scare(ty);ME.flash=.9;ME.shake=1;ME.fear=1}
 const _q=new THREE.Quaternion();
 function updScare(dt){const s=ME.scare,g=s.g,ud=g.userData;s.t+=dt;const k=s.t;
   const lunge=d=>easeOut(Math.min(1,k/d));
-  if(s.ty===1){g.position.set(rand(-.02,.02),-2.3,lerp(-2.9,-1.55,lunge(.2)));ud.body.position.y=-.1;ud.torso.rotation.x=.45;ud.neck.rotation.x=.25;
+  if(s.ty>=4)updScare2(s,k,lunge);
+  else if(s.ty===1){g.position.set(rand(-.02,.02),-2.3,lerp(-2.9,-1.55,lunge(.2)));ud.body.position.y=-.1;ud.torso.rotation.x=.45;ud.neck.rotation.x=.25;
     ud.head.rotation.set(-1.0,0,Math.sin(k*23)*.06+.18);ud.jaw.rotation.x=Math.min(.95,k*5);
     ud.arms.forEach((a,i)=>{a.rotation.x=-2.3;a.rotation.z=(i?-1:1)*.55;a.userData.el.rotation.x=-.5});ud.legs.forEach(l=>{l.th.rotation.x=-1.2;l.kn.rotation.x=1.6})}
   else if(s.ty===3){ // drops from above: upside down, face to face
@@ -170,9 +179,9 @@ function updScare(dt){const s=ME.scare,g=s.g,ud=g.userData;s.t+=dt;const k=s.t;
 // ===================================================================== world sync (host and clients both render from S)
 const TV=[];const BM=new Map(),MV=new Map(),AV=new Map();
 function syncTrucks(){S.trucks.forEach((tr,i)=>{const v=TV[i],b=BAYS[i],bv=BAYV[i];
-  v.g.visible=tr.st!==0;v.g.position.set(b.x,0,tr.z);const fm=tr.claw?MAT.ribsClaw:MAT.ribs;if(v.g.userData.front.material!==fm)v.g.userData.front.material=fm;
+  v.g.visible=tr.st!==0;v.g.position.set(b.x,0,tr.z);const fm=tr.claw?MAT.ribsClaw:b.reefer?MAT.reefer:MAT.ribs;if(v.g.userData.front.material!==fm)v.g.userData.front.material=fm;
   const pnl=bv.door.children[0],h=Math.max(.06,DOOR_H*(1-tr.door));pnl.scale.y=h;pnl.position.y=DOOR_H-h/2;
-  bv.ind.material.color.set(tr.st===2&&tr.door>=1?0x2aff6a:tr.st===0?0x3a0c0c:0xffa020);bv.scr.material.color.set(tr.st===2?0x1d8a3e:0x4a1410);
+  bv.ind.material.color.set(!bayOn(i)?0x140606:tr.stuck>0?(Math.sin(performance.now()/120)>0?0xff3020:0x3a0c0c):tr.st===2&&tr.door>=1?0x2aff6a:tr.st===0?0x3a0c0c:0xffa020);bv.scr.material.color.set(tr.st===2?0x1d8a3e:0x4a1410);
   if(AU.ready){if(!v.eng){v.eng=loop('engine',{x:b.x,y:1,z:tr.z},1);v.beep=loop('beep',{x:b.x,y:1,z:tr.z},1);v.door=loop('door',{x:b.x,y:3,z:WH.z0},1)}
     const moving=tr.st===1||(tr.st===3&&tr.door<=0);v.eng.pos({x:b.x,y:1,z:tr.z-TRAIL_LEN-1.5});v.eng.set(tr.st===0?0:moving?.85:.16,.35);
     v.beep.pos({x:b.x,y:1.5,z:tr.z-1});v.beep.set(tr.st===1&&tr.t>1?.16:0,.03);
@@ -188,9 +197,11 @@ function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
   const cb=me&&me.carry>=0?S.boxes.find(b=>b.id===me.carry):null;setViewBox(me&&!me.dead?cb:null)}
 function syncMonsters(dt,time){const live=new Set();
   for(const m of S.mons){live.add(m.id);let v=MV.get(m.id);
-    if(!v){const g=m.ty===0?makeMimic(m.k,m.v,m.f):m.ty===1?makeLurker():m.ty===3?makeCrawler():makeStalker();g.position.set(m.x,m.y,m.z);g.rotation.y=m.ry;ROOT.add(g);
+    if(!v){const g=makeMonster2(m)||(m.ty===0?makeMimic(m.k,m.v,m.f):m.ty===1?makeLurker():m.ty===3?makeCrawler():makeStalker());if(m.ty===1&&m.k===1)coldify(g);g.position.set(m.x,m.y,m.z);g.rotation.y=m.ry;ROOT.add(g);
       v={g,ty:m.ty,lp:null,ph:Math.random()*10,a:0,fade:1};MV.set(m.id,v)}
     if(AU.ready&&!v.lp&&(m.ty===1||m.ty===2))v.lp=loop(m.ty===1?'breath':'whisper',{x:m.x,y:1.5,z:m.z},m.ty===1?1.3:1);
+    if(AU.ready&&loopFor(m)){const [kind,vol]=loopFor(m);if(!v.l2)v.l2=loop(kind,{x:m.x,y:1,z:m.z},vol);v.l2.pos({x:v.g.position.x,y:v.g.position.y+1,z:v.g.position.z});v.l2.set(m.ty===12||m.a===2?1:0,.15)}
+    if(AU.ready&&m.ty===1){if(!v.gr)v.gr=loop('growl',{x:m.x,y:1.6,z:m.z},1.4);v.gr.pos({x:v.g.position.x,y:1.6,z:v.g.position.z});v.gr.set(m.a===1?1:0,.12)} // growls for as long as the light is on it
     const g=v.g;if(Math.hypot(g.position.x-m.x,g.position.z-m.z,g.position.y-m.y)>3){g.position.set(m.x,m.y,m.z)}
     else{g.position.x=damp(g.position.x,m.x,15,dt);g.position.z=damp(g.position.z,m.z,15,dt);g.position.y=damp(g.position.y,m.y,15,dt)}
     g.rotation.y=angLerp(g.rotation.y,m.ry,dt*8);v.a=m.a;v.k=m.k;animMonster(v,dt,time);
@@ -201,11 +212,11 @@ function syncMonsters(dt,time){const live=new Set();
         const d=Math.hypot(g.position.x-ME.x,g.position.z-ME.z);v.wt=(v.wt??rand(4,9))-dt;
         if(v.wt<=0){v.wb=rand(1.2,2.2);v.wt=v.wb+(d<7?rand(5,9):rand(11,20))}
         v.wb=Math.max(0,(v.wb||0)-dt);v.lp.set(v.wb>0?.8:0,.35)}}}
-  for(const [id,v] of MV)if(!live.has(id)){ROOT.remove(v.g);v.lp&&v.lp.stop();MV.delete(id)}}
-function animMonster(v,dt,time){const u=v.g.userData,t=time+v.ph;
+  for(const [id,v] of MV)if(!live.has(id)){ROOT.remove(v.g);v.lp&&v.lp.stop();v.gr&&v.gr.stop();v.l2&&v.l2.stop();MV.delete(id)}}
+function animMonster(v,dt,time){const u=v.g.userData,t=time+v.ph;if(v.ty>=4){animMonster2(v,dt,time);return}
   if(v.ty===1){ // 0 asleep, 1 lit (growling), 2 creeping, 3 sitting up / frozen, 4 charging
     const a=v.a,move=a===2||a===4,gs=a===4?10:3.2;v.gp=(v.gp||0)+(move?dt*gs:0);const ph=v.gp,r=a===4?12:a===0?2:a===3?1.4:5;
-    const T={0:{by:-.5,tor:1.45,nk:.35,hx:.4,hz:.3,jaw:.04,sh:-.2,el:-1.6,th:-1.5,kn:2.2},
+    const T={0:{by:-.52,tor:1.5,nk:1.05,hx:.65,hz:.3,jaw:.04,sh:-.2,el:-1.6,th:-1.5,kn:2.2}, // curled up, head tucked
       1:{by:-.06,tor:.5,nk:.15,hx:-.2,hz:0,jaw:.9,sh:-.95,el:-.45,th:-1.25,kn:1.9},
       2:{by:-.2,tor:1.15,nk:-.85,hx:-.35,hz:.1,jaw:.12,sh:-1.35,el:-.25,th:-.9,kn:1.6},
       3:{by:-.08,tor:.42,nk:.35,hx:-.5,hz:.42,jaw:.22,sh:-1.55,el:.55,th:-1.3,kn:2.0}, // up on its knees, leaning over the blankets
@@ -221,10 +232,9 @@ function animMonster(v,dt,time){const u=v.g.userData,t=time+v.ph;
     for(const e of u.eyes)e.scale.y=damp(e.scale.y,a===0?.001:.012,6,dt)}
   else if(v.ty===3){ // surfaces: 0 floor, 1 climbing the wall, 2 ceiling, 3 climbing down. a: 2 moving, 3 holding still, 4 dropping
     const o=u.orient,k=v.k|0,r=10;o.rotation.x=damp(o.rotation.x,k===1?-Math.PI/2:k===3?Math.PI/2:0,r,dt);o.rotation.z=damp(o.rotation.z,k===2?Math.PI:0,r,dt);
-    const move=v.a===2;const p0=v.gp||0;v.gp=p0+(move?dt*(k===0?16:11):0);
+    // it moves in total silence once it's out
+    const move=v.a===2;v.gp=(v.gp||0)+(move?dt*(k===0?16:11):0);
     u.limbs.forEach(l=>{const s=Math.sin(v.gp+l.ph);l.sh.rotation.y=damp(l.sh.rotation.y,move?s*.5:v.a===4?l.s*.4:0,14,dt);l.el.rotation.z=damp(l.el.rotation.z,move?l.s*Math.max(0,s)*.45:0,14,dt)});
-    // nails on metal with each step (it never makes a sound with its voice once it's out)
-    if(move&&Math.floor(p0/Math.PI)!==Math.floor(v.gp/Math.PI)&&Math.hypot(v.g.position.x-ME.x,v.g.position.z-ME.z)<26)SFX.tap({x:v.g.position.x,y:v.g.position.y,z:v.g.position.z},k===0);
     u.body.position.y=.42+(move?Math.abs(Math.sin(v.gp))*.03:0);
     const look=k===2?(v.a===3||v.a===4?-1.5:-1.15):k===1||k===3?-.5:-.1;
     u.head.rotation.x=damp(u.head.rotation.x,look,8,dt);u.head.rotation.z=Math.sin(t*.7)*.15+(Math.sin(t*3.3)>.985?.6:0);
@@ -243,25 +253,30 @@ function syncAvatars(dt,time){const live=new Set();let si=0;
     const ox=v.x,oz=v.z;v.x=damp(v.x,p.x,11,dt);v.z=damp(v.z,p.z,11,dt);v.yaw=angLerp(v.yaw,p.yaw,1-Math.exp(-12*dt));v.pitch=damp(v.pitch,p.pitch,12,dt);
     const sp=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3);const w0=v.walk;v.walk+=dt*sp*2.3;
     if(sp>.4&&Math.floor(w0/Math.PI)!==Math.floor(v.walk/Math.PI)&&Math.hypot(v.x-ME.x,v.z-ME.z)<16)SFX.step(v.z<WH.z0,sp>4,{x:v.x,y:.1,z:v.z});
-    const g=v.g,u=g.userData;g.visible=!p.dead;g.position.set(v.x,0,v.z);g.rotation.y=v.yaw+Math.PI;
+    const g=v.g,u=g.userData,drv=S.fork&&S.fork.drv===p.id;g.visible=!p.dead;g.position.set(v.x,drv?.75:0,v.z);g.rotation.y=drv?S.fork.ry:v.yaw+Math.PI;if(drv){u.legs.forEach(l=>l.rotation.x=-1.4)}
     const a=Math.min(1,sp/3);u.legs[0].rotation.x=Math.sin(v.walk)*.6*a;u.legs[1].rotation.x=-Math.sin(v.walk)*.6*a;
     if(p.carry>=0){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.25,10,dt))}else{u.arms[0].rotation.x=-Math.sin(v.walk)*.5*a;u.arms[1].rotation.x=-.9}
     u.torch.rotation.x=-v.pitch;u.head.rotation.x=-v.pitch*.6;u.beam.visible=!!p.light;
     if(si<REMOTE_SPOTS.length){const s=REMOTE_SPOTS[si++];u.torch.getWorldPosition(s.position);const cp=Math.cos(v.pitch);s.target.position.set(s.position.x-Math.sin(v.yaw)*cp*8,s.position.y+Math.sin(v.pitch)*8,s.position.z-Math.cos(v.yaw)*cp*8);s.intensity=p.light&&!p.dead?24:0}}
   for(;si<REMOTE_SPOTS.length;si++)REMOTE_SPOTS[si].intensity=0;
   for(const [id,v] of AV)if(!live.has(id)){ROOT.remove(v.g);AV.delete(id)}}
-const MENU_LAMPS=LAMPS.map(()=>({on:1,t:rand(2,8)}));
-function syncLamps(dt){LAMPV.forEach((L,i)=>{let on;
+const MENU_LAMPS=LAMPS.map(L=>({on:L.dead?0:1,t:L.dead?1e9:rand(2,8)}));
+function syncLamps(dt){let pool=0;LAMPV.forEach((L,i)=>{let on;
   if(S)on=S.lamps[i];else{const m=MENU_LAMPS[i];m.t-=dt;if(m.t<=0){m.on=1-m.on;m.t=m.on?rand(4,12):rand(.3,2.5)}on=m.on}
   if(L.prev!==undefined&&L.prev!==on){L.sput=.45;if(AU.ready&&GAME.on)SFX.creak({x:LAMPS[i].x,y:5,z:LAMPS[i].z})}L.prev=on;
   let lv=on?1:0;if(L.sput>0){L.sput-=dt;lv=Math.random()<.5?1:.05}
   if(on&&Math.random()<(i===3?.035:.008))L.fl=rand(.05,.25);if(L.fl>0){L.fl-=dt;lv*=Math.random()<.5?.12:1}
-  L.light.intensity=17*lv;L.bulb.material.color.setRGB(lerp(.1,1,lv),lerp(.08,.85,lv),lerp(.06,.62,lv));L.cone.material.opacity=.035*lv;
-  if(AU.ready){if(!L.hum)L.hum=loop('hum',{x:LAMPS[i].x,y:5,z:LAMPS[i].z},.35);L.hum.set(lv*.35,.03)}})}
-function syncWorld(dt,time){applyColliders();syncTrucks();syncAvatars(dt,time);syncBoxes(dt);syncMonsters(dt,time)}
-function clearVisuals(){for(const m of BM.values())ROOT.remove(m);BM.clear();for(const v of MV.values()){ROOT.remove(v.g);v.lp&&v.lp.stop()}MV.clear();for(const v of AV.values())ROOT.remove(v.g);AV.clear();
+  // a dead fixture with a new bulb borrows one of the pooled lights
+  let light=L.light;if(!light&&on&&pool<LAMPV.pool.length){light=LAMPV.pool[pool++];light.position.set(LAMPS[i].x,5,LAMPS[i].z)}
+  if(light)light.intensity=(L.light?17:15)*lv;L.bulb.material.color.setRGB(lerp(.1,1,lv),lerp(.08,.85,lv),lerp(.06,.62,lv));L.cone.material.opacity=.035*lv;
+  if(AU.ready){if(!L.hum)L.hum=loop('hum',{x:LAMPS[i].x,y:5,z:LAMPS[i].z},.35);L.hum.set(lv*.35,.03)}});
+  for(;pool<LAMPV.pool.length;pool++)LAMPV.pool[pool].intensity=0}
+function syncWorld(dt,time){applyColliders();syncTrucks();syncAvatars(dt,time);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time)}
+function clearVisuals(){for(const m of BM.values())ROOT.remove(m);BM.clear();for(const v of MV.values()){ROOT.remove(v.g);v.lp&&v.lp.stop();v.gr&&v.gr.stop()}MV.clear();for(const v of AV.values())ROOT.remove(v.g);AV.clear();
   for(const v of TV)v.g.visible=false;for(const s of REMOTE_SPOTS)s.intensity=0;setViewBox(null);if(ME.scare){camera.remove(ME.scare.g);ME.scare=null}
-  for(const s of SLOTS)s.box=-1;BOXPICK.length=0}
+  for(const s of SLOTS)s.box=-1;BOXPICK.length=0;
+  for(const v of PV.values())ROOT.remove(v.g);PV.clear();for(const g of PALV.values())ROOT.remove(g);PALV.clear();for(const v of FLV.values()){ROOT.remove(v.g);v.lp&&v.lp.stop()}FLV.clear();
+  for(const g of MOUTHV.values())ROOT.remove(g);MOUTHV.clear();for(const v of MV.values())v.l2&&v.l2.stop();if(GIANT)GIANT.visible=false;if(PASS3D)PASS3D.visible=false;FLARE_L.intensity=0;ROOM_L.intensity=0}
 
 // ===================================================================== events
 function evPos(e){if(e.x!==undefined)return{x:e.x,y:e.y??1,z:e.z};const v=MV.get(e.id);if(v)return{x:v.g.position.x,y:1.4,z:v.g.position.z};return null}
@@ -269,7 +284,7 @@ function drainEvents(){while(EVQ.length){const e=EVQ.shift();try{onEvent(e)}catc
 function onEvent(e){const me=NET.myId;
   switch(e.e){
   case 'night':{const p=e.pos&&e.pos[me];if(p){ME.x=p[0];ME.z=p[1];ME.ready=true;ME.yaw=0;ME.pitch=0;ME.vx=ME.vz=0}ME.bat=100;ME.stam=100;ME.light=true;ME.lastHp=100;ME.deathT=0;
-    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM or you're fired`,4.5);SFX.bell();
+    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM or you're fired${e.ex?` · shift starts at ${fmtClock(-e.ex)}`:''}`,4.5);SFX.bell();ME.red=false;ME.drinkT=0;
     if(e.n===1&&!GAME.hints.start){GAME.hints.start=1;setTimeout(()=>GAME.on&&toast('A truck is backing into Bay A. Unload it and shelve the boxes.',5),4500);
       setTimeout(()=>GAME.on&&toast('Your quota is top left. Keep the bar ahead of the white marker to stay on pace.',6),11000)}break}
   case 'radio':SFX.radio();toast(`Supervisor, on the radio: "${e.m}"`,6,'radio');break;
@@ -277,7 +292,7 @@ function onEvent(e){const me=NET.myId;
   case 'overtime':SFX.powerDown();big('OVERTIME',`${e.need} more box${e.need>1?'es':''} in 60 seconds. The lights are out.`,5);
     if(e.b>=0)setTimeout(()=>GAME.on&&toast(`One last truck is backing into Bay ${BAYS[e.b].name}.`,4,'radio'),2500);break;
   case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
-  case 'hour':SFX.bell();toast(`${e.h}:00 AM`,2.5);break;
+  case 'hour':SFX.bell();toast(`${e.h||12}:00 AM`,2.5);break;
   case 'truck':if(e.last&&!S.ot){SFX.pa();toast(`Loudspeaker: "Last truck of the night, Bay ${BAYS[e.b].name}."`,5,'radio')}else if(!e.last)toast(`Truck inbound: Bay ${BAYS[e.b].name}`,3);break;
   case 'brake':SFX.brake({x:BAYS[e.b].x,y:1,z:TZ_DOCK-6});break;
   case 'horn':SFX.horn({x:BAYS[e.b].x,y:1.5,z:TZ_DOCK-TRAIL_LEN});break;
@@ -289,6 +304,7 @@ function onEvent(e){const me=NET.myId;
   case 'place':SFX.place({x:e.x,y:e.y,z:e.z});break;
   case 'kick':SFX.kick({x:e.x,y:e.y,z:e.z});break;
   case 'smash':SFX.smash({x:e.x,y:e.y,z:e.z});break;
+  default:onEvent2(e);break;
   case 'growl':{const p=evPos(e);if(p)SFX.growl(p);break}
   case 'hiss':{const p=evPos(e);if(p)SFX.hiss(p);break}
   case 'roar':{const p=evPos(e);if(p)SFX.roar(p);ME.shake=Math.max(ME.shake,.3);break}
@@ -306,7 +322,7 @@ function onEvent(e){const me=NET.myId;
 let toastT=0,bigT=0;
 function toast(m,d=3.5,cls=''){const el=$('toast');el.textContent=m;el.className=cls;el.style.opacity=1;toastT=d}
 function big(a,b,d=4){const el=$('big');el.innerHTML=`${a}<small>${b||''}</small>`;el.style.opacity=1;bigT=d}
-function fmtClock(t){const mins=Math.floor(t/HOUR*60),h=Math.floor(mins/60),m=mins%60;return`${h===0?12:h}:${String(m).padStart(2,'0')} AM`}
+function fmtClock(t){let mins=Math.floor(t/HOUR*60);if(mins<0)mins+=1440;const h=Math.floor(mins/60)%24,m=mins%60;return`${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`}
 const mmss=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(bigT<=0)$('big').style.opacity=0;
   const me=S.players[NET.myId];
@@ -314,13 +330,17 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   $('batb').style.opacity=ME.charging?(Math.sin(performance.now()/90)>0?1:.5):1;
   const t=ME.target;let pr='';
   if(me&&!me.dead&&!ME.scare&&S.phase==='play'){const carrying=me.carry>=0;
-    if(t){if(t.kind==='box')pr='<kbd>E</kbd> Pick up &nbsp; <kbd>Q</kbd> Kick';
+    const p2=t&&promptFor(t,me);
+    if(p2!==null&&p2!==undefined)pr=p2;
+    else if(t){if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Stack on the hand truck':'<kbd>E</kbd> Pick up')+' &nbsp; <kbd>Q</kbd> Kick'+(me.up&&me.up.cutter?' &nbsp; <kbd>3</kbd> Cut':'');
       else if(t.kind==='slot')pr=t.ok?'<kbd>E</kbd> Shelve box':'Shelf is full';
       else if(t.kind==='charger')pr=ME.bat>=99.5?'Flashlight fully charged':ME.charging?`Charging&hellip; ${Math.floor(ME.bat)}%`:'Hold <kbd>E</kbd> Charge flashlight';
       else if(t.kind==='aid')pr=S.aidLeft>0?`<kbd>E</kbd> First aid (${S.aidLeft} left tonight)`:'First-aid cabinet is empty';
-      else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
+      else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=!bayOn(t.bay)?`Bay ${BAYS[t.bay].name}: not in service`:tr.st===0&&tr.stuck>0?`<kbd>E</kbd> Close the Bay ${BAYS[t.bay].name} door`:tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
       else if(t.kind==='exit')pr='<kbd>E</kbd> Exit';}
-    if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';}
+    if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
+    if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?' &nbsp; <kbd>G</kbd> Set the pallet down':'');
+    const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;}
   if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
   $('cross').className=t&&(t.kind!=='slot'||t.ok)?'on':'';
   // a clock ticks through the last minute and overtime, only while the quota isn't met; double time for the final 10 s
@@ -330,16 +350,17 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   const ck=$('clock');ck.textContent=S.phase==='inter'?'6:00 AM':S.ot?`OVERTIME ${mmss(Math.max(0,SHIFT_END+OVERTIME-S.t))}`:fmtClock(S.t);
   ck.className=S.phase!=='play'?'':S.ot?'ot':S.t>=HOUR*5&&S.shelved<S.quota?'late':'';$('night').textContent=`NIGHT ${S.night}`;
   // pace: how many boxes short of the steady rate that makes quota exactly at 6:00
-  const met=S.shelved>=S.quota,pace=S.phase==='play'?Math.min(1,S.t/SHIFT_END):1,behind=met?0:Math.ceil(S.quota*pace-S.shelved);
+  const met=S.shelved>=S.quota,pace=S.phase==='play'?paceFrac():1,behind=met?0:Math.ceil(S.quota*pace-S.shelved);
   const st=met?'ok':behind>=Math.max(4,S.quota*.3)?'far':behind>=2?'behind':'';
   const q=$('quota');q.textContent=`Shelved ${S.shelved} / ${S.quota}`+(S.ot&&!met?` · ${S.quota-S.shelved} to go`:st==='behind'||st==='far'?` · ${behind} behind`:'');q.className=st;
   const qb=$('qbar');qb.className=st;qb.firstChild.style.width=Math.min(100,S.shelved/S.quota*100)+'%';qb.lastChild.style.left=(pace*100)+'%';
-  let h='';S.trucks.forEach((tr,i)=>{const n=BAYS[i].name;
-    if(tr.st===0)h+=`<div class="bay">BAY ${n} &middot; empty</div>`;
+  let h='';S.trucks.forEach((tr,i)=>{const n=BAYS[i].name;if(!bayOn(i))return;
+    if(tr.st===0)h+=`<div class="bay">BAY ${n} &middot; ${tr.stuck>0?'<span class="warn">door jammed open</span>':'empty'}</div>`;
     else{let s=tr.st===1?'truck backing in&hellip;':tr.st===3?'truck pulling out':tr.reject?'refused, leaving':`${tr.left} / ${tr.n} boxes &middot; leaves in ${mmss(Math.max(0,DOCK_TIME-tr.t))}`;
       h+=`<div class="bay live">BAY ${n} &middot; ${s}</div>`;
       if(tr.st!==3)h+=`<div class="bay live" style="font-size:12.5px;color:#a69f8c">manifest ${tr.n} pcs, ${tr.kg} kg${tr.warn?` &middot; <span class="warn">scale reads ${tr.kg+tr.extra} kg</span>`:''}</div>`}});
-  h+=`<div class="bay" style="margin-top:6px;font-size:12.5px;color:#a69f8c">first aid: ${S.aidLeft} left</div>`;
+  h+=`<div class="bay" style="margin-top:6px;font-size:12.5px;color:#a69f8c">first aid: ${S.aidLeft} left</div>`+statusLines(me);
+  $('cash').textContent=`$${Math.round(S.cash||0)}`;const hb=hotbarHTML(me);if(hb!==GAME.lastHb){$('hotbar').innerHTML=hb;GAME.lastHb=hb}
   $('tr').innerHTML=h;
   const ps=Object.values(S.players);
   $('plist').innerHTML=ps.length>1?ps.map(p=>`<div style="color:${p.dead?'#666':p.col}">${p.dead?'&#10013; ':''}${esc(p.name)} ${p.dead?'':'&middot; '+Math.ceil(p.hp)}</div>`).join(''):'';
@@ -350,6 +371,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 // fear, heartbeat, flashlight flicker
 function updFear(dt){const me=S.players[NET.myId];let f=0,near=99;
   for(const v of MV.values()){if(v.ty===3&&v.a===0)continue;const d=Math.hypot(v.g.position.x-camera.position.x,v.g.position.z-camera.position.z);near=Math.min(near,d);
+    const f2=fearOf(v,d);if(f2!==null){f=Math.max(f,f2);continue}
     const w=v.ty===2||v.ty===3?1:v.ty===1?(v.a===0?.45:1.2):.6;f=Math.max(f,clamp(1-d/(v.ty===2?9:10),0,1)*w)}
   if(me&&me.hp<35&&!me.dead)f=Math.max(f,.35);
   ME.fear=damp(ME.fear,f,f>ME.fear?3:.8,dt);
@@ -361,7 +383,7 @@ function updFear(dt){const me=S.players[NET.myId];let f=0,near=99;
   return near}
 
 // ===================================================================== screens
-const SCREENS=['menu','how','settings','lobby','pause','over'];
+const SCREENS=['menu','how','settings','lobby','pause','over','shop'];
 function hideScreens(){for(const s of SCREENS)$(s).classList.add('hide')}
 function show(id){hideScreens();$(id).classList.remove('hide')}
 let settingsBack='menu';
@@ -382,7 +404,7 @@ function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document
 function checkOver(dt){if(!S.over||GAME.overShown)return;if(ME.scare)return;GAME.overT+=dt;if(GAME.overT>1.8)showOver(S.over)}
 
 function enterGame(){clearVisuals();hideScreens();$('hud').classList.remove('hide');GAME.on=true;GAME.paused=false;GAME.overShown=false;GAME.overT=0;GAME.lastPr=null;
-  Object.assign(ME,{vx:0,vz:0,stam:100,exh:false,bat:100,light:true,kickCD:0,scare:null,shake:0,hurt:0,flash:0,fear:0,deathT:0,lastHp:100,spec:0});
+  Object.assign(ME,{vx:0,vz:0,stam:100,exh:false,bat:100,light:true,kickCD:0,scare:null,shake:0,hurt:0,flash:0,fear:0,deathT:0,lastHp:100,spec:0,red:false,drinkT:0,driving:false,scan:false});shopShown=false;
   const me=S.players[NET.myId];if(me){ME.x=me.x;ME.z=me.z;ME.yaw=me.yaw||0;ME.pitch=0}
   auInit();reqLock();setTimeout(()=>{if(GAME.on&&!locked()&&!GAME.overShown)$('lockmsg').classList.remove('hide')},600)}
 function startSolo(){netClose();NET.mode='solo';NET.myId='me';S=newState();addPlayer('me',myName(),VEST[0]);startNight();enterGame()}
@@ -428,19 +450,23 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
   let near=99;
   if(GAME.on&&S){
     if(NET.mode!=='client'&&!GAME.paused)simUpdate(dt);
+    ME.driving=!!(S.fork&&S.fork.drv===NET.myId);
     if(!GAME.paused)localUpdate(dt);
-    drainEvents();syncWorld(dt,time);netTick(dt);hud(dt);near=updFear(dt);checkOver(dt);
+    drainEvents();syncWorld(dt,time);netTick(dt);hud(dt);near=updFear(dt);checkOver(dt);shopTick();syncScanner();
     const me=S.players[NET.myId];
-    FL.intensity=ME.scare?(Math.random()<.45?7:.5):(ME.lightOn()&&me&&!me.dead?30*ME.flick:0);
+    const fl2=me&&me.up&&me.up.fl2;FL.angle=fl2?.55:.44;FL.distance=fl2?28:24;
+    FL.intensity=ME.scare?(Math.random()<.45?7:.5):(ME.lightOn()&&me&&!me.dead?(fl2?40:30)*ME.flick:0);
+    REDL.intensity=ME.red&&me&&me.up&&me.up.red&&!me.dead&&!ME.scare?10:0;VM.can.visible=!!(me&&me.can);
+    const ns=me&&me.stack?me.stack.length:0;VM.stack.forEach((m,i)=>{m.visible=i<ns;m.position.set(-.04,-.5+.06+i*.24,-.78);m.rotation.set(.32,.08+i*.2,0)});
     SCARE_L.intensity=ME.scare?(Math.random()<.3?.6:4):0;
     VM.g.visible=!!(me&&!me.dead);VM.lens.material.color.setScalar(ME.lightOn()?ME.flick:.15);
     BAYV.chargeLed.material.color.set(ME.charging?(Math.sin(time*12)>0?0x37ff8a:0x0a3a1a):0x37ff8a);
   }else{ // title screen: drift through the dark dock
     const t=time*.05;camera.position.set(Math.sin(t)*7,2.1+Math.sin(t*1.7)*.2,-8+Math.cos(t*.8)*2);camera.rotation.set(-.08,Math.sin(t*.9)*.6,0);
-    FL.intensity=0;SCARE_L.intensity=0;VM.g.visible=false;ME.fear=0;
+    FL.intensity=0;SCARE_L.intensity=0;REDL.intensity=0;VM.g.visible=false;ME.fear=0;ME.scan=false;
   }
   syncLamps(dt);
-  POST.uniforms.time.value=time;POST.uniforms.hurt.value=ME.hurt;POST.uniforms.flash.value=ME.flash;POST.uniforms.fear.value=ME.fear;
+  POST.uniforms.scan.value=damp(POST.uniforms.scan.value,ME.scan?1:0,10,dt);POST.uniforms.time.value=time;POST.uniforms.hurt.value=ME.hurt;POST.uniforms.flash.value=ME.flash;POST.uniforms.fear.value=ME.fear;
   const me=S&&S.players[NET.myId];POST.uniforms.lowhp.value=me&&!me.dead?clamp((40-me.hp)/40,0,1):0;POST.uniforms.dead.value=me&&me.dead?Math.min(1,ME.deathT/1.5)*(ME.deathT<2.2?1:.35):0;
   FL.getWorldPosition(DUST.uniforms.lp.value);FL.target.getWorldPosition(_ld);DUST.uniforms.ld.value.copy(_ld).sub(DUST.uniforms.lp.value).normalize();DUST.uniforms.cp.value.copy(camera.position);
   DUST.uniforms.on.value=FL.intensity>1?Math.min(1,FL.intensity/30):0;DUST.uniforms.time.value=time;
@@ -452,10 +478,11 @@ async function init(){
   try{await Promise.race([Promise.all([document.fonts.load("40px 'Special Elite'"),document.fonts.load("40px 'Creepster'")]),new Promise(r=>setTimeout(r,2500))])}catch(e){}
   MAT.eye.fog=false;
   buildWorld();buildViewModel();
-  for(let i=0;i<BAYS.length;i++){const g=makeTrailer();ROOT.add(g);TV.push({g,eng:null,beep:null,door:null,pd:0})}
+  for(let i=0;i<BAYS.length;i++){const g=makeTrailer(!!BAYS[i].reefer);ROOT.add(g);TV.push({g,eng:null,beep:null,door:null,pd:0})}
+  buildExtrasVisuals();bindShop();
   applyQuality();bindUI();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,
+  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});

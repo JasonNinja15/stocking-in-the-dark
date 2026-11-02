@@ -3,11 +3,11 @@ function part(geo,mat,sx,sy,sz,x,y,z,parent,{rx=0,ry=0,rz=0,cast=true}={}){const
 function pivot(x,y,z,parent){const g=new THREE.Group();g.position.set(x,y,z);parent.add(g);return g}
 
 // ---- trailer. Origin = centre of the rear opening at floor height; the inside runs toward -z.
-function makeTrailer(){const g=new THREE.Group();const L=TRAIL_LEN,hw=TRAIL_HW,H=TRAIL_H;
+function makeTrailer(reefer=false){const g=new THREE.Group();const L=TRAIL_LEN,hw=TRAIL_HW,H=TRAIL_H,R=reefer?MAT.reefer:MAT.ribs;
   const geos=new Map();const add=(m,w,h,d,x,y,z,uv)=>{const b=new THREE.BoxGeometry(w,h,d);if(uv)uvs(b,uv[0],uv[1]);b.translate(x,y,z);(geos.get(m)||geos.set(m,[]).get(m)).push(b)};
   add(MAT.ply,hw*2+.4,.2,L+.2,0,-.1,-L/2);
-  add(MAT.ribs,.2,H,L,-hw-.1,H/2,-L/2);add(MAT.ribs,.2,H,L,hw+.1,H/2,-L/2);
-  add(MAT.ribs,hw*2+.4,.2,L+.2,0,H+.1,-L/2,[1,7]);
+  add(R,.2,H,L,-hw-.1,H/2,-L/2);add(R,.2,H,L,hw+.1,H/2,-L/2);if(reefer){add(MAT.steel,1.7,1.0,.55,0,H-.7,-L-.48);add(MAT.dark,1.4,.7,.05,0,H-.7,-L-.2)} // refrigeration unit on the nose
+  add(R,hw*2+.4,.2,L+.2,0,H+.1,-L/2,[1,7]);
   add(MAT.dark,hw*2+.6,.25,.2,0,H+.1,.05);add(MAT.dark,.2,H+.1,.2,-hw-.2,H/2,.05);add(MAT.dark,.2,H+.1,.2,hw+.2,H/2,.05);
   add(MAT.dark,hw*2+.4,.25,.25,0,-.2,.05);
   for(let z=-1;z>-L;z-=2.3)for(const s of[-1,1])add(MAT.steel,.05,.08,.05,s*(hw-.03),1.2,z); // tie-down rails
@@ -16,13 +16,13 @@ function makeTrailer(){const g=new THREE.Group();const L=TRAIL_LEN,hw=TRAIL_HW,H
   // (tall and wall to wall, so nothing lying behind it shows from the door)
   add(MAT.pallet,2.4,.14,1.1,0,.07,-L+2.3);add(MAT.blanket,2.42,.75,1.0,0,.52,-L+2.25);add(MAT.blanket,1.7,.45,.8,-.3,1.12,-L+2.2);add(MAT.blanket,.9,.3,.7,.6,1.05,-L+2.3);
   for(const [m,arr] of geos){const mesh=new THREE.Mesh(mergeGeometries(arr),m);mesh.castShadow=true;mesh.receiveShadow=true;g.add(mesh);arr.forEach(a=>a.dispose())}
-  const front=new THREE.Mesh(new THREE.BoxGeometry(hw*2,H,.2),MAT.ribs);front.position.set(0,H/2,-L-.1);front.receiveShadow=true;g.add(front);
+  const front=new THREE.Mesh(new THREE.BoxGeometry(hw*2,H,.2),R);front.position.set(0,H/2,-L-.1);front.receiveShadow=true;g.add(front);
   // wheels/landing gear peek below the floor
   for(const z of[-1.6,-2.9])for(const s of[-1,1])part(GEO.cyl,MAT.rubber,.5,.32,.5,s*(hw-.1),-.75,z,g,{rz:Math.PI/2});
-  g.userData.front=front;g.visible=false;return g}
+  g.userData.front=front;g.userData.reefer=reefer;g.visible=false;return g}
 
 // ---- boxes
-function boxMat(b){return b.f?MAT.fragile:MAT.box[b.v%4]}
+function boxMat(b){return b.fz?MAT.frozen:b.ret?MAT.ret:b.pri?MAT.pri:b.f?MAT.fragile:MAT.box[b.v%4]}
 function makeBoxMesh(b){const m=new THREE.Mesh(BOX_KINDS[b.k].geo,boxMat(b));m.castShadow=true;m.receiveShadow=true;m.userData={kind:'box',id:b.id};return m}
 
 // ---- the trailer sleeper: a starved giant. Too-long arms and fingers, ribs through grey skin,
@@ -40,7 +40,7 @@ function makeLurker(){const g=new THREE.Group(),body=pivot(0,0,0,g);
   const head=pivot(0,.46,.02,neck);
   part(GEO.sph,MAT.lurkSkin,.18,.25,.24,0,.07,-.03,head);                       // long bald skull
   part(GEO.sph,MAT.lurkSkin,.16,.12,.17,0,-.1,.08,head);                         // sunken cheeks
-  const eyes=[];for(const s of[-1,1]){part(GEO.sph,MAT.rubber,.07,.03,.04,s*.085,.08,.2,head,{cast:false,rz:s*-.35});eyes.push(part(GEO.sph,MAT.eye,.01,.01,.01,s*.085,.078,.235,head,{cast:false}))}
+  const eyes=[];for(const s of[-1,1]){part(GEO.sph,MAT.rubber,.07,.03,.04,s*.085,.08,.2,head,{cast:false,rz:s*-.35});eyes.push(part(GEO.sph,MAT.lurkEye,.01,.01,.01,s*.085,.078,.235,head,{cast:false}))} // wet, but no glow: in the dark there's nothing to see
   part(GEO.box,MAT.lurkDark,.22,.045,.07,0,.13,.21,head,{cast:false});          // heavy brow, no hair
   part(GEO.box,MAT.rubber,.04,.05,.02,0,.0,.24,head,{cast:false});              // two slits where a nose was
   part(GEO.box,MAT.rubber,.26,.07,.1,0,-.09,.18,head,{cast:false});             // a mouth with no lips, ear to ear
@@ -120,7 +120,7 @@ function buildViewModel(){camera.add(VM.g);
   const lens=part(GEO.cyl,basic(0xfff6dc),.034,.005,.034,0,0,-.152,t,{rx:Math.PI/2,cast:false});part(GEO.sph,MAT.skin,.05,.04,.06,0,-.02,.04,t,{cast:false});
   VM.torch=t;VM.lens=lens;
   VM.g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=5}})}
-function setViewBox(b){const key=b?`${b.k}-${b.v}-${b.f}`:'';if(key===VM.boxKey)return;VM.boxKey=key;
+function setViewBox(b){const key=b?`${b.k}-${b.v}-${b.f}-${b.fz}-${b.ret}-${b.pri}`:'';if(key===VM.boxKey)return;VM.boxKey=key;
   if(VM.box){VM.g.remove(VM.box);VM.box=null}
   if(b){VM.box=new THREE.Mesh(BOX_KINDS[b.k].geo,boxMat(b));VM.box.scale.setScalar(.62);VM.box.position.set(-.04,-.5-BOX_KINDS[b.k].h*.62,-.78);VM.box.rotation.set(.32,.08,0);VM.box.castShadow=false;VM.g.add(VM.box)}}
 

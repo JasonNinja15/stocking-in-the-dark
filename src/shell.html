@@ -71,6 +71,26 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 #lockmsg{position:fixed;left:50%;top:60%;transform:translateX(-50%);z-index:15;font-size:18px;background:var(--panel);border:1px solid var(--line);padding:10px 18px;pointer-events:none}
 #fps{position:fixed;left:6px;bottom:2px;font-size:11px;color:#666;z-index:30}
 #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;z-index:50;font-size:18px;letter-spacing:.2em;color:var(--dim)}
+/* cash, hotbar, shop */
+#cash{color:#8fd48a;font-size:15px;margin-top:3px;letter-spacing:.06em}
+#hotbar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:70vw}
+.hb{font-size:12.5px;background:rgba(10,10,12,.7);border:1px solid rgba(255,255,255,.18);padding:3px 7px;text-shadow:0 1px 2px #000}
+.hb kbd{border:1px solid rgba(255,255,255,.45);padding:0 4px;margin-right:5px;font-family:inherit;font-size:11.5px}
+.hb.on{border-color:#ff5a3a;color:#ffb0a0}
+.warnline{color:#ff6a4a}
+#toast.fake{color:#e8a08a}
+#shop .card{max-width:1080px;max-height:94vh;overflow:hidden}
+#shopCols{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;overflow:auto;max-height:64vh;text-align:left;padding-right:4px}
+#shopCols h3{margin:0 0 6px;font-weight:400;letter-spacing:.12em;font-size:15px;color:var(--dim);text-transform:uppercase}
+.sc{border:1px solid var(--line);padding:9px 11px;margin-bottom:8px;background:rgba(0,0,0,.25)}
+.sc.own{opacity:.55}
+.sh{display:flex;justify-content:space-between;gap:10px;font-size:16px}.sh span{color:var(--amber)}
+.sc p{margin:5px 0 7px;font-size:13px;line-height:1.45;color:#bdb6a3}
+.sc .tag{font-size:12px;color:#8fd48a;margin-bottom:6px}
+.sc button{min-width:0;padding:5px 14px;font-size:14px}
+.sc button:disabled{opacity:.35;cursor:default;background:rgba(20,20,22,.9);border-color:var(--line);color:var(--ink)}
+#shopCash{font-size:30px;color:#8fd48a;letter-spacing:.06em}
+@media (max-width:760px){#shopCols{grid-template-columns:1fr}}
 .stat{font-size:18px;line-height:1.7}
 .stat b{color:var(--amber);font-weight:400}
 </style>
@@ -82,7 +102,8 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 <div id="loading">CLOCKING IN&hellip;</div>
 
 <div id="hud" class="hide">
-  <div id="tl"><div id="clock">12:00 AM</div><div id="night">NIGHT 1</div><div id="quota">Shelved 0 / 15</div><div id="qbar"><i></i><b></b></div></div>
+  <div id="tl"><div id="clock">12:00 AM</div><div id="night">NIGHT 1</div><div id="quota">Shelved 0 / 15</div><div id="qbar"><i></i><b></b></div><div id="cash">$0</div></div>
+  <div id="hotbar"></div>
   <div id="tr"></div>
   <div id="cross"></div>
   <div id="prompt"></div>
@@ -95,7 +116,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   </div>
   <div id="plist"></div>
   <div id="spect" class="hide"></div>
-  <div id="keyhint">WASD move · Shift run · F flashlight · E use · Q kick · G set down · Esc pause</div>
+  <div id="keyhint">WASD move · Shift run · F flashlight · E use · Q kick · G set down · 1-9 items · Esc pause</div>
 </div>
 <div id="lockmsg" class="hide">Click to clock back in</div>
 
@@ -110,6 +131,13 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <div class="row"><button class="small" id="bHow">How to work here</button><button class="small" id="bSettings">Settings</button></div>
 </div>
 
+<div id="shop" class="screen dim hide"><div class="card">
+  <h2>BETWEEN SHIFTS</h2><div class="lbl" id="shopNight"></div>
+  <div id="shopCash">$0</div><div class="lbl">crew pay, shared. Every addition adds work, and the time to do it.</div>
+  <div id="shopCols"><div><h3>Warehouse additions</h3><div id="shopAdds"></div></div><div><h3>Equipment (yours)</h3><div id="shopItems"></div></div></div>
+  <button id="bShopGo">Start the next night</button><div class="lbl" id="shopWait"></div>
+</div></div>
+
 <div id="how" class="screen dim hide"><div class="card">
   <h2>EMPLOYEE ORIENTATION</h2>
   <div class="how">
@@ -120,6 +148,8 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   &bull; <b>Trailers that breathe.</b> Check the manifest (top right) for a weight mismatch, and listen before you go in. Something sleeps behind the blankets at the back. Get too close and it sits up. Keep your light off it, or it growls and then comes for you. In the dark it only moves while you aren't looking at it. Use the panel beside the bay door to send a bad truck away.<br>
   &bull; <b>Something on the ceiling.</b> Some trailers hold a thing that bolts out and climbs the walls. Listen for tapping overhead, and shine your light up at it. If the tapping stops right above you, move.<br>
   &bull; <b>The dark.</b> Something walks the aisles where the lights are out. It only moves when no light is on it. Turn around often. Working lamps keep it back&hellip; while they work.</p>
+  <p><b>Later nights bring more.</b> A night manager who writes up anyone standing around empty-handed (three write-ups and he comes for you). A shrink-wrapped figure that hunts by sound: walk, don't run. A truck driver who passes for a crewmate but makes no footsteps. Shelf slots that bite. A loudspeaker voice that isn't quite the supervisor's, with a wrong chime. And something out in the yard you shouldn't look at when a bay door jams open.</p>
+  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items are on <kbd>1</kbd>&ndash;<kbd>9</kbd>, the red headlamp on <kbd>H</kbd>. Hold <kbd>5</kbd> for the thermal scanner.</p>
   <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause</p>
   <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to four people can work a shift together. The quota grows with the crew. If you go down, you watch the others until the night ends.</p>
   </div>

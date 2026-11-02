@@ -28,7 +28,7 @@ function buildWorld(){
   // outer walls; the north wall has the two bay openings
   const wt=.4,H=WH.h;
   const wallSeg=(x0,x1,z,y0=0,y1=H)=>{const w=x1-x0,h=y1-y0;sbox(MAT.wall,w,h,wt,(x0+x1)/2,(y0+y1)/2,z,{cast:false,uv:[w/2.2,h/2.2]})};
-  const xs=[WH.x0-wt];for(const b of BAYS)xs.push(b.x-DOOR_HW,b.x+DOOR_HW);xs.push(WH.x1+wt);
+  const xs=[WH.x0-wt];for(const b of [...BAYS].sort((a,c)=>a.x-c.x))xs.push(b.x-DOOR_HW,b.x+DOOR_HW);xs.push(WH.x1+wt); // west to east
   for(let i=0;i<xs.length;i+=2){wallSeg(xs[i],xs[i+1],WH.z0-wt/2);col(xs[i],WH.z0-wt,xs[i+1],WH.z0)}
   for(const b of BAYS)wallSeg(b.x-DOOR_HW,b.x+DOOR_HW,WH.z0-wt/2,DOOR_H,H);
   wallSeg(WH.x0-wt,WH.x1+wt,WH.z1+wt/2);col(WH.x0-wt,WH.z1,WH.x1+wt,WH.z1+wt);
@@ -61,7 +61,10 @@ function buildWorld(){
     const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.2,1.1),toon(0xffffff,{map:signTex([{t:'BAY '+b.name,bold:true,size:120}],{bg:'#c9a227',fg:'#16130c'})}));sign.position.set(b.x,DOOR_H+1.35,WH.z0+.02);ROOT.add(sign);
     // trailer walls collide only while a truck is docked
     const tc=[col(b.x-TRAIL_HW-.25,TZ_DOCK-TRAIL_LEN-.3,b.x-TRAIL_HW,TZ_DOCK,{dyn:true,on:false}),col(b.x+TRAIL_HW,TZ_DOCK-TRAIL_LEN-.3,b.x+TRAIL_HW+.25,TZ_DOCK,{dyn:true,on:false}),col(b.x-TRAIL_HW-.25,TZ_DOCK-TRAIL_LEN-.3,b.x+TRAIL_HW+.25,TZ_DOCK-TRAIL_LEN,{dyn:true,on:false})];
-    BAYV.push({door,panel,doorCol,trailCol:tc,ind,scr});
+    // a bay that isn't in service yet is boarded over on the inside
+    let boards=null;if(b.add){boards=new THREE.Group();for(let k=0;k<6;k++){const p=new THREE.Mesh(GEO.box,MAT.board);p.scale.set(DOOR_HW*2+.5,.32,.06);p.position.set(b.x,.35+k*.58,WH.z0+.07);p.rotation.z=rand(-.06,.06);p.castShadow=true;boards.add(p)}
+      const s2=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.55),toon(0xffffff,{map:signTex([{t:'NOT IN SERVICE',size:44,bold:true}],{w:384,h:140,bg:'#c9a227',fg:'#16130c'})}));s2.position.set(b.x,1.7,WH.z0+.11);boards.add(s2);ROOT.add(boards)}
+    BAYV.push({door,panel,doorCol,trailCol:tc,ind,scr,boards});
   });
   // outside: a lower yard so the void beyond the bay doors isn't a floating floor
   const yard=new THREE.Mesh(new THREE.PlaneGeometry(80,50).rotateX(-Math.PI/2),toon(0x1a1a1c));yard.position.set(0,-1.25,-46);ROOT.add(yard);
@@ -78,7 +81,7 @@ function buildWorld(){
   const poster=(lines,x,z,ry,w=1.2,h=1.6,bg='#d6cfb8',fg='#1a1410')=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),toon(0xffffff,{map:signTex(lines,{w:384,h:512,bg,fg})}));m.position.set(x,1.9,z);m.rotation.y=ry;ROOT.add(m)};
   poster([{t:'KEEP',size:70,bold:true},{t:'THE LIGHTS',size:62,bold:true},{t:'ON',size:70,bold:true}],4.2,WH.z0+.02,0);
   poster([{t:'REPORT',size:52},{t:'ANY BOX',size:52},{t:'THAT MOVES',size:46},{t:'— Mgmt',size:32}],-4.2,WH.z0+.02,0);
-  poster([{t:'DO NOT',size:60,bold:true},{t:'ENTER',size:60,bold:true},{t:'TRAILERS',size:50},{t:'THAT BREATHE',size:40}],WH.x1-.02,-14,-Math.PI/2,1.2,1.6,'#e0c341','#141005');
+  poster([{t:'DO NOT',size:60,bold:true},{t:'ENTER',size:60,bold:true},{t:'TRAILERS',size:50},{t:'THAT BREATHE',size:40}],WH.x1-.02,-10.4,-Math.PI/2,1.2,1.6,'#e0c341','#141005');
   poster([{t:'DAYS SINCE',size:44},{t:'LAST',size:44},{t:'INCIDENT',size:44},{t:'0',size:120,bold:true}],WH.x0+.02,-12,Math.PI/2);
   {const m=new THREE.Mesh(new THREE.PlaneGeometry(9,2.2),toon(0xffffff,{transparent:true,map:signTex([{t:'DOCK 13',size:170,bold:true}],{w:1024,h:256,bg:'rgba(0,0,0,0)',fg:'rgba(200,190,160,.55)',border:false,dirt:false})}));m.position.set(0,5.4,WH.z0+.02);ROOT.add(m)}
 
@@ -123,30 +126,28 @@ function buildWorld(){
   const barrel=(x,z,m)=>{scyl(m,.3,.3,.9,x,.45,z,{seg:12});scyl(MAT.dark,.31,.31,.04,x,.3,z,{seg:12});scyl(MAT.dark,.31,.31,.04,x,.62,z,{seg:12});col(x-.32,z-.32,x+.32,z+.32)};
   wrapped(23,15);wrapped(24.5,17.6,.2);pallet(21,18.4,0,4);wrapped(27.5,11.8);wrapped(16,17.8,-.1);pallet(18.5,13.2,.1,3);
   barrel(28.5,14.3,MAT.barrelB);barrel(27.8,15.1,MAT.barrelR);barrel(28.6,15.9,MAT.barrelB);barrel(13.5,15.3,MAT.barrelR);barrel(-15,18.7,MAT.barrelB);
-  pallet(-28.4,-17.8,0,5);pallet(-26.8,-18.5,.3,2);pallet(28.4,-18,0,3);wrapped(27.5,-15.8);wrapped(-19,17.5,.1);wrapped(-16.8,15.5,-.2);
-  // broken forklift
-  {const x=4.5,z=15.5,ry=.5;const fk=(w,h,d,ox,oy,oz,m)=>{const g=new THREE.BoxGeometry(w,h,d);g.translate(ox,oy,oz);g.rotateY(ry);g.translate(x,0,z);sg(m,g)};
-    fk(1.1,.9,1.7,0,.65,0,MAT.forkY);fk(1.0,.08,.08,0,2.1,-.3,MAT.dark);for(const s of[-.45,.45])fk(.07,1.8,.07,s,1.2,-.35,MAT.dark);for(const s of[-.45,.45])fk(.07,1.8,.07,s,1.2,.6,MAT.dark);
-    fk(.15,1.9,.15,-.3,1.05,-.95,MAT.steel);fk(.15,1.9,.15,.3,1.05,-.95,MAT.steel);fk(.15,.05,1.1,-.3,.05,-1.5,MAT.steel);fk(.15,.05,1.1,.3,.05,-1.5,MAT.steel);
-    fk(.5,.4,.5,0,1.25,.2,MAT.dark);
-    const cx=Math.cos(ry),sx=Math.sin(ry);const pts=[[-.6,-1.1],[.6,-1.1],[.6,.9],[-.6,.9]].map(([a,b])=>[x+a*cx+b*sx,z-a*sx+b*cx]);
-    col(Math.min(...pts.map(p=>p[0])),Math.min(...pts.map(p=>p[1])),Math.max(...pts.map(p=>p[0])),Math.max(...pts.map(p=>p[1])));}
-  pallet(-24,-15.5,.2);pallet(22,-16.5,-.3,2);
+  // (kept clear: Bay C's apron in the north-west, the freezer room in the north-east)
+  pallet(-28.4,-17.8,0,5);pallet(-28.6,-15.3,.3,2);pallet(28.5,-9.2,0,3);wrapped(17.2,-17.2);wrapped(-19,17.5,.1);wrapped(-16.8,15.5,-.2);
+  pallet(-16.5,-16.8,.2);pallet(16.8,-14.8,-.3,2);
+  // (the forklift is its own object now: broken until the crew pays to fix it)
 
   // ---- lamps: 4 working pendants + some dead fixtures
-  const fixture=(x,z,on)=>{scyl(MAT.dark,.015,.015,WH.h-5.5,x,5.5+(WH.h-5.5)/2,z,{cast:false});
+  const fixture=(x,z)=>{scyl(MAT.dark,.015,.015,WH.h-5.5,x,5.5+(WH.h-5.5)/2,z,{cast:false});
     const g=new THREE.ConeGeometry(.55,.4,14,1,true);g.translate(x,5.35,z);sg(MAT.shade,g,false);
-    const b=new THREE.Mesh(GEO.sph,on?MAT.bulbOn.clone():MAT.bulbOff);b.scale.setScalar(.13);b.position.set(x,5.2,z);ROOT.add(b);return b};
-  for(const L of LAMPS){const bulb=fixture(L.x,L.z,true);
-    const light=new THREE.PointLight(0xffb36a,0,13,1.7);light.position.set(L.x,5.0,L.z);ROOT.add(light);
+    const b=new THREE.Mesh(GEO.sph,MAT.bulbOn.clone());b.scale.setScalar(.13);b.position.set(x,5.2,z);ROOT.add(b);return b};
+  // dead fixtures get their light from a small shared pool once someone screws in a new bulb
+  for(const L of LAMPS){const bulb=fixture(L.x,L.z);let light=null;
+    if(!L.dead){light=new THREE.PointLight(0xffb36a,0,13,1.7);light.position.set(L.x,5.0,L.z);ROOT.add(light)}
     const cone=new THREE.Mesh(new THREE.ConeGeometry(2.6,5.1,24,1,true),new THREE.MeshBasicMaterial({color:0xffb36a,transparent:true,opacity:.035,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:true}));
     cone.position.set(L.x,2.6,L.z);ROOT.add(cone);
     LAMPV.push({light,bulb,cone,lvl:1,hum:null});}
-  for(const [x,z] of[[-19,-13.5],[19,-13.5],[-19,6.5],[19,1.5],[0,6.5],[0,-3.5],[19,11.5],[-19,11.5]])fixture(x,z,false);
+  LAMPV.pool=[];for(let i=0;i<MAX_BULBS;i++){const l=new THREE.PointLight(0xffc68a,0,12,1.7);ROOT.add(l);LAMPV.pool.push(l)}
 
   flushStatics(ROOT);
+  buildAdditions();
   buildGrid();
 }
+const owned=k=>!!(S&&S.adds&&S.adds.includes(k));
 
 // ===================================================================== collision helpers
 function collideCircle(p,r,extra){ // p:{x,z}; pushes out of every active collider
@@ -169,7 +170,7 @@ function segBlocked(ax,az,bx,bz){const dx=bx-ax,dz=bz-az;
 const GRID={x0:WH.x0,z0:WH.z0,nx:60,nz:40,blk:null};
 function buildGrid(){GRID.blk=new Uint8Array(GRID.nx*GRID.nz);
   for(let j=0;j<GRID.nz;j++)for(let i=0;i<GRID.nx;i++){const x=GRID.x0+i+.5,z=GRID.z0+j+.5;let b=0;
-    for(const c of COL){if(c.dyn)continue;if(x>c.x0-.42&&x<c.x1+.42&&z>c.z0-.42&&z<c.z1+.42){b=1;break}}GRID.blk[j*GRID.nx+i]=b}}
+    for(const c of COL){if(c.dyn&&!(c.add&&owned(c.add)))continue;if(x>c.x0-.42&&x<c.x1+.42&&z>c.z0-.42&&z<c.z1+.42){b=1;break}}GRID.blk[j*GRID.nx+i]=b}}
 const cellOf=(x,z)=>[clamp(Math.floor(x-GRID.x0),0,GRID.nx-1),clamp(Math.floor(z-GRID.z0),0,GRID.nz-1)];
 function astar(sx,sz,tx,tz,avoid){ // avoid(x,z)->true to treat a cell as blocked (lit lamps)
   const nx=GRID.nx,nz=GRID.nz,N=nx*nz;const [si,sj]=cellOf(sx,sz);let [ti,tj]=cellOf(tx,tz);

@@ -111,6 +111,24 @@ const SFX={
       voice(d,{t:.08,dur:1.3,a:.015,rel:.45,f0:620,f1:1050,v:'ah',v2:'ee',rasp:52,raspD:.5,jit:.08,vib:.05,noise:.2,sub:0,g:.55,drive:6});
       voice(d,{t:.1,dur:1.2,a:.02,rel:.4,f0:930,f1:1400,v:'ee',rasp:13,raspD:.85,jit:.06,noise:.1,sub:0,g:.2,drive:4});
       screech(d,{t:.12,dur:.9,f0:1100,f1:1700,g:.12})}
+    else if(ty===4){ // the night manager lowers his clipboard: paper snaps, then a man's voice, far too deep and far too wide
+      nz(d,{dur:.12,a:.002,g:.5,f:2600,q:1});voice(d,{t:.05,dur:1.4,a:.04,rel:.5,f0:95,f1:62,v:'ah',v2:'aw',rasp:22,raspD:.6,jit:.03,vib:.02,noise:.25,sub:.7,g:.6,drive:4});
+      voice(d,{t:.08,dur:1.2,a:.05,rel:.45,f0:190,f1:120,v:'eh',v2:'ah',rasp:35,raspD:.5,noise:.15,sub:0,g:.25,drive:3})}
+    else if(ty===5){ // the shrink-wrap: plastic shrieking as it stretches, a muffled scream from inside it
+      for(let i=0;i<10;i++)nz(d,{t:i*.05,dur:.07,a:.003,g:.35,f:rand(3000,6000),q:2});
+      const m=AU.ctx.createBiquadFilter();m.type='lowpass';m.frequency.value=900;m.connect(d);voice(m,{t:.1,dur:1.3,a:.03,rel:.4,f0:330,f1:420,v:'ah',v2:'ee',rasp:40,raspD:.6,jit:.06,noise:.3,sub:0,g:.8,drive:5})}
+    else if(ty===6){ // frost figure: ice cracking apart, a frozen throat forcing out a breath
+      for(let i=0;i<7;i++)tone(d,{t:rand(0,.25),type:'triangle',f:rand(2500,5000),dur:.06,a:.001,g:.12});nz(d,{dur:.5,a:.002,g:.4,type:'highpass',f:2500});
+      voice(d,{t:.1,dur:1.2,a:.06,rel:.4,f0:150,f1:95,v:'oo',v2:'ah',rasp:18,raspD:.8,jit:.05,noise:.6,sub:.3,g:.5,drive:4})}
+    else if(ty===7){ // the driver: a man's yell that breaks apart halfway through
+      voice(d,{dur:1.2,a:.02,rel:.4,f0:180,f1:120,v:'ah',v2:'aw',rasp:52,raspD:.6,jit:.09,vib:.04,noise:.3,sub:.3,g:.65,drive:7});screech(d,{t:.4,dur:.7,f0:600,f1:900,g:.1})}
+    else if(ty===9){ // the thing in the yard: a sound too low and too big for any throat
+      tone(d,{f:38,f2:22,dur:2.4,a:.05,g:.9});voice(d,{dur:2.2,a:.1,rel:.8,f0:48,f1:31,v:'oo',v2:'aw',rasp:14,raspD:.9,jit:.03,noise:.5,sub:1,g:.7,drive:3});nz(d,{dur:1.8,a:.2,g:.3,type:'lowpass',f:200})}
+    else if(ty===10){ // the elevator roof: the hatch bangs open and something screams down through it
+      tone(d,{type:'square',f:110,f2:60,dur:.25,a:.002,g:.4});nz(d,{dur:.2,a:.002,g:.5,f:1500,q:1});
+      voice(d,{t:.12,dur:1.2,a:.02,rel:.4,f0:560,f1:880,v:'ee',v2:'ah',rasp:66,raspD:.6,jit:.08,noise:.2,sub:0,g:.55,drive:7});screech(d,{t:.15,dur:.9,f0:900,f1:1500,g:.14})}
+    else if(ty===11){ // the passenger: a dry, hoarse scream from a throat that hasn't been used in years
+      nz(d,{dur:1.2,a:.04,g:.5,f:1400,f2:2400,q:2});voice(d,{t:.05,dur:1.1,a:.04,rel:.4,f0:260,f1:200,v:'ah',v2:'eh',rasp:70,raspD:.9,jit:.1,noise:.8,sub:0,g:.45,drive:6})}
     else{ // the mimic: cardboard tears, it chitters, then snarls in your face
       nz(d,{dur:.25,a:.002,g:.6,f:1700,f2:800,q:1.2});chitter(d,{n:16,g:.28});
       voice(d,{t:.08,dur:1.05,a:.015,rel:.35,f0:240,f1:135,v:'small',v2:'ah',rasp:57,raspD:.75,jit:.09,vib:.03,noise:.35,sub:.4,g:.6,drive:6});
@@ -120,9 +138,41 @@ const SFX={
     bp.type='bandpass';bp.frequency.value=1500;bp.Q.value=.9;ws.curve=shaper(3);bp.connect(ws);ws.connect(d);
     nz(d,{dur:.14,a:.003,g:.32,f:2600,q:.7});const len=speech(bp,{t:.16,n:randi(9,13),f:rand(100,125),g:.32});
     const end=.16+len+.05;nz(d,{t:end,dur:.12,a:.003,g:.28,f:2600,q:.7});tone(d,{t:end+.12,type:'square',f:1250,dur:.07,g:.05})},
-  // the warehouse loudspeaker: two-note chime, then an echoing announcement
-  pa(){if(!AU.ready)return;const C=AU.ctx,d=dest(null,{rev:.75,gain:.85}),bp=C.createBiquadFilter();bp.type='bandpass';bp.frequency.value=1100;bp.Q.value=.8;bp.connect(d);
-    tone(d,{type:'sine',f:784,dur:.9,a:.01,g:.22});tone(d,{type:'sine',f:622,dur:1.1,a:.01,g:.22,t:.45});speech(bp,{t:1.15,n:randi(8,11),f:rand(95,110),g:.36})},
+  // the warehouse loudspeaker: two-note chime, then an echoing announcement. The wrong voice uses the wrong
+  // chime: the same two notes played upside down and out of tune, and it talks too slowly and too low.
+  pa(fake){if(!AU.ready)return;const C=AU.ctx,d=dest(null,{rev:.75,gain:.85}),bp=C.createBiquadFilter();bp.type='bandpass';bp.frequency.value=1100;bp.Q.value=.8;bp.connect(d);
+    if(fake){tone(d,{type:'sine',f:606,dur:1.1,a:.01,g:.22});tone(d,{type:'sine',f:771,dur:1.3,a:.01,g:.2,t:.5});tone(d,{type:'sine',f:779,dur:1.3,a:.01,g:.12,t:.5});speech(bp,{t:1.25,n:randi(8,10),f:rand(72,80),g:.4})}
+    else{tone(d,{type:'sine',f:784,dur:.9,a:.01,g:.22});tone(d,{type:'sine',f:622,dur:1.1,a:.01,g:.22,t:.45});speech(bp,{t:1.15,n:randi(8,11),f:rand(95,110),g:.36})}},
+  // ---- the later-night monsters
+  heel(pos){if(!AU.ready)return;const d=dest(pos,{rev:.45,gain:1,ref:2,roll:1.2});tone(d,{type:'triangle',f:rand(900,1200),dur:.04,a:.001,g:.16});nz(d,{dur:.05,a:.001,g:.25,f:2600,q:2})},
+  writeup(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.2,ref:2});for(let i=0;i<9;i++)nz(d,{t:i*.07,dur:.06,a:.004,g:.22,f:rand(3000,4500),q:4});
+    voice(d,{t:.75,dur:.35,a:.03,rel:.15,f0:105,f1:88,v:'eh',v2:'oo',rasp:20,raspD:.3,noise:.1,sub:.2,g:.3,drive:2})},
+  boom(pos){if(!AU.ready)return;const d=dest(pos,{rev:.8,gain:1.6,ref:12,roll:.6});tone(d,{f:44,f2:26,dur:1.4,a:.01,g:.8});nz(d,{dur:.6,a:.01,g:.4,type:'lowpass',f:160})},
+  roofStep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.25,gain:1.2,ref:2});tone(d,{f:90,f2:50,dur:.18,a:.002,g:.5});nz(d,{dur:.08,a:.002,g:.2,f:700,q:2})},
+  hatch(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1});tone(d,{type:'sawtooth',f:180,f2:120,dur:.9,a:.2,g:.06})},
+  chomp(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.3});nz(d,{dur:.1,a:.002,g:.6,f:900,q:1});tone(d,{f:120,f2:50,dur:.25,g:.6});nz(d,{t:.12,dur:.3,a:.02,g:.25,f:500,q:3})},
+  hands(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.2});for(let i=0;i<6;i++)nz(d,{t:i*.06,dur:.1,a:.01,g:.25,f:rand(500,900),q:3});voice(d,{t:.1,dur:.8,a:.05,rel:.3,f0:140,f1:110,v:'oo',rasp:25,raspD:.7,noise:.6,sub:.2,g:.25,drive:3})},
+  mothHit(pos){if(!AU.ready)return;const d=dest(pos,{rev:.15,gain:1});for(let i=0;i<8;i++)nz(d,{t:i*.03,dur:.03,a:.002,g:.3,f:rand(400,900),q:1.5})},
+  smashBulb(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.2,ref:4});for(let i=0;i<8;i++)tone(d,{type:'triangle',f:rand(2500,5200),dur:rand(.05,.2),g:.1,t:rand(0,.1)});nz(d,{dur:.2,g:.3,type:'highpass',f:3000})},
+  vanish(pos){if(!AU.ready)return;const d=dest(pos,{rev:.7,gain:1});nz(d,{dur:1.2,a:.3,g:.25,f:900,f2:200,q:2})},
+  // ---- additions
+  sorted(ok,pos){if(!AU.ready)return;const d=dest(pos,{rev:.3});nz(d,{dur:.15,g:.3,type:'lowpass',f:600});if(ok){tone(d,{t:.15,type:'triangle',f:880,dur:.12,g:.08});tone(d,{t:.26,type:'triangle',f:1320,dur:.15,g:.08})}else tone(d,{t:.15,type:'square',f:150,dur:.3,g:.08})},
+  lever(pos){if(!AU.ready)return;const d=dest(pos,{rev:.15});tone(d,{type:'square',f:300,f2:200,dur:.05,g:.08});nz(d,{dur:.06,g:.2,f:1800,q:3})},
+  thunk(pos){if(!AU.ready)return;const d=dest(pos,{rev:.35});tone(d,{f:70,f2:40,dur:.35,g:.6});nz(d,{dur:.1,g:.3,type:'lowpass',f:800})},
+  ding(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4});tone(d,{f:1318,dur:1.2,a:.005,g:.12})},
+  refuel(pos){if(!AU.ready)return;const d=dest(pos,{rev:.2});for(let i=0;i<12;i++)nz(d,{t:i*.09,dur:.08,a:.01,g:.18,f:rand(300,600),q:4})},
+  sputter(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:1.2,ref:4});for(let i=0;i<6;i++){tone(d,{t:i*.18+rand(0,.06),type:'sawtooth',f:55,dur:.1,g:.25});nz(d,{t:i*.18,dur:.08,g:.2,type:'lowpass',f:400})}},
+  // ---- shop items
+  buy(){if(!AU.ready)return;const d=dest(null,{rev:.2});tone(d,{type:'triangle',f:1568,dur:.25,g:.1});tone(d,{type:'triangle',f:2093,dur:.35,g:.1,t:.08});nz(d,{dur:.1,g:.15,f:5000,q:2})},
+  strobe(){if(!AU.ready)return;const d=dest(null,{rev:.2,gain:.9});for(let i=0;i<6;i++){tone(d,{t:i*.07,type:'square',f:3200,dur:.02,a:.001,g:.08});nz(d,{t:i*.07,dur:.03,a:.001,g:.2,type:'highpass',f:5000})}},
+  airhorn(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.3,ref:5});for(const f of[415,523,622])tone(d,{type:'sawtooth',f,dur:1.4,a:.02,g:.12})},
+  flare(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3});nz(d,{dur:.4,a:.01,g:.4,type:'highpass',f:2000});nz(d,{t:.3,dur:1.5,a:.2,g:.15,f:3500,q:.8})},
+  cut(pos){if(!AU.ready)return;const d=dest(pos,{rev:.2});nz(d,{dur:.25,a:.002,g:.45,f:2400,f2:1200,q:2})},
+  squeal(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:1});chitter(d,{n:10,g:.2});voice(d,{t:.05,dur:.7,a:.01,rel:.3,f0:700,f1:1200,v:'ee',rasp:50,raspD:.5,noise:.2,sub:0,g:.35,drive:6})},
+  battery(){if(!AU.ready)return;const d=dest(null,{rev:0});tone(d,{type:'square',f:600,dur:.04,g:.06});tone(d,{type:'square',f:1400,dur:.05,g:.06,t:.12})},
+  drink(){if(!AU.ready)return;const d=dest(null,{rev:0});nz(d,{dur:.15,a:.002,g:.4,f:4000,q:1});for(let i=0;i<4;i++)tone(d,{t:.3+i*.22,f:180,f2:120,dur:.12,g:.15})},
+  slam(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.3,ref:4});impact(d,.9);for(let i=0;i<5;i++)nz(d,{t:i*.03,dur:.1,g:.25,f:rand(400,1200),q:2})},
+  bulb(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3});for(let i=0;i<4;i++)nz(d,{t:i*.08,dur:.06,g:.15,f:3000,q:5});tone(d,{t:.4,type:'sine',f:2200,dur:.4,g:.06})},
   tick(urgent){if(!AU.ready)return;const d=dest(null,{rev:.15,gain:urgent?1:.7});tone(d,{type:'triangle',f:urgent?2600:2100,dur:.035,a:.001,g:.16});nz(d,{dur:.02,a:.001,g:.1,type:'highpass',f:4000})},
   // every light in the building cutting out at once
   powerDown(){if(!AU.ready)return;const d=dest(null,{rev:.7,gain:1});impact(d,.8);tone(d,{type:'sawtooth',f:120,f2:22,dur:1.8,a:.01,g:.25});
@@ -156,6 +206,17 @@ function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.create
   else if(kind==='door'){const f=filt('bandpass',650,2.5);ns().connect(f);const a=amp(f,.6);lfoTo(a.gain,17,.5,'square');const m=filt('lowpass',140);osc('sawtooth',55).connect(m);amp(m,.2)}
   else if(kind==='breath'){const f=filt('bandpass',380,1.4);ns().connect(f);const a=amp(f,.5);lfoTo(a.gain,.27,.5);const m=filt('lowpass',180);osc('sawtooth',46).connect(m);const b=amp(m,.12);lfoTo(b.gain,.27,.12)}
   else if(kind==='whisper'){const f=filt('bandpass',1700,4);ns().connect(f);const a=amp(f,.5);lfoTo(a.gain,.8,.5);const f2=filt('bandpass',820,6);ns().connect(f2);const b=amp(f2,.4);lfoTo(b.gain,1.37,.4);lfoTo(f.frequency,.31,500)}
+  else if(kind==='growl'){ // a low, unbroken growl: two buzzing throats, a ragged flutter, a little chest rattle
+    const f=filt('bandpass',420,2.2),lo=filt('lowpass',260);osc('sawtooth',52).connect(f);osc('sawtooth',77.5).connect(f);osc('sawtooth',52.6).connect(lo);
+    const a=amp(f,.45);lfoTo(a.gain,23,.32,'sawtooth');lfoTo(a.gain,.37,.12);lfoTo(f.frequency,.21,90);const b=amp(lo,.6);lfoTo(b.gain,17,.3,'sawtooth');
+    const n=filt('bandpass',330,3);ns().connect(n);const c=amp(n,.5);lfoTo(c.gain,29,.4,'square')}
+  else if(kind==='crinkle'){const f=filt('highpass',2500,.7);ns().connect(f);const a=amp(f,.0);lfoTo(a.gain,13,.35,'square');lfoTo(a.gain,3.1,.25,'sawtooth')}
+  else if(kind==='ice'){const f=filt('bandpass',3200,6);ns().connect(f);const a=amp(f,0);lfoTo(a.gain,7,.5,'square');const l=filt('lowpass',200);osc('sawtooth',40).connect(l);amp(l,.15)}
+  else if(kind==='flutter'){const f=filt('bandpass',420,1.5);ns().connect(f);const a=amp(f,.2);lfoTo(a.gain,24,.2,'square')}
+  else if(kind==='belt'){const f=filt('lowpass',300);osc('sawtooth',48).connect(f);amp(f,.4);const n=filt('bandpass',900,3);ns().connect(n);const a=amp(n,.15);lfoTo(a.gain,6,.1,'square')}
+  else if(kind==='lift'){const f=filt('lowpass',220);osc('sawtooth',62).connect(f);osc('sawtooth',63.5).connect(f);amp(f,.5);const n=filt('bandpass',500,2);ns().connect(n);amp(n,.2)}
+  else if(kind==='gen'){const f=filt('lowpass',380);osc('sawtooth',30).connect(f);osc('square',60).connect(f);const a=amp(f,.4);lfoTo(a.gain,15,.12);const n=filt('lowpass',600);ns().connect(n);amp(n,.15)}
+  else if(kind==='flare'){const f=filt('bandpass',3500,.8);ns().connect(f);const a=amp(f,.4);lfoTo(a.gain,9,.12)}
   else if(kind==='hum'){const f=filt('lowpass',500);osc('sawtooth',120).connect(f);amp(f,.35);const n=filt('highpass',6000);ns().connect(n);amp(n,.05)}
   else if(kind==='amb'){const f=filt('lowpass',130);osc('sawtooth',55).connect(f);osc('sawtooth',55.35).connect(f);amp(f,.5);const n=filt('lowpass',220);ns().connect(n);amp(n,.55);
     const w=filt('bandpass',420,1.2);ns().connect(w);const a=amp(w,.12);lfoTo(a.gain,.06,.1);lfoTo(w.frequency,.045,180)}
