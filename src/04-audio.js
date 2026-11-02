@@ -59,6 +59,10 @@ function screech(d,{t=0,dur=1,f0=700,f1=1300,g=.3,drive=5}){const C=AU.ctx,t0=C.
   const e=C.createGain();e.gain.setValueAtTime(1e-4,t0);e.gain.exponentialRampToValueAtTime(g,t0+.03);e.gain.setValueAtTime(g,t0+dur*.6);e.gain.exponentialRampToValueAtTime(1e-4,t0+dur);
   rm.connect(hp);hp.connect(ws);ws.connect(e);e.connect(d);a.start(t0);b.start(t0);a.stop(t0+dur+.05);b.stop(t0+dur+.05)}
 function impact(d,g=.9){tone(d,{f:72,f2:26,dur:.6,a:.003,g});nz(d,{dur:.18,a:.002,g:g*.6,type:'lowpass',f:900});nz(d,{dur:.05,a:.001,g:g*.45,type:'highpass',f:3500})}
+// garbled talking: short syllables on human-pitched voices with changing vowels; returns how long it lasts
+function speech(d,{t=0,n=10,f=115,g=.3}){let tt=t;for(let i=0;i<n;i++){const dur=rand(.08,.19),p=f*rand(.9,1.18);
+  voice(d,{t:tt,dur,a:.012,rel:.05,f0:p,f1:p*rand(.85,1.05),v:pick(['ah','eh','oo','aw','ee']),rasp:30,raspD:.12,jit:.03,noise:.12,sub:0,g,drive:2});
+  tt+=dur+(Math.random()<.25?rand(.08,.2):rand(.01,.04))}return tt-t}
 function chitter(d,{t=0,n=14,g=.25}){for(let i=0;i<n;i++){const tt=t+i*rand(.018,.04);tone(d,{type:'triangle',f:rand(2400,4200),dur:.02,a:.001,g,t:tt});nz(d,{t:tt,dur:.015,a:.001,g:g*.8,type:'highpass',f:3000})}}
 
 const SFX={
@@ -92,6 +96,18 @@ const SFX={
       nz(d,{dur:.25,a:.002,g:.6,f:1700,f2:800,q:1.2});chitter(d,{n:16,g:.28});
       voice(d,{t:.08,dur:1.05,a:.015,rel:.35,f0:240,f1:135,v:'small',v2:'ah',rasp:57,raspD:.75,jit:.09,vib:.03,noise:.35,sub:.4,g:.6,drive:6});
       voice(d,{t:.1,dur:.9,a:.02,rel:.3,f0:120,f1:80,v:'aw',rasp:41,raspD:.7,noise:.4,sub:.5,g:.3,drive:4})}},
+  // the supervisor on the handheld: squelch, a few seconds of muffled talking, squelch
+  radio(){if(!AU.ready)return;const C=AU.ctx,d=dest(null,{rev:.04,gain:.9}),bp=C.createBiquadFilter(),ws=C.createWaveShaper();
+    bp.type='bandpass';bp.frequency.value=1500;bp.Q.value=.9;ws.curve=shaper(3);bp.connect(ws);ws.connect(d);
+    nz(d,{dur:.14,a:.003,g:.32,f:2600,q:.7});const len=speech(bp,{t:.16,n:randi(9,13),f:rand(100,125),g:.32});
+    const end=.16+len+.05;nz(d,{t:end,dur:.12,a:.003,g:.28,f:2600,q:.7});tone(d,{t:end+.12,type:'square',f:1250,dur:.07,g:.05})},
+  // the warehouse loudspeaker: two-note chime, then an echoing announcement
+  pa(){if(!AU.ready)return;const C=AU.ctx,d=dest(null,{rev:.75,gain:.85}),bp=C.createBiquadFilter();bp.type='bandpass';bp.frequency.value=1100;bp.Q.value=.8;bp.connect(d);
+    tone(d,{type:'sine',f:784,dur:.9,a:.01,g:.22});tone(d,{type:'sine',f:622,dur:1.1,a:.01,g:.22,t:.45});speech(bp,{t:1.15,n:randi(8,11),f:rand(95,110),g:.36})},
+  tick(urgent){if(!AU.ready)return;const d=dest(null,{rev:.15,gain:urgent?1:.7});tone(d,{type:'triangle',f:urgent?2600:2100,dur:.035,a:.001,g:.16});nz(d,{dur:.02,a:.001,g:.1,type:'highpass',f:4000})},
+  // every light in the building cutting out at once
+  powerDown(){if(!AU.ready)return;const d=dest(null,{rev:.7,gain:1});impact(d,.8);tone(d,{type:'sawtooth',f:120,f2:22,dur:1.8,a:.01,g:.25});
+    for(let i=0;i<6;i++)nz(d,{t:rand(0,.5),dur:.05,a:.002,g:.25,type:'highpass',f:3000})},
   hurt(){if(!AU.ready)return;const d=dest(null,{rev:.2});nz(d,{dur:.3,g:.4,type:'lowpass',f:500});tone(d,{f:80,f2:45,dur:.3,g:.5})},
   beat(v){if(!AU.ready)return;const d=dest(null,{rev:0,gain:v});tone(d,{f:58,f2:40,dur:.14,g:.6});tone(d,{f:52,f2:36,dur:.16,g:.45,t:.2})},
   brake(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.2,ref:4});nz(d,{dur:1.3,a:.01,g:.4,type:'highpass',f:2200});tone(d,{type:'sawtooth',f:60,f2:35,dur:.6,g:.2})},

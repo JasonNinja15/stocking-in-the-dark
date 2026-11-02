@@ -41,7 +41,14 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 #clock{font-size:34px;letter-spacing:.06em}
 #night{color:var(--dim);font-size:14px;letter-spacing:.2em}
 #quota{font-size:17px;margin-top:4px}
-#quota.ok{color:#8fd48a}
+#quota.ok{color:#8fd48a}#quota.behind{color:#f0b45a}#quota.far{color:#ff6a55}
+#clock.late{color:#ff6a55}#clock.ot{color:#ff3b2b;animation:blink 1s steps(2) infinite}
+/* quota progress; the white tick is where you should be by now to make quota at 6:00 */
+#qbar{width:210px;height:7px;margin-top:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);position:relative}
+#qbar i{position:absolute;left:0;top:0;bottom:0;background:#cfc6ae;transition:width .3s}
+#qbar b{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:#fff;box-shadow:0 0 3px #000}
+#qbar.ok i{background:#8fd48a}#qbar.behind i{background:#f0b45a}#qbar.far i{background:#ff6a55}
+#toast.radio{color:#f0c27a;font-style:italic}
 #tr{position:absolute;right:18px;top:14px;text-align:right;font-size:14px;line-height:1.5;text-shadow:0 1px 3px #000;max-width:46vw}
 .bay{opacity:.75}.bay.live{opacity:1}
 .warn{color:#ff6a4a;animation:blink 1s steps(2) infinite}
@@ -75,7 +82,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 <div id="loading">CLOCKING IN&hellip;</div>
 
 <div id="hud" class="hide">
-  <div id="tl"><div id="clock">12:00 AM</div><div id="night">NIGHT 1</div><div id="quota">Shelved 0 / 15</div></div>
+  <div id="tl"><div id="clock">12:00 AM</div><div id="night">NIGHT 1</div><div id="quota">Shelved 0 / 15</div><div id="qbar"><i></i><b></b></div></div>
   <div id="tr"></div>
   <div id="cross"></div>
   <div id="prompt"></div>

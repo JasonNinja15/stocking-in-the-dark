@@ -8,6 +8,8 @@ A first-person, cel-shaded horror game for one to four players. You work the nig
 
 - Trucks back into **Bay A** and **Bay B** every minute or so. Walk into the trailer, pick up boxes (**E**) and shelve them on any empty slot. A green outline shows where the box will go.
 - Shelve the quota before 6:00 AM (each in-game hour is 50 seconds). Night 1 asks for 15 boxes and each night adds 5. Crews get a bigger quota.
+- The bar under the quota shows your progress, and its white marker shows where you should be by now. It turns amber, then red, as you fall behind. The supervisor radios at 3, 4 and 5 AM if you're behind pace, and the loudspeaker announces the final hour and the last truck of the night.
+- Short at 6:00 AM? You get **60 seconds of overtime**. Every light goes out, the monsters get bolder, and a last truck comes in if there's nothing left to unload. Make quota and you survive the night. Miss it and you're fired.
 - A truck leaves when it's empty or after about two minutes. Any boxes still on board are lost.
 - Your flashlight battery runs down. Hold **E** at the charging dock between the bays. The first-aid cabinet next to it heals you fully, twice a night.
 

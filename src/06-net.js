@@ -59,7 +59,7 @@ function netClose(){NET.closing=true;try{NET.peer&&NET.peer.destroy()}catch(e){}
 
 // ---- snapshots
 const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
-function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,it:r2(S.inter),q:S.quota,sh:S.shelved,lo:S.lost,sc:S.score,to:S.total,ai:S.aidLeft,la:S.lamps,bv:S.bver,ov:S.over,
+function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S.inter),q:S.quota,sh:S.shelved,lo:S.lost,sc:S.score,to:S.total,ai:S.aidLeft,la:S.lamps,bv:S.bver,ov:S.over,
   pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry]),
   tr:S.trucks.map(t=>[t.st,r2(t.z),r2(t.door),Math.round(t.t),t.warn?1:0,t.claw?1:0,t.left,t.n,t.reject?1:0,t.kg||0,t.extra||0]),
   mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0]),
@@ -67,7 +67,7 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,it:r2(S.inter),q:S.
 function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1])}
 function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11]}));
   for(const s of SLOTS)s.box=-1;for(const b of S.boxes)if(b.st===2&&SLOTS[b.s])SLOTS[b.s].box=b.id}
-function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,inter:m.it,quota:m.q,shelved:m.sh,lost:m.lo,score:m.sc,total:m.to,aidLeft:m.ai,lamps:m.la,over:m.ov});
+function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,inter:m.it,quota:m.q,shelved:m.sh,lost:m.lo,score:m.sc,total:m.to,aidLeft:m.ai,lamps:m.la,over:m.ov});
   const seen=new Set();
   for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry});
     if(id!==NET.myId)Object.assign(p,{x,z,yaw,pitch,light:!!light});else if(!p.init){p.init=1;p.x=x;p.z=z}}

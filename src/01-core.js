@@ -18,7 +18,7 @@ const WH={x0:-30,x1:30,z0:-20,z1:20,h:7};
 const BAYS=[{x:-12,name:'A'},{x:12,name:'B'}];
 const TZ_DOCK=-20.25, TZ_FAR=-64, TRAIL_LEN=14, TRAIL_HW=1.25, TRAIL_H=2.9;
 const DOOR_HW=1.7, DOOR_H=3.6;
-const HOUR=50, SHIFT_HOURS=6, DOCK_TIME=115;
+const HOUR=50, SHIFT_HOURS=6, DOCK_TIME=115, SHIFT_END=HOUR*SHIFT_HOURS, OVERTIME=60, LAST_TRUCK_AT=HOUR*5+8;
 const RACK_ROWS=[-6,-1,4,9], RACK_COLS=[-27,-8,11], RACK_LEN=16, RACK_LEVELS=[0.14,1.34,2.54];
 const LAMPS=[{x:0,z:-13.5,r:3.6},{x:-9.5,z:1.5,r:3.2},{x:9.5,z:6.5,r:3.2},{x:-3,z:15.5,r:3.4}];
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};

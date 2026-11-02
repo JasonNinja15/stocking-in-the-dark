@@ -245,11 +245,16 @@ function drainEvents(){while(EVQ.length){const e=EVQ.shift();try{onEvent(e)}catc
 function onEvent(e){const me=NET.myId;
   switch(e.e){
   case 'night':{const p=e.pos&&e.pos[me];if(p){ME.x=p[0];ME.z=p[1];ME.ready=true;ME.yaw=0;ME.pitch=0;ME.vx=ME.vz=0}ME.bat=100;ME.stam=100;ME.light=true;ME.lastHp=100;ME.deathT=0;
-    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM`,4);SFX.bell();
-    if(e.n===1&&!GAME.hints.start){GAME.hints.start=1;setTimeout(()=>GAME.on&&toast('A truck is backing into Bay A. Unload it and shelve the boxes.',5),4500)}break}
-  case 'nightDone':big('6:00 AM',`Night ${e.n} survived · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
+    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM or you're fired`,4.5);SFX.bell();
+    if(e.n===1&&!GAME.hints.start){GAME.hints.start=1;setTimeout(()=>GAME.on&&toast('A truck is backing into Bay A. Unload it and shelve the boxes.',5),4500);
+      setTimeout(()=>GAME.on&&toast('Your quota is top left. Keep the bar ahead of the white marker to stay on pace.',6),11000)}break}
+  case 'radio':SFX.radio();toast(`Supervisor, on the radio: "${e.m}"`,6,'radio');break;
+  case 'finalHour':SFX.pa();toast(e.need>0?`Loudspeaker: "Final hour. ${e.need} more box${e.need>1?'es':''} to make quota."`:'Loudspeaker: "Final hour."',5,'radio');break;
+  case 'overtime':SFX.powerDown();big('OVERTIME',`${e.need} more box${e.need>1?'es':''} in 60 seconds. The lights are out.`,5);
+    if(e.b>=0)setTimeout(()=>GAME.on&&toast(`One last truck is backing into Bay ${BAYS[e.b].name}.`,4,'radio'),2500);break;
+  case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
   case 'hour':SFX.bell();toast(`${e.h}:00 AM`,2.5);break;
-  case 'truck':toast(`Truck inbound: Bay ${BAYS[e.b].name}`,3);break;
+  case 'truck':if(e.last&&!S.ot){SFX.pa();toast(`Loudspeaker: "Last truck of the night, Bay ${BAYS[e.b].name}."`,5,'radio')}else if(!e.last)toast(`Truck inbound: Bay ${BAYS[e.b].name}`,3);break;
   case 'brake':SFX.brake({x:BAYS[e.b].x,y:1,z:TZ_DOCK-6});break;
   case 'horn':SFX.horn({x:BAYS[e.b].x,y:1.5,z:TZ_DOCK-TRAIL_LEN});break;
   case 'tw':{const m=BM.get(e.id);if(m){m.userData.tw=.7;SFX.scratch({x:m.position.x,y:m.position.y+.3,z:m.position.z})}break}
@@ -272,7 +277,7 @@ function onEvent(e){const me=NET.myId;
 
 // ===================================================================== HUD
 let toastT=0,bigT=0;
-function toast(m,d=3.5){const el=$('toast');el.textContent=m;el.style.opacity=1;toastT=d}
+function toast(m,d=3.5,cls=''){const el=$('toast');el.textContent=m;el.className=cls;el.style.opacity=1;toastT=d}
 function big(a,b,d=4){const el=$('big');el.innerHTML=`${a}<small>${b||''}</small>`;el.style.opacity=1;bigT=d}
 function fmtClock(t){const mins=Math.floor(t/HOUR*60),h=Math.floor(mins/60),m=mins%60;return`${h===0?12:h}:${String(m).padStart(2,'0')} AM`}
 const mmss=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
@@ -291,9 +296,17 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';}
   if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
   $('cross').className=t&&(t.kind!=='slot'||t.ok)?'on':'';
+  // a clock ticks through the last minute and overtime, only while the quota isn't met; double time for the final 10 s
+  if(S.phase==='play'&&!S.over&&S.shelved<S.quota&&S.t>=SHIFT_END-60){const urgent=S.ot&&S.t>=SHIFT_END+OVERTIME-10,k=Math.floor(S.t*(urgent?2:1));
+    if(k!==GAME.tickK){if(GAME.tickK!==undefined)SFX.tick(urgent||S.ot);GAME.tickK=k}}else GAME.tickK=undefined;
   GAME.hudT-=dt;if(GAME.hudT>0)return;GAME.hudT=.1;
-  $('clock').textContent=S.phase==='inter'?'6:00 AM':fmtClock(S.t);$('night').textContent=`NIGHT ${S.night}`;
-  const q=$('quota');q.textContent=`Shelved ${S.shelved} / ${S.quota}`;q.className=S.shelved>=S.quota?'ok':'';
+  const ck=$('clock');ck.textContent=S.phase==='inter'?'6:00 AM':S.ot?`OVERTIME ${mmss(Math.max(0,SHIFT_END+OVERTIME-S.t))}`:fmtClock(S.t);
+  ck.className=S.phase!=='play'?'':S.ot?'ot':S.t>=HOUR*5&&S.shelved<S.quota?'late':'';$('night').textContent=`NIGHT ${S.night}`;
+  // pace: how many boxes short of the steady rate that makes quota exactly at 6:00
+  const met=S.shelved>=S.quota,pace=S.phase==='play'?Math.min(1,S.t/SHIFT_END):1,behind=met?0:Math.ceil(S.quota*pace-S.shelved);
+  const st=met?'ok':behind>=Math.max(4,S.quota*.3)?'far':behind>=2?'behind':'';
+  const q=$('quota');q.textContent=`Shelved ${S.shelved} / ${S.quota}`+(S.ot&&!met?` · ${S.quota-S.shelved} to go`:st==='behind'||st==='far'?` · ${behind} behind`:'');q.className=st;
+  const qb=$('qbar');qb.className=st;qb.firstChild.style.width=Math.min(100,S.shelved/S.quota*100)+'%';qb.lastChild.style.left=(pace*100)+'%';
   let h='';S.trucks.forEach((tr,i)=>{const n=BAYS[i].name;
     if(tr.st===0)h+=`<div class="bay">BAY ${n} &middot; empty</div>`;
     else{let s=tr.st===1?'truck backing in&hellip;':tr.st===3?'truck pulling out':tr.reject?'refused, leaving':`${tr.left} / ${tr.n} boxes &middot; leaves in ${mmss(Math.max(0,DOCK_TIME-tr.t))}`;
@@ -333,7 +346,7 @@ function renderLobby(){show('lobby');$('code').textContent=NET.code||'-----';
   $('bStart').classList.toggle('hide',NET.mode!=='host')}
 function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
   const crew=S&&Object.keys(S.players).length>1;
-  const T={dead:[crew?'THE CREW IS GONE':'YOU DIDN\'T MAKE IT',crew?'Nobody clocked out this morning.':'Something in the dark got you.'],quota:['FIRED',`You missed the quota: ${o.shelved} of ${o.quota} boxes shelved.`],host:['DISCONNECTED','The host left the crew room.']}[o.why]||['SHIFT OVER',''];
+  const T={dead:[crew?'THE CREW IS GONE':'YOU DIDN\'T MAKE IT',crew?'Nobody clocked out this morning.':'Something in the dark got you.'],quota:['FIRED',`You missed the quota${o.ot?', even on overtime':''}: ${o.shelved} of ${o.quota} boxes shelved.`],host:['DISCONNECTED','The host left the crew room.']}[o.why]||['SHIFT OVER',''];
   $('overTitle').textContent=T[0];$('overWhy').textContent=T[1];
   $('overStats').innerHTML=`Nights survived: <b>${Math.max(0,o.night-1)}</b><br>Boxes shelved: <b>${o.total}</b><br>Pay: <b>$${(o.score*1.25).toFixed(2)}</b>`;
   $('bAgain').classList.toggle('hide',NET.mode==='client'||o.why==='host');
@@ -416,6 +429,6 @@ async function init(){
   applyQuality();bindUI();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,
+  window.GS={get S(){return S},ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});

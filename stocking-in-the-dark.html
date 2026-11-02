@@ -41,7 +41,14 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 #clock{font-size:34px;letter-spacing:.06em}
 #night{color:var(--dim);font-size:14px;letter-spacing:.2em}
 #quota{font-size:17px;margin-top:4px}
-#quota.ok{color:#8fd48a}
+#quota.ok{color:#8fd48a}#quota.behind{color:#f0b45a}#quota.far{color:#ff6a55}
+#clock.late{color:#ff6a55}#clock.ot{color:#ff3b2b;animation:blink 1s steps(2) infinite}
+/* quota progress; the white tick is where you should be by now to make quota at 6:00 */
+#qbar{width:210px;height:7px;margin-top:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);position:relative}
+#qbar i{position:absolute;left:0;top:0;bottom:0;background:#cfc6ae;transition:width .3s}
+#qbar b{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:#fff;box-shadow:0 0 3px #000}
+#qbar.ok i{background:#8fd48a}#qbar.behind i{background:#f0b45a}#qbar.far i{background:#ff6a55}
+#toast.radio{color:#f0c27a;font-style:italic}
 #tr{position:absolute;right:18px;top:14px;text-align:right;font-size:14px;line-height:1.5;text-shadow:0 1px 3px #000;max-width:46vw}
 .bay{opacity:.75}.bay.live{opacity:1}
 .warn{color:#ff6a4a;animation:blink 1s steps(2) infinite}
@@ -75,7 +82,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 <div id="loading">CLOCKING IN&hellip;</div>
 
 <div id="hud" class="hide">
-  <div id="tl"><div id="clock">12:00 AM</div><div id="night">NIGHT 1</div><div id="quota">Shelved 0 / 15</div></div>
+  <div id="tl"><div id="clock">12:00 AM</div><div id="night">NIGHT 1</div><div id="quota">Shelved 0 / 15</div><div id="qbar"><i></i><b></b></div></div>
   <div id="tr"></div>
   <div id="cross"></div>
   <div id="prompt"></div>
@@ -175,7 +182,7 @@ const WH={x0:-30,x1:30,z0:-20,z1:20,h:7};
 const BAYS=[{x:-12,name:'A'},{x:12,name:'B'}];
 const TZ_DOCK=-20.25, TZ_FAR=-64, TRAIL_LEN=14, TRAIL_HW=1.25, TRAIL_H=2.9;
 const DOOR_HW=1.7, DOOR_H=3.6;
-const HOUR=50, SHIFT_HOURS=6, DOCK_TIME=115;
+const HOUR=50, SHIFT_HOURS=6, DOCK_TIME=115, SHIFT_END=HOUR*SHIFT_HOURS, OVERTIME=60, LAST_TRUCK_AT=HOUR*5+8;
 const RACK_ROWS=[-6,-1,4,9], RACK_COLS=[-27,-8,11], RACK_LEN=16, RACK_LEVELS=[0.14,1.34,2.54];
 const LAMPS=[{x:0,z:-13.5,r:3.6},{x:-9.5,z:1.5,r:3.2},{x:9.5,z:6.5,r:3.2},{x:-3,z:15.5,r:3.4}];
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
@@ -646,6 +653,10 @@ function screech(d,{t=0,dur=1,f0=700,f1=1300,g=.3,drive=5}){const C=AU.ctx,t0=C.
   const e=C.createGain();e.gain.setValueAtTime(1e-4,t0);e.gain.exponentialRampToValueAtTime(g,t0+.03);e.gain.setValueAtTime(g,t0+dur*.6);e.gain.exponentialRampToValueAtTime(1e-4,t0+dur);
   rm.connect(hp);hp.connect(ws);ws.connect(e);e.connect(d);a.start(t0);b.start(t0);a.stop(t0+dur+.05);b.stop(t0+dur+.05)}
 function impact(d,g=.9){tone(d,{f:72,f2:26,dur:.6,a:.003,g});nz(d,{dur:.18,a:.002,g:g*.6,type:'lowpass',f:900});nz(d,{dur:.05,a:.001,g:g*.45,type:'highpass',f:3500})}
+// garbled talking: short syllables on human-pitched voices with changing vowels; returns how long it lasts
+function speech(d,{t=0,n=10,f=115,g=.3}){let tt=t;for(let i=0;i<n;i++){const dur=rand(.08,.19),p=f*rand(.9,1.18);
+  voice(d,{t:tt,dur,a:.012,rel:.05,f0:p,f1:p*rand(.85,1.05),v:pick(['ah','eh','oo','aw','ee']),rasp:30,raspD:.12,jit:.03,noise:.12,sub:0,g,drive:2});
+  tt+=dur+(Math.random()<.25?rand(.08,.2):rand(.01,.04))}return tt-t}
 function chitter(d,{t=0,n=14,g=.25}){for(let i=0;i<n;i++){const tt=t+i*rand(.018,.04);tone(d,{type:'triangle',f:rand(2400,4200),dur:.02,a:.001,g,t:tt});nz(d,{t:tt,dur:.015,a:.001,g:g*.8,type:'highpass',f:3000})}}
 
 const SFX={
@@ -679,6 +690,18 @@ const SFX={
       nz(d,{dur:.25,a:.002,g:.6,f:1700,f2:800,q:1.2});chitter(d,{n:16,g:.28});
       voice(d,{t:.08,dur:1.05,a:.015,rel:.35,f0:240,f1:135,v:'small',v2:'ah',rasp:57,raspD:.75,jit:.09,vib:.03,noise:.35,sub:.4,g:.6,drive:6});
       voice(d,{t:.1,dur:.9,a:.02,rel:.3,f0:120,f1:80,v:'aw',rasp:41,raspD:.7,noise:.4,sub:.5,g:.3,drive:4})}},
+  // the supervisor on the handheld: squelch, a few seconds of muffled talking, squelch
+  radio(){if(!AU.ready)return;const C=AU.ctx,d=dest(null,{rev:.04,gain:.9}),bp=C.createBiquadFilter(),ws=C.createWaveShaper();
+    bp.type='bandpass';bp.frequency.value=1500;bp.Q.value=.9;ws.curve=shaper(3);bp.connect(ws);ws.connect(d);
+    nz(d,{dur:.14,a:.003,g:.32,f:2600,q:.7});const len=speech(bp,{t:.16,n:randi(9,13),f:rand(100,125),g:.32});
+    const end=.16+len+.05;nz(d,{t:end,dur:.12,a:.003,g:.28,f:2600,q:.7});tone(d,{t:end+.12,type:'square',f:1250,dur:.07,g:.05})},
+  // the warehouse loudspeaker: two-note chime, then an echoing announcement
+  pa(){if(!AU.ready)return;const C=AU.ctx,d=dest(null,{rev:.75,gain:.85}),bp=C.createBiquadFilter();bp.type='bandpass';bp.frequency.value=1100;bp.Q.value=.8;bp.connect(d);
+    tone(d,{type:'sine',f:784,dur:.9,a:.01,g:.22});tone(d,{type:'sine',f:622,dur:1.1,a:.01,g:.22,t:.45});speech(bp,{t:1.15,n:randi(8,11),f:rand(95,110),g:.36})},
+  tick(urgent){if(!AU.ready)return;const d=dest(null,{rev:.15,gain:urgent?1:.7});tone(d,{type:'triangle',f:urgent?2600:2100,dur:.035,a:.001,g:.16});nz(d,{dur:.02,a:.001,g:.1,type:'highpass',f:4000})},
+  // every light in the building cutting out at once
+  powerDown(){if(!AU.ready)return;const d=dest(null,{rev:.7,gain:1});impact(d,.8);tone(d,{type:'sawtooth',f:120,f2:22,dur:1.8,a:.01,g:.25});
+    for(let i=0;i<6;i++)nz(d,{t:rand(0,.5),dur:.05,a:.002,g:.25,type:'highpass',f:3000})},
   hurt(){if(!AU.ready)return;const d=dest(null,{rev:.2});nz(d,{dur:.3,g:.4,type:'lowpass',f:500});tone(d,{f:80,f2:45,dur:.3,g:.5})},
   beat(v){if(!AU.ready)return;const d=dest(null,{rev:0,gain:v});tone(d,{f:58,f2:40,dur:.14,g:.6});tone(d,{f:52,f2:36,dur:.16,g:.45,t:.2})},
   brake(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.2,ref:4});nz(d,{dur:1.3,a:.01,g:.4,type:'highpass',f:2200});tone(d,{type:'sawtooth',f:60,f2:35,dur:.6,g:.2})},
@@ -738,7 +761,7 @@ function startNight(){
   for(const s of SLOTS)s.box=-1;
   S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,emptyT:undefined,honk:0}));
   S.lamps=LAMPS.map(()=>1);HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)*(i===0?1.8:i===3?.6:1));
-  HOST.nextTruck=6;HOST.nextStalker=rand(42,55)-Math.min(20,(S.night-1)*6);HOST.trucksTonight=0;
+  HOST.nextTruck=6;HOST.nextStalker=rand(42,55)-Math.min(20,(S.night-1)*6);HOST.trucksTonight=0;HOST.lastTruck=false;S.ot=false;
   S.quota=calcQuota();
   const pos={};Object.values(S.players).forEach((p,i)=>{const sp=spawnPoint(i);Object.assign(p,{x:sp.x,z:sp.z,yaw:0,pitch:0,hp:100,dead:false,carry:-1,lastHurt:-99});pos[p.id]=[sp.x,sp.z]});
   emit({e:'night',n:S.night,q:S.quota,pos});
@@ -747,9 +770,21 @@ function endNight(){
   if(S.shelved>=S.quota){S.total+=S.shelved;S.phase='inter';S.inter=9;
     S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0}));S.mons=[];S.boxes=S.boxes.filter(b=>b.st===2);S.bver++;
     for(const p of Object.values(S.players))p.carry=-1;
-    emit({e:'nightDone',n:S.night,sh:S.shelved,q:S.quota,lo:S.lost})}
+    emit({e:'nightDone',n:S.night,sh:S.shelved,q:S.quota,lo:S.lost,ot:!!S.ot});S.ot=false}
   else gameOver('quota')}
-function gameOver(why){if(S.over)return;S.over={why,night:S.night,total:S.total+S.shelved,score:S.score,shelved:S.shelved,quota:S.quota};emit({e:'over'})}
+function gameOver(why){if(S.over)return;S.over={why,night:S.night,total:S.total+S.shelved,score:S.score,shelved:S.shelved,quota:S.quota,ot:!!S.ot};emit({e:'over'})}
+// how far behind the steady pace that meets quota exactly at 6:00 AM
+function behindPace(){return Math.ceil(S.quota*Math.min(1,S.t/SHIFT_END)-S.shelved)}
+// the supervisor radios at 3, 4 and 5 AM, but only when the crew is falling behind
+function paceCheck(h){const b=behindPace();
+  if(b>=2){const bad=b>=Math.max(4,S.quota*.3);
+    emit({e:'radio',m:bad?`You're ${b} boxes behind. Miss ${S.quota} by six and don't bother coming back tomorrow.`:pick([`You're ${b} boxes behind pace. Pick it up.`,`${b} boxes behind where you should be. Move it.`])})}
+  if(h===5)emit({e:'finalHour',need:Math.max(0,S.quota-S.shelved)})}
+// 6 AM and short: one minute of overtime with the lights out and everything hungrier
+function startOvertime(){S.ot=true;S.lamps=LAMPS.map(()=>0);HOST.nextStalker=Math.min(HOST.nextStalker,4);
+  const has=S.trucks.some((tr,i)=>(tr.st===1||tr.st===2)&&S.boxes.some(b=>b.st===0&&b.bay===i&&!b.m));let bay=-1;
+  if(!has){const free=S.trucks.map((t,i)=>t.st===0?i:-1).filter(i=>i>=0);if(free.length){bay=pick(free);spawnTruck(bay,true)}}
+  emit({e:'overtime',need:S.quota-S.shelved,b:bay})}
 
 function boxWorld(b){if(b.st===0){return{x:BAYS[b.bay].x+b.x,y:b.y,z:S.trucks[b.bay].z+b.z}}
   if(b.st===1){const p=S.players[b.h];if(p)return{x:p.x,y:1.1,z:p.z}}return{x:b.x,y:b.y,z:b.z}}
@@ -772,8 +807,9 @@ function settleTruck(bay){const bs=S.boxes.filter(b=>b.st===0&&b.bay===bay).sort
 function simUpdate(dt){
   if(!S||S.over)return;
   if(S.phase==='inter'){S.inter-=dt;if(S.inter<=0){S.night++;startNight()}return}
-  const h0=Math.floor(S.t/HOUR);S.t+=dt;const h1=Math.floor(S.t/HOUR);if(h1!==h0&&h1<SHIFT_HOURS)emit({e:'hour',h:h1});
-  if(S.t>=HOUR*SHIFT_HOURS){endNight();return}
+  const h0=Math.floor(S.t/HOUR);S.t+=dt;const h1=Math.floor(S.t/HOUR);if(h1!==h0&&h1<SHIFT_HOURS){emit({e:'hour',h:h1});if(h1>=3)paceCheck(h1)}
+  if(!S.ot&&S.t>=SHIFT_END){if(S.shelved>=S.quota){endNight();return}startOvertime()}
+  if(S.ot){if(S.shelved>=S.quota){endNight();return}if(S.t>=SHIFT_END+OVERTIME){gameOver('quota');return}}
   applyColliders();
   trucksUpdate(dt);boxesUpdate(dt);monstersUpdate(dt);lampsUpdate(dt);
   for(const p of Object.values(S.players))if(!p.dead&&p.hp<60&&S.t-p.lastHurt>12)p.hp=Math.min(60,p.hp+dt*2.5);
@@ -781,7 +817,7 @@ function simUpdate(dt){
 }
 
 // ---------------------------------------------------------------- trucks
-function spawnTruck(i){const tr=S.trucks[i];const first=S.night===1&&HOST.trucksTonight===0;
+function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&HOST.trucksTonight===0;
   Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0});
   const n=Math.min(16,randi(6,9)+Math.min(5,S.night-1));
   tr.lurk=!first&&Math.random()<Math.min(.55,.17+.09*(S.night-1));
@@ -793,20 +829,23 @@ function spawnTruck(i){const tr=S.trucks[i];const first=S.night===1&&HOST.trucks
   for(let k=0;k<n;k++){const sp=spots[k%spots.length];const K=randi(0,2),kind=BOX_KINDS[K];const m=Math.random()<mimP&&mimics<3;if(m)mimics++;
     S.boxes.push({id:boxSeq++,st:0,bay:i,x:sp.lx+rand(-.08,.08),y:sp.h,z:sp.lz+rand(-.12,.12),ry:rand(-.25,.25),k:K,f:Math.random()<.16,v:randi(0,3),h:'',s:-1,m,tw:rand(1,4)});sp.h+=kind.h}
   if(tr.lurk)S.mons.push({id:monSeq++,ty:1,bay:i,st:'hide',lx:0,lz:LURK_HOME,x:BAYS[i].x,y:0,z:tr.z+LURK_HOME,ry:0,a:0,litT:0,hideT:0,wake:0});
-  S.bver++;emit({e:'truck',b:i})}
+  S.bver++;emit({e:'truck',b:i,last})}
 function truckGone(i){const tr=S.trucks[i];let n=0;for(const b of S.boxes)if(b.st===0&&b.bay===i){b.st=4;if(!b.m&&!tr.reject)n++}
   S.lost+=n;S.mons=S.mons.filter(m=>!(m.ty===1&&m.bay===i));S.bver++;
   if(n)emit({e:'msg',m:`Bay ${BAYS[i].name} left with ${n} box${n>1?'es':''} still on board.`});
   Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,emptyT:undefined,honk:0})}
 function trucksUpdate(dt){
   HOST.nextTruck-=dt;
-  if(HOST.nextTruck<=0){if(S.t<HOUR*SHIFT_HOURS-50){const free=S.trucks.map((t,i)=>t.st===0?i:-1).filter(i=>i>=0);
+  if(HOST.nextTruck<=0){if(S.t<SHIFT_END-60){const free=S.trucks.map((t,i)=>t.st===0?i:-1).filter(i=>i>=0);
       if(free.length){spawnTruck(HOST.trucksTonight===0?0:pick(free));HOST.nextTruck=Math.max(24,rand(40,58)-S.night*3)}else HOST.nextTruck=5}else HOST.nextTruck=1e9}
+  // the last truck of the night pulls in around 5:10 and is docked by about 5:25
+  if(!HOST.lastTruck&&!S.ot&&S.t>=LAST_TRUCK_AT&&S.t<SHIFT_END-15){const free=S.trucks.map((t,i)=>t.st===0?i:-1).filter(i=>i>=0);
+    if(free.length){HOST.lastTruck=true;spawnTruck(pick(free),true)}}
   S.trucks.forEach((tr,i)=>{
     if(tr.st===1){tr.t+=dt;const p=Math.min(1,tr.t/9.5);tr.z=lerp(TZ_FAR,TZ_DOCK,easeOut(p));if(p>=1){tr.st=2;tr.t=0;tr.z=TZ_DOCK;emit({e:'brake',b:i})}}
     else if(tr.st===2){tr.door=Math.min(1,tr.door+dt/2.6);tr.t+=dt;tr.left=S.boxes.filter(x=>x.st===0&&x.bay===i).length;
       if(tr.left===0&&tr.door>=1)tr.emptyT=(tr.emptyT===undefined?5:tr.emptyT)-dt;else tr.emptyT=undefined;
-      if(tr.reject||(tr.emptyT!==undefined&&tr.emptyT<=0)||tr.t>=DOCK_TIME){
+      if(tr.reject||(tr.emptyT!==undefined&&tr.emptyT<=0)||(tr.t>=DOCK_TIME&&!S.ot)){
         const inside=alivePlayers().some(p=>inTrailer(p)===i);const lur=S.mons.find(m=>m.ty===1&&m.bay===i);
         if(lur&&lur.st==='hunt')lur.st='recoil';
         if(!inside&&(!lur||lur.st==='hide')){tr.st=3;tr.t=0;emit({e:'horn',b:i})}
@@ -829,8 +868,8 @@ function burstMimic(b,pid,attack){const w=boxWorld(b),bay=b.st===0?b.bay:-1;b.st
 // ---------------------------------------------------------------- monsters
 function monstersUpdate(dt){
   HOST.nextStalker-=dt;
-  if(HOST.nextStalker<=0){const n=S.mons.filter(m=>m.ty===2).length,max=S.night>=4?2:1;
-    if(n<max){HOST.nextStalker=spawnStalker()?Math.max(16,rand(30,52)-S.night*4):4}else HOST.nextStalker=6}
+  if(HOST.nextStalker<=0){const n=S.mons.filter(m=>m.ty===2).length,max=(S.night>=4?2:1)+(S.ot?1:0);
+    if(n<max){HOST.nextStalker=spawnStalker()?(S.ot?rand(8,14):Math.max(16,rand(30,52)-S.night*4)):4}else HOST.nextStalker=6}
   for(const m of S.mons){if(m.ty===0)mimicUpdate(m,dt);else if(m.ty===1)lurkerUpdate(m,dt);else stalkerUpdate(m,dt)}
   S.mons=S.mons.filter(m=>!m.dead)}
 
@@ -853,7 +892,7 @@ function lurkerUpdate(m,dt){const tr=S.trucks[m.bay],bx=BAYS[m.bay].x;
   if(m.st==='hide'){m.a=lit?1:0;m.hideT-=dt;if(m.hideT>0||tr.door<1)return;
     const taken=1-tr.left/Math.max(1,tr.n);
     const trig=alivePlayers().some(p=>(inTrailer(p)===m.bay&&p.z<tr.z-4.8)||(taken>=.5&&Math.hypot(p.x-m.x,p.z-m.z)<10.5));
-    if(trig){m.wake+=dt;if(m.wake>1.3){m.st='hunt';m.wake=0;m.litT=0;emit({e:'growl',id:m.id})}}else m.wake=Math.max(0,m.wake-dt);return}
+    if(trig){m.wake+=dt;if(m.wake>(S.ot?.5:1.3)){m.st='hunt';m.wake=0;m.litT=0;emit({e:'growl',id:m.id})}}else m.wake=Math.max(0,m.wake-dt);return}
   if(m.st==='hunt'){
     const tgt=nearestPlayer(m.x,m.z,16,p=>inTrailer(p)===m.bay||(p.z>WH.z0-.5&&p.z<WH.z0+7&&Math.abs(p.x-bx)<5));
     if(!tgt){m.st='recoil';return}
@@ -890,13 +929,13 @@ function stalkerUpdate(m,dt){m.life-=dt;if(m.life<=0){m.dead=true;emit({e:'fade'
   let tx=tgt.x,tz=tgt.z;
   if(!(D<2.5&&!segBlocked(m.x,m.z,tgt.x,tgt.z))&&m.path){while(m.path.length&&Math.hypot(m.path[0].x-m.x,m.path[0].z-m.z)<.45)m.path.shift();if(!m.path.length){m.a=0;return}tx=m.path[0].x;tz=m.path[0].z}
   const dx=tx-m.x,dz=tz-m.z,d=Math.hypot(dx,dz);if(d<.01)return;
-  const sp=Math.min(3.3,1.6+.28*(S.night-1));const nx=m.x+dx/d*sp*dt,nz=m.z+dz/d*sp*dt;
+  const sp=Math.min(3.3,1.6+.28*(S.night-1))*(S.ot?1.35:1);const nx=m.x+dx/d*sp*dt,nz=m.z+dz/d*sp*dt;
   if(lampZone(nx,nz,0)>=0){m.a=0;return}
   m.x=nx;m.z=nz;m.ry=Math.atan2(dx,dz);m.a=2}
 
 // ---------------------------------------------------------------- lamps
 function lampOut(i,dur){if(!S.lamps[i])return;S.lamps[i]=0;HOST.lampT[i]=dur;emit({e:'lamp',i})}
-function lampsUpdate(dt){for(let i=0;i<LAMPS.length;i++){
+function lampsUpdate(dt){if(S.ot)return;for(let i=0;i<LAMPS.length;i++){
   if(!S.lamps[i]){HOST.lampT[i]-=dt;if(HOST.lampT[i]<=0){S.lamps[i]=1;emit({e:'lampOn',i})}continue}
   HOST.lampNext[i]-=dt;if(HOST.lampNext[i]<=0){HOST.lampNext[i]=rand(25,50)*(i===0?1.8:i===3?.6:1);lampOut(i,rand(1.5,4.5))}}}
 
@@ -986,7 +1025,7 @@ function netClose(){NET.closing=true;try{NET.peer&&NET.peer.destroy()}catch(e){}
 
 // ---- snapshots
 const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
-function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,it:r2(S.inter),q:S.quota,sh:S.shelved,lo:S.lost,sc:S.score,to:S.total,ai:S.aidLeft,la:S.lamps,bv:S.bver,ov:S.over,
+function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S.inter),q:S.quota,sh:S.shelved,lo:S.lost,sc:S.score,to:S.total,ai:S.aidLeft,la:S.lamps,bv:S.bver,ov:S.over,
   pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry]),
   tr:S.trucks.map(t=>[t.st,r2(t.z),r2(t.door),Math.round(t.t),t.warn?1:0,t.claw?1:0,t.left,t.n,t.reject?1:0,t.kg||0,t.extra||0]),
   mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0]),
@@ -994,7 +1033,7 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,it:r2(S.inter),q:S.
 function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1])}
 function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11]}));
   for(const s of SLOTS)s.box=-1;for(const b of S.boxes)if(b.st===2&&SLOTS[b.s])SLOTS[b.s].box=b.id}
-function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,inter:m.it,quota:m.q,shelved:m.sh,lost:m.lo,score:m.sc,total:m.to,aidLeft:m.ai,lamps:m.la,over:m.ov});
+function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,inter:m.it,quota:m.q,shelved:m.sh,lost:m.lo,score:m.sc,total:m.to,aidLeft:m.ai,lamps:m.la,over:m.ov});
   const seen=new Set();
   for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry});
     if(id!==NET.myId)Object.assign(p,{x,z,yaw,pitch,light:!!light});else if(!p.init){p.init=1;p.x=x;p.z=z}}
@@ -1256,11 +1295,16 @@ function drainEvents(){while(EVQ.length){const e=EVQ.shift();try{onEvent(e)}catc
 function onEvent(e){const me=NET.myId;
   switch(e.e){
   case 'night':{const p=e.pos&&e.pos[me];if(p){ME.x=p[0];ME.z=p[1];ME.ready=true;ME.yaw=0;ME.pitch=0;ME.vx=ME.vz=0}ME.bat=100;ME.stam=100;ME.light=true;ME.lastHp=100;ME.deathT=0;
-    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM`,4);SFX.bell();
-    if(e.n===1&&!GAME.hints.start){GAME.hints.start=1;setTimeout(()=>GAME.on&&toast('A truck is backing into Bay A. Unload it and shelve the boxes.',5),4500)}break}
-  case 'nightDone':big('6:00 AM',`Night ${e.n} survived · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
+    big(`NIGHT ${e.n}`,`Shelve ${e.q} boxes before 6:00 AM or you're fired`,4.5);SFX.bell();
+    if(e.n===1&&!GAME.hints.start){GAME.hints.start=1;setTimeout(()=>GAME.on&&toast('A truck is backing into Bay A. Unload it and shelve the boxes.',5),4500);
+      setTimeout(()=>GAME.on&&toast('Your quota is top left. Keep the bar ahead of the white marker to stay on pace.',6),11000)}break}
+  case 'radio':SFX.radio();toast(`Supervisor, on the radio: "${e.m}"`,6,'radio');break;
+  case 'finalHour':SFX.pa();toast(e.need>0?`Loudspeaker: "Final hour. ${e.need} more box${e.need>1?'es':''} to make quota."`:'Loudspeaker: "Final hour."',5,'radio');break;
+  case 'overtime':SFX.powerDown();big('OVERTIME',`${e.need} more box${e.need>1?'es':''} in 60 seconds. The lights are out.`,5);
+    if(e.b>=0)setTimeout(()=>GAME.on&&toast(`One last truck is backing into Bay ${BAYS[e.b].name}.`,4,'radio'),2500);break;
+  case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
   case 'hour':SFX.bell();toast(`${e.h}:00 AM`,2.5);break;
-  case 'truck':toast(`Truck inbound: Bay ${BAYS[e.b].name}`,3);break;
+  case 'truck':if(e.last&&!S.ot){SFX.pa();toast(`Loudspeaker: "Last truck of the night, Bay ${BAYS[e.b].name}."`,5,'radio')}else if(!e.last)toast(`Truck inbound: Bay ${BAYS[e.b].name}`,3);break;
   case 'brake':SFX.brake({x:BAYS[e.b].x,y:1,z:TZ_DOCK-6});break;
   case 'horn':SFX.horn({x:BAYS[e.b].x,y:1.5,z:TZ_DOCK-TRAIL_LEN});break;
   case 'tw':{const m=BM.get(e.id);if(m){m.userData.tw=.7;SFX.scratch({x:m.position.x,y:m.position.y+.3,z:m.position.z})}break}
@@ -1283,7 +1327,7 @@ function onEvent(e){const me=NET.myId;
 
 // ===================================================================== HUD
 let toastT=0,bigT=0;
-function toast(m,d=3.5){const el=$('toast');el.textContent=m;el.style.opacity=1;toastT=d}
+function toast(m,d=3.5,cls=''){const el=$('toast');el.textContent=m;el.className=cls;el.style.opacity=1;toastT=d}
 function big(a,b,d=4){const el=$('big');el.innerHTML=`${a}<small>${b||''}</small>`;el.style.opacity=1;bigT=d}
 function fmtClock(t){const mins=Math.floor(t/HOUR*60),h=Math.floor(mins/60),m=mins%60;return`${h===0?12:h}:${String(m).padStart(2,'0')} AM`}
 const mmss=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
@@ -1302,9 +1346,17 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';}
   if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
   $('cross').className=t&&(t.kind!=='slot'||t.ok)?'on':'';
+  // a clock ticks through the last minute and overtime, only while the quota isn't met; double time for the final 10 s
+  if(S.phase==='play'&&!S.over&&S.shelved<S.quota&&S.t>=SHIFT_END-60){const urgent=S.ot&&S.t>=SHIFT_END+OVERTIME-10,k=Math.floor(S.t*(urgent?2:1));
+    if(k!==GAME.tickK){if(GAME.tickK!==undefined)SFX.tick(urgent||S.ot);GAME.tickK=k}}else GAME.tickK=undefined;
   GAME.hudT-=dt;if(GAME.hudT>0)return;GAME.hudT=.1;
-  $('clock').textContent=S.phase==='inter'?'6:00 AM':fmtClock(S.t);$('night').textContent=`NIGHT ${S.night}`;
-  const q=$('quota');q.textContent=`Shelved ${S.shelved} / ${S.quota}`;q.className=S.shelved>=S.quota?'ok':'';
+  const ck=$('clock');ck.textContent=S.phase==='inter'?'6:00 AM':S.ot?`OVERTIME ${mmss(Math.max(0,SHIFT_END+OVERTIME-S.t))}`:fmtClock(S.t);
+  ck.className=S.phase!=='play'?'':S.ot?'ot':S.t>=HOUR*5&&S.shelved<S.quota?'late':'';$('night').textContent=`NIGHT ${S.night}`;
+  // pace: how many boxes short of the steady rate that makes quota exactly at 6:00
+  const met=S.shelved>=S.quota,pace=S.phase==='play'?Math.min(1,S.t/SHIFT_END):1,behind=met?0:Math.ceil(S.quota*pace-S.shelved);
+  const st=met?'ok':behind>=Math.max(4,S.quota*.3)?'far':behind>=2?'behind':'';
+  const q=$('quota');q.textContent=`Shelved ${S.shelved} / ${S.quota}`+(S.ot&&!met?` · ${S.quota-S.shelved} to go`:st==='behind'||st==='far'?` · ${behind} behind`:'');q.className=st;
+  const qb=$('qbar');qb.className=st;qb.firstChild.style.width=Math.min(100,S.shelved/S.quota*100)+'%';qb.lastChild.style.left=(pace*100)+'%';
   let h='';S.trucks.forEach((tr,i)=>{const n=BAYS[i].name;
     if(tr.st===0)h+=`<div class="bay">BAY ${n} &middot; empty</div>`;
     else{let s=tr.st===1?'truck backing in&hellip;':tr.st===3?'truck pulling out':tr.reject?'refused, leaving':`${tr.left} / ${tr.n} boxes &middot; leaves in ${mmss(Math.max(0,DOCK_TIME-tr.t))}`;
@@ -1344,7 +1396,7 @@ function renderLobby(){show('lobby');$('code').textContent=NET.code||'-----';
   $('bStart').classList.toggle('hide',NET.mode!=='host')}
 function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
   const crew=S&&Object.keys(S.players).length>1;
-  const T={dead:[crew?'THE CREW IS GONE':'YOU DIDN\'T MAKE IT',crew?'Nobody clocked out this morning.':'Something in the dark got you.'],quota:['FIRED',`You missed the quota: ${o.shelved} of ${o.quota} boxes shelved.`],host:['DISCONNECTED','The host left the crew room.']}[o.why]||['SHIFT OVER',''];
+  const T={dead:[crew?'THE CREW IS GONE':'YOU DIDN\'T MAKE IT',crew?'Nobody clocked out this morning.':'Something in the dark got you.'],quota:['FIRED',`You missed the quota${o.ot?', even on overtime':''}: ${o.shelved} of ${o.quota} boxes shelved.`],host:['DISCONNECTED','The host left the crew room.']}[o.why]||['SHIFT OVER',''];
   $('overTitle').textContent=T[0];$('overWhy').textContent=T[1];
   $('overStats').innerHTML=`Nights survived: <b>${Math.max(0,o.night-1)}</b><br>Boxes shelved: <b>${o.total}</b><br>Pay: <b>$${(o.score*1.25).toFixed(2)}</b>`;
   $('bAgain').classList.toggle('hide',NET.mode==='client'||o.why==='host');
@@ -1427,7 +1479,7 @@ async function init(){
   applyQuality();bindUI();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,
+  window.GS={get S(){return S},ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});
 </script>
