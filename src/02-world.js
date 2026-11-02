@@ -35,7 +35,8 @@ function buildWorld(){
   {const g=new THREE.BoxGeometry(wt,H,40);uvs(g,40/2.2,H/2.2);g.translate(WH.x0-wt/2,H/2,0);sg(MAT.wall,g,false);col(WH.x0-wt,WH.z0,WH.x0,WH.z1)}
   {const g=new THREE.BoxGeometry(wt,H,40);uvs(g,40/2.2,H/2.2);g.translate(WH.x1+wt/2,H/2,0);sg(MAT.wall,g,false);col(WH.x1,WH.z0,WH.x1+wt,WH.z1)}
   // dark wainscot band and floor kick
-  for(const z of[WH.z0+.01,WH.z1-.01])sbox(MAT.dark,60,1,.02,0,.5,z,{cast:false});
+  sbox(MAT.dark,60,1,.02,0,.5,WH.z1-.01,{cast:false});
+  for(let i=0;i<xs.length;i+=2)sbox(MAT.dark,xs[i+1]-xs[i],1,.02,(xs[i]+xs[i+1])/2,.5,WH.z0+.01,{cast:false}); // not across the bay openings
   for(const x of[WH.x0+.01,WH.x1-.01])sbox(MAT.dark,.02,1,40,x,.5,0,{cast:false});
 
   // ---- loading bays
@@ -46,7 +47,7 @@ function buildWorld(){
     sbox(MAT.yellow,.18,DOOR_H,.5,b.x-DOOR_HW-.09,DOOR_H/2,WH.z0-.15);sbox(MAT.yellow,.18,DOOR_H,.5,b.x+DOOR_HW+.09,DOOR_H/2,WH.z0-.15);
     sbox(MAT.dark,DOOR_HW*2+.4,.5,.6,b.x,DOOR_H+.25,WH.z0-.2); // door drum housing
     for(const s of[-1,1]){sbox(MAT.rubber,.42,DOOR_H,.9,b.x+s*1.5,DOOR_H/2,WH.z0-.85);col(b.x+s*1.25,WH.z0-1.3,b.x+s*1.75,WH.z0-.4);
-      sbox(MAT.rubber,.35,.35,.25,b.x+s*1.0,.55,WH.z0-.5)}
+      sbox(MAT.rubber,.3,.35,.22,b.x+s*(DOOR_HW+.05),.55,WH.z0+.11)} // bumpers sit on the wall face, clear of the trailer
     // roll door
     const door=new THREE.Group();const panel=new THREE.Mesh(GEO.box,toon(0x8a8f92,{map:TEX.wall}));panel.scale.set(DOOR_HW*2,DOOR_H,.08);panel.castShadow=true;panel.receiveShadow=true;door.add(panel);
     door.position.set(b.x,0,WH.z0-.05);ROOT.add(door);

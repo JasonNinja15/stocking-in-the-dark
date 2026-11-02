@@ -13,7 +13,8 @@ function makeTrailer(){const g=new THREE.Group();const L=TRAIL_LEN,hw=TRAIL_HW,H
   for(let z=-1;z>-L;z-=2.3)for(const s of[-1,1])add(MAT.steel,.05,.08,.05,s*(hw-.03),1.2,z); // tie-down rails
   add(MAT.steel,.04,.04,L-.4,-hw+.02,1.2,-L/2);add(MAT.steel,.04,.04,L-.4,hw-.02,1.2,-L/2);
   // nose pile of shipping blankets the big one hides behind
-  add(MAT.pallet,2.1,.14,1.1,0,.07,-L+2.3);add(MAT.blanket,1.9,.55,1.0,.05,.42,-L+2.25);add(MAT.blanket,1.1,.45,.8,-.35,.9,-L+2.2);
+  // (tall and wall to wall, so nothing lying behind it shows from the door)
+  add(MAT.pallet,2.4,.14,1.1,0,.07,-L+2.3);add(MAT.blanket,2.42,.75,1.0,0,.52,-L+2.25);add(MAT.blanket,1.7,.45,.8,-.3,1.12,-L+2.2);add(MAT.blanket,.9,.3,.7,.6,1.05,-L+2.3);
   for(const [m,arr] of geos){const mesh=new THREE.Mesh(mergeGeometries(arr),m);mesh.castShadow=true;mesh.receiveShadow=true;g.add(mesh);arr.forEach(a=>a.dispose())}
   const front=new THREE.Mesh(new THREE.BoxGeometry(hw*2,H,.2),MAT.ribs);front.position.set(0,H/2,-L-.1);front.receiveShadow=true;g.add(front);
   // wheels/landing gear peek below the floor
@@ -24,25 +25,50 @@ function makeTrailer(){const g=new THREE.Group();const L=TRAIL_LEN,hw=TRAIL_HW,H
 function boxMat(b){return b.f?MAT.fragile:MAT.box[b.v%4]}
 function makeBoxMesh(b){const m=new THREE.Mesh(BOX_KINDS[b.k].geo,boxMat(b));m.castShadow=true;m.receiveShadow=true;m.userData={kind:'box',id:b.id};return m}
 
-// ---- the trailer lurker: big, hunched, four eyes, a jaw that drops open
+// ---- the trailer sleeper: a starved giant. Too-long arms and fingers, ribs through grey skin,
+// a long neck and a lipless mouth full of flat, human teeth. Its eyes are two pinpricks deep in the skull.
 function makeLurker(){const g=new THREE.Group(),body=pivot(0,0,0,g);
-  part(GEO.sph,MAT.lurkSkin,.85,.72,.95,0,1.25,0,body,{rx:.35});
-  part(GEO.sph,MAT.lurkDark,.7,.55,.7,0,1.65,-.35,body);
-  for(let i=0;i<6;i++)part(GEO.cone,MAT.tooth,.07,.35-i*.03,.07,0,1.95-i*.08,-.1-i*.2,body,{rx:-.5-i*.12});
-  const head=pivot(0,1.25,.85,body);
-  part(GEO.sph,MAT.lurkSkin,.42,.3,.5,0,.05,0,head);
-  part(GEO.box,MAT.lurkDark,.62,.09,.22,0,.2,.3,head,{rx:-.35}); // brow ridge
-  const eyes=[];for(const [x,y] of[[-.15,.13],[.15,.13],[-.27,.05],[.27,.05]]){part(GEO.sph,MAT.lurkDark,.06,.045,.04,x,y,.4,head,{cast:false});const e=part(GEO.sph,MAT.eye,.026,.018,.02,x,y,.43,head,{cast:false});eyes.push(e)}
-  part(GEO.box,MAT.gum,.62,.06,.3,0,-.1,.24,head);part(GEO.box,MAT.lurkDark,.56,.04,.36,0,-.13,.2,head);
-  for(let i=-4;i<=4;i++)part(GEO.fang,MAT.tooth,.026,.2+Math.random()*.08,.026,i*.065,-.17,.4-Math.abs(i)*.018,head,{rx:Math.PI});
-  const jaw=pivot(0,-.12,0,head);part(GEO.box,MAT.lurkSkin,.6,.1,.55,0,-.06,.22,jaw);part(GEO.box,MAT.gum,.52,.04,.45,0,0,.22,jaw);
-  part(GEO.box,MAT.tongue,.16,.05,.32,0,.03,.2,jaw);
-  for(let i=-4;i<=4;i++)part(GEO.fang,MAT.tooth,.024,.17+Math.random()*.07,.024,i*.062,.08,.46-Math.abs(i)*.018,jaw);
-  const arms=[];for(const s of[-1,1]){const sh=pivot(s*.7,1.55,.3,body);arms.push(sh);
-    part(GEO.cyl,MAT.lurkSkin,.14,.85,.14,0,-.4,.1,sh,{rx:-.25});const el=pivot(0,-.8,.25,sh);part(GEO.cyl,MAT.lurkDark,.11,.9,.11,0,-.42,.12,el,{rx:-.3});
-    for(let c=-1;c<=1;c++)part(GEO.cone,MAT.tooth,.03,.25,.03,c*.07,-.9,.38,el,{rx:2.2})}
-  for(const s of[-1,1]){part(GEO.cyl,MAT.lurkDark,.18,.75,.18,s*.45,.45,-.35,body,{rx:.6});part(GEO.cyl,MAT.lurkDark,.14,.5,.14,s*.45,.2,.0,body,{rx:-.4})}
-  g.scale.setScalar(1.12);g.userData={body,head,jaw,arms,eyes,ty:1};return g}
+  const hips=pivot(0,.62,-.25,body);part(GEO.sph,MAT.lurkSkin,.3,.22,.26,0,0,0,hips);
+  const legs=[];for(const s of[-1,1]){const th=pivot(s*.2,0,0,hips);part(GEO.cyl,MAT.lurkSkin,.08,.7,.08,0,-.32,.12,th,{rx:-.35});
+    const kn=pivot(0,-.62,.3,th);part(GEO.cyl,MAT.lurkDark,.06,.62,.06,0,-.28,-.08,kn,{rx:.3});part(GEO.box,MAT.lurkDark,.12,.04,.3,0,-.58,.0,kn);legs.push({th,kn,s})}
+  const torso=pivot(0,.05,0,hips);
+  part(GEO.sph,MAT.lurkSkin,.36,.6,.26,0,.55,.02,torso);                       // a ribcage you can count
+  for(let i=0;i<6;i++)part(GEO.box,MAT.lurkRib,.62-i*.035,.035,.08,0,.28+i*.13,.22-Math.abs(i-2.5)*.012,torso,{cast:false});
+  for(let i=0;i<9;i++)part(GEO.cone,MAT.lurkDark,.035,.13,.035,0,.08+i*.13,-.24,torso,{rx:-1.9});  // spine knuckles
+  part(GEO.sph,MAT.lurkSkin,.48,.16,.24,0,1.07,0,torso);                        // shoulders, wider than they should be
+  const neck=pivot(0,1.12,.06,torso);part(GEO.cyl,MAT.lurkSkin,.065,.48,.065,0,.22,0,neck);part(GEO.cyl,MAT.lurkRib,.07,.04,.07,0,.12,0,neck,{cast:false});
+  const head=pivot(0,.46,.02,neck);
+  part(GEO.sph,MAT.lurkSkin,.18,.25,.24,0,.07,-.03,head);                       // long bald skull
+  part(GEO.sph,MAT.lurkSkin,.16,.12,.17,0,-.1,.08,head);                         // sunken cheeks
+  const eyes=[];for(const s of[-1,1]){part(GEO.sph,MAT.rubber,.07,.03,.04,s*.085,.08,.2,head,{cast:false,rz:s*-.35});eyes.push(part(GEO.sph,MAT.eye,.01,.01,.01,s*.085,.078,.235,head,{cast:false}))}
+  part(GEO.box,MAT.lurkDark,.22,.045,.07,0,.13,.21,head,{cast:false});          // heavy brow, no hair
+  part(GEO.box,MAT.rubber,.04,.05,.02,0,.0,.24,head,{cast:false});              // two slits where a nose was
+  part(GEO.box,MAT.rubber,.26,.07,.1,0,-.09,.18,head,{cast:false});             // a mouth with no lips, ear to ear
+  for(let i=-6;i<=6;i++)part(GEO.box,MAT.tooth,.016,.036,.016,i*.018,-.07,.235-Math.abs(i)*.007,head,{cast:false}); // flat, human, too many
+  const jaw=pivot(0,-.1,.04,head);part(GEO.box,MAT.lurkSkin,.2,.045,.2,0,-.045,.1,jaw);part(GEO.box,MAT.gum,.18,.02,.16,0,-.02,.1,jaw);
+  for(let i=-6;i<=6;i++)part(GEO.box,MAT.tooth,.016,.032,.016,i*.018,0,.19-Math.abs(i)*.007,jaw,{cast:false});
+  const arms=[];for(const s of[-1,1]){const sh=pivot(s*.44,1.04,0,torso);part(GEO.cyl,MAT.lurkSkin,.06,.95,.06,0,-.47,0,sh);
+    const el=pivot(0,-.95,0,sh);part(GEO.sph,MAT.lurkSkin,.075,.075,.075,0,0,0,el,{cast:false});part(GEO.cyl,MAT.lurkSkin,.05,1.0,.05,0,-.5,0,el);
+    const hand=pivot(0,-1.0,0,el);part(GEO.box,MAT.lurkSkin,.1,.12,.05,0,-.05,0,hand);
+    for(let f=-1.5;f<=1.5;f++){const fg=pivot(f*.025,-.1,0,hand);part(GEO.cyl,MAT.lurkDark,.011,.32,.011,0,-.16,0,fg);part(GEO.cone,MAT.tooth,.012,.05,.012,0,-.34,0,fg,{rx:Math.PI,cast:false});fg.rotation.z=f*.07}
+    sh.userData={el,hand,s};arms.push(sh)}
+  g.scale.setScalar(1.15);g.userData={body,hips,torso,neck,head,jaw,arms,legs,eyes,ty:1};return g}
+
+// ---- the crawler: nearly a person, wrong in the proportions. Long limbs bent like a spider's, a slack
+// human face, black hair that always hangs toward the floor.
+function makeCrawler(){const g=new THREE.Group(),orient=pivot(0,0,0,g),body=pivot(0,.42,0,orient);
+  part(GEO.sph,MAT.crawlSkin,.21,.15,.4,0,0,0,body);part(GEO.sph,MAT.crawlSkin,.18,.12,.2,0,-.02,-.38,body);   // chest, hips
+  for(let i=0;i<5;i++)part(GEO.box,MAT.lurkRib,.02,.03,.03,0,.12,-.3+i*.14,body,{cast:false});                 // spine bumps
+  const neck=pivot(0,.05,.33,body);part(GEO.cyl,MAT.crawlSkin,.04,.22,.04,0,.08,.04,neck,{rx:.9});
+  const head=pivot(0,.15,.13,neck);part(GEO.sph,MAT.crawlSkin,.145,.175,.155,0,0,0,head);
+  const face=new THREE.Mesh(new THREE.SphereGeometry(1,16,12,Math.PI*.08,Math.PI*.84,Math.PI*.18,Math.PI*.62),MAT.crawlFace);face.scale.set(.147,.178,.158);head.add(face);
+  // hair always hangs straight down (kept upright every frame) in a ring, so from below it frames the face
+  const hair=pivot(0,0,0,head);for(let i=0;i<16;i++){const a=(i/16)*TAU;const l=rand(.3,.55);part(GEO.cyl,MAT.hair,.014,l,.014,Math.sin(a)*.13,-l/2+.05,Math.cos(a)*.12,hair,{cast:false})}
+  const limbs=[];for(const [s,z,len] of[[-1,.28,1],[1,.28,1],[-1,-.34,.95],[1,-.34,.95]]){const sh=pivot(s*.15,0,z,body);
+    part(GEO.cyl,MAT.crawlSkin,.055,.55*len,.055,s*.27*len,.13*len,0,sh,{rz:-s*1.12});const el=pivot(s*.52*len,.27*len,0,sh);part(GEO.sph,MAT.crawlSkin,.06,.06,.06,0,0,0,el,{cast:false});
+    part(GEO.cyl,MAT.crawlSkin,.042,.75*len,.042,s*.11,-.35*len,0,el,{rz:s*.3});const hd=part(GEO.box,MAT.crawlSkin,.12,.03,.17,s*.22,-.7*len,.03,el,{cast:false});
+    limbs.push({sh,el,s,ph:limbs.length%3===0?0:Math.PI})}
+  g.userData={orient,body,neck,head,hair,limbs,ty:3};return g}
 
 // ---- the stalker: tall, starved, a pale grinning face
 function makeStalker(){const g=new THREE.Group(),body=pivot(0,0,0,g);

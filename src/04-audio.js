@@ -80,6 +80,20 @@ const SFX={
   hiss(pos){if(!AU.ready)return;const d=dest(pos,{rev:.35,gain:1.2});nz(d,{dur:1.1,a:.08,g:.45,type:'highpass',f:3200});tone(d,{type:'sawtooth',f:70,f2:55,dur:1,g:.12})},
   // the trailer thing waking up: a long, low, rattling growl from deep in the chest
   growl(pos){if(!AU.ready)return;const d=dest(pos,{rev:.45,gain:1.2,ref:3});voice(d,{dur:1.9,a:.35,rel:.6,f0:68,f1:52,v:'oo',v2:'aw',rasp:26,raspD:.85,jit:.04,noise:.5,sub:.8,g:.45,drive:3})},
+  // the sleeper, held in the light too long: a short, enormous roar as it comes for you
+  roar(pos){if(!AU.ready)return;const d=dest(pos,{rev:.5,gain:1.1,ref:3});
+    voice(d,{dur:1.1,a:.03,rel:.4,f0:120,f1:70,v:'ah',v2:'aw',rasp:31,raspD:.85,jit:.06,noise:.45,sub:.9,g:.6,drive:5});
+    voice(d,{t:.05,dur:.9,a:.03,rel:.35,f0:190,f1:105,v:'eh',v2:'aw',rasp:44,raspD:.7,jit:.07,noise:.3,sub:.2,g:.3,drive:6})},
+  // the crawler leaving its trailer: a high, wavering, almost-human sound, like a laugh that forgot how
+  crawlOut(pos){if(!AU.ready)return;const d=dest(pos,{rev:.65,gain:1.1,ref:3});
+    voice(d,{dur:2.4,a:.08,rel:.7,f0:420,f1:560,v:'oo',v2:'ee',rasp:7.5,raspD:.95,jit:.045,vib:.05,noise:.15,sub:0,g:.42,drive:3});
+    voice(d,{t:.12,dur:2.1,a:.1,rel:.6,f0:628,f1:790,v:'ee',v2:'eh',rasp:11,raspD:.9,jit:.05,vib:.06,noise:.1,sub:0,g:.16,drive:2});
+    nz(d,{t:2.2,dur:.5,a:.05,g:.12,f:2400,q:2})},
+  // knuckles and nails on sheet metal, overhead
+  tap(pos,soft){if(!AU.ready)return;const d=dest(pos,{rev:.35,gain:soft?.5:1,ref:2.5,roll:1.1});
+    tone(d,{type:'triangle',f:rand(1100,1900),dur:.03,a:.001,g:.12});nz(d,{dur:.035,a:.001,g:.22,f:rand(2500,4200),q:3});tone(d,{f:rand(160,220),f2:90,dur:.07,g:.12})},
+  // a mimic scrambling off to somewhere new
+  skitter(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1,ref:1.6});nz(d,{dur:.12,g:.25,f:1600,q:1.5});chitter(d,{t:.04,n:12,g:.14})},
   // the stalker driven off by light: an ear-splitting, rising shriek
   shriek(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1});voice(d,{dur:1.0,a:.02,rel:.4,f0:520,f1:980,v:'ee',v2:'ah',rasp:63,raspD:.5,jit:.06,vib:.03,noise:.25,sub:0,g:.4,drive:6});screech(d,{t:.03,dur:.85,f0:900,f1:1500,g:.14})},
   scare(ty){if(!AU.ready)return;const d=dest(null,{rev:.5,gain:ty===1?.62:.75});impact(d,ty===1?1:.7);
@@ -92,6 +106,11 @@ const SFX={
       voice(d,{t:.07,dur:1.35,a:.015,rel:.45,f0:470,f1:900,v:'ee',v2:'ah',rasp:61,raspD:.55,jit:.07,vib:.035,noise:.25,sub:0,g:.6,drive:7});
       screech(d,{t:.09,dur:1.15,f0:820,f1:1550,g:.2,drive:6});
       voice(d,{t:.07,dur:1.2,a:.03,rel:.4,f0:82,f1:64,v:'aw',rasp:38,raspD:.8,noise:.4,sub:.6,g:.32,drive:4})}
+    else if(ty===3){ // the crawler dropping onto you: a gasp, then a high, human-sounding scream
+      nz(d,{dur:.12,a:.08,g:.3,f:900,f2:2800,q:1.4});
+      voice(d,{t:.08,dur:1.3,a:.015,rel:.45,f0:620,f1:1050,v:'ah',v2:'ee',rasp:52,raspD:.5,jit:.08,vib:.05,noise:.2,sub:0,g:.55,drive:6});
+      voice(d,{t:.1,dur:1.2,a:.02,rel:.4,f0:930,f1:1400,v:'ee',rasp:13,raspD:.85,jit:.06,noise:.1,sub:0,g:.2,drive:4});
+      screech(d,{t:.12,dur:.9,f0:1100,f1:1700,g:.12})}
     else{ // the mimic: cardboard tears, it chitters, then snarls in your face
       nz(d,{dur:.25,a:.002,g:.6,f:1700,f2:800,q:1.2});chitter(d,{n:16,g:.28});
       voice(d,{t:.08,dur:1.05,a:.015,rel:.35,f0:240,f1:135,v:'small',v2:'ah',rasp:57,raspD:.75,jit:.09,vib:.03,noise:.35,sub:.4,g:.6,drive:6});

@@ -149,12 +149,17 @@ function spectate(dt){
 
 // ---- jumpscares
 function startScare(ty){if(ME.scare){camera.remove(ME.scare.g)}
-  const g=ty===1?makeLurker():ty===2?makeStalker():makeMimic(1,randi(0,3),false);g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=6}});
-  camera.add(g);ME.scare={t:0,ty,g};toastT=0;bigT=0;SCARE_L.color.set(ty===2?0x9fb4ff:0xff5a3a);SFX.scare(ty);ME.flash=.9;ME.shake=1;ME.fear=1}
+  const g=ty===1?makeLurker():ty===2?makeStalker():ty===3?makeCrawler():makeMimic(1,randi(0,3),false);g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.renderOrder=6}});
+  camera.add(g);ME.scare={t:0,ty,g};toastT=0;bigT=0;SCARE_L.color.set(ty===2||ty===3?0x9fb4ff:0xff5a3a);SFX.scare(ty);ME.flash=.9;ME.shake=1;ME.fear=1}
+const _q=new THREE.Quaternion();
 function updScare(dt){const s=ME.scare,g=s.g,ud=g.userData;s.t+=dt;const k=s.t;
   const lunge=d=>easeOut(Math.min(1,k/d));
-  if(s.ty===1){g.position.set(rand(-.02,.02),-1.5,lerp(-3.6,-2.45,lunge(.22)));ud.body.rotation.x=.1;ud.jaw.rotation.x=Math.min(1.0,k*6)+Math.sin(k*30)*.05;ud.head.rotation.set(-.3,0,Math.sin(k*35)*.1);
-    ud.arms.forEach((a,i)=>{a.rotation.x=-1.9;a.rotation.z=(i?-1:1)*.75})}
+  if(s.ty===1){g.position.set(rand(-.02,.02),-2.3,lerp(-2.9,-1.55,lunge(.2)));ud.body.position.y=-.1;ud.torso.rotation.x=.45;ud.neck.rotation.x=.25;
+    ud.head.rotation.set(-1.0,0,Math.sin(k*23)*.06+.18);ud.jaw.rotation.x=Math.min(.95,k*5);
+    ud.arms.forEach((a,i)=>{a.rotation.x=-2.3;a.rotation.z=(i?-1:1)*.55;a.userData.el.rotation.x=-.5});ud.legs.forEach(l=>{l.th.rotation.x=-1.2;l.kn.rotation.x=1.6})}
+  else if(s.ty===3){ // drops from above: upside down, face to face
+    g.position.set(rand(-.01,.01),lerp(1.9,.66,lunge(.16)),-.06);g.rotation.y=Math.PI;ud.orient.rotation.set(0,0,Math.PI);ud.head.rotation.set(-.1,Math.PI,Math.sin(k*19)*.08);ud.neck.rotation.x=0;
+    ud.limbs.forEach(l=>{l.sh.rotation.y=l.s*(l.ph?-.6:.6);l.el.rotation.z=l.s*-.5});ud.hair.quaternion.copy(ud.head.getWorldQuaternion(_q).invert()).multiply(camera.quaternion)} // hair hangs toward the bottom of the screen
   else if(s.ty===2){g.position.set(rand(-.015,.015),-2.5,lerp(-1.4,-.78,lunge(.16)));ud.torso.rotation.x=.05;ud.head.rotation.set(Math.sin(k*31)*.08,0,Math.sin(k*42)*.16+.25);
     ud.arms.forEach((a,i)=>{a.rotation.x=-1.45;a.rotation.z=(i?-1:1)*.62;a.userData.el.rotation.x=-.7})}
   else{g.position.set(rand(-.02,.02),-.38,lerp(-2.1,-1.55,lunge(.14)));g.rotation.x=1.2;ud.lids.forEach(l=>l.p.rotation.x=l.s*(.95+Math.sin(k*40)*.25));
@@ -183,28 +188,47 @@ function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
   const cb=me&&me.carry>=0?S.boxes.find(b=>b.id===me.carry):null;setViewBox(me&&!me.dead?cb:null)}
 function syncMonsters(dt,time){const live=new Set();
   for(const m of S.mons){live.add(m.id);let v=MV.get(m.id);
-    if(!v){const g=m.ty===0?makeMimic(m.k,m.v,m.f):m.ty===1?makeLurker():makeStalker();g.position.set(m.x,m.y,m.z);g.rotation.y=m.ry;ROOT.add(g);
+    if(!v){const g=m.ty===0?makeMimic(m.k,m.v,m.f):m.ty===1?makeLurker():m.ty===3?makeCrawler():makeStalker();g.position.set(m.x,m.y,m.z);g.rotation.y=m.ry;ROOT.add(g);
       v={g,ty:m.ty,lp:null,ph:Math.random()*10,a:0,fade:1};MV.set(m.id,v)}
-    if(AU.ready&&!v.lp&&m.ty!==0)v.lp=loop(m.ty===1?'breath':'whisper',{x:m.x,y:1.5,z:m.z},m.ty===1?1.3:1);
-    const g=v.g;if(Math.hypot(g.position.x-m.x,g.position.z-m.z)>3){g.position.set(m.x,m.y,m.z)}
+    if(AU.ready&&!v.lp&&(m.ty===1||m.ty===2))v.lp=loop(m.ty===1?'breath':'whisper',{x:m.x,y:1.5,z:m.z},m.ty===1?1.3:1);
+    const g=v.g;if(Math.hypot(g.position.x-m.x,g.position.z-m.z,g.position.y-m.y)>3){g.position.set(m.x,m.y,m.z)}
     else{g.position.x=damp(g.position.x,m.x,15,dt);g.position.z=damp(g.position.z,m.z,15,dt);g.position.y=damp(g.position.y,m.y,15,dt)}
-    g.rotation.y=angLerp(g.rotation.y,m.ry,dt*8);v.a=m.a;animMonster(v,dt,time);
+    g.rotation.y=angLerp(g.rotation.y,m.ry,dt*8);v.a=m.a;v.k=m.k;animMonster(v,dt,time);
+    if(m.ty===3)g.visible=m.a!==0; // tucked away behind the blankets
     if(v.lp){v.lp.pos({x:g.position.x,y:1.5,z:g.position.z});
-      if(m.ty===1)v.lp.set(m.a===2?1:m.a===1?.35:.75,.2);
+      if(m.ty===1)v.lp.set(m.a===0?.55:m.a===4?1:0,.25); // slow breathing in its sleep; awake, it makes no sound at all
       else{ // the stalker only whispers now and then, a little more often once it's close
         const d=Math.hypot(g.position.x-ME.x,g.position.z-ME.z);v.wt=(v.wt??rand(4,9))-dt;
         if(v.wt<=0){v.wb=rand(1.2,2.2);v.wt=v.wb+(d<7?rand(5,9):rand(11,20))}
         v.wb=Math.max(0,(v.wb||0)-dt);v.lp.set(v.wb>0?.8:0,.35)}}}
   for(const [id,v] of MV)if(!live.has(id)){ROOT.remove(v.g);v.lp&&v.lp.stop();MV.delete(id)}}
 function animMonster(v,dt,time){const u=v.g.userData,t=time+v.ph;
-  if(v.ty===1){const hunt=v.a===2,lit=v.a===1,back=v.a===3;
-    u.body.position.y=damp(u.body.position.y,hunt?-.08+Math.abs(Math.sin(t*7))*.06:-.3,6,dt);
-    u.body.rotation.x=damp(u.body.rotation.x,hunt?.12:lit?-.08:back?-.15:.3,5,dt);
-    u.body.rotation.z=lit?Math.sin(t*48)*.03:0;u.body.scale.y=1+Math.sin(t*1.8)*.03;
-    u.jaw.rotation.x=damp(u.jaw.rotation.x,lit?.75:hunt?.4+Math.sin(t*9)*.1:.08,8,dt);
-    u.head.rotation.x=damp(u.head.rotation.x,hunt?-.15:.25,5,dt);u.head.rotation.y=hunt?0:Math.sin(t*.4)*.4;
-    u.arms.forEach((a,i)=>{a.rotation.x=damp(a.rotation.x,hunt?Math.sin(t*7+i*Math.PI)*.6-.3:lit?-1.2:0,8,dt)});
-    for(const e of u.eyes)e.scale.y=lit?.015:.04}
+  if(v.ty===1){ // 0 asleep, 1 lit (growling), 2 creeping, 3 sitting up / frozen, 4 charging
+    const a=v.a,move=a===2||a===4,gs=a===4?10:3.2;v.gp=(v.gp||0)+(move?dt*gs:0);const ph=v.gp,r=a===4?12:a===0?2:a===3?1.4:5;
+    const T={0:{by:-.5,tor:1.45,nk:.35,hx:.4,hz:.3,jaw:.04,sh:-.2,el:-1.6,th:-1.5,kn:2.2},
+      1:{by:-.06,tor:.5,nk:.15,hx:-.2,hz:0,jaw:.9,sh:-.95,el:-.45,th:-1.25,kn:1.9},
+      2:{by:-.2,tor:1.15,nk:-.85,hx:-.35,hz:.1,jaw:.12,sh:-1.35,el:-.25,th:-.9,kn:1.6},
+      3:{by:-.08,tor:.42,nk:.35,hx:-.5,hz:.42,jaw:.22,sh:-1.55,el:.55,th:-1.3,kn:2.0}, // up on its knees, leaning over the blankets
+      4:{by:-.12,tor:1.25,nk:-.95,hx:-.4,hz:0,jaw:.7,sh:-1.45,el:-.2,th:-.7,kn:1.4}}[a]||{};
+    u.body.position.y=damp(u.body.position.y,T.by+(move?Math.abs(Math.sin(ph))*.05:0),r,dt);
+    u.torso.rotation.x=damp(u.torso.rotation.x,T.tor,r,dt);u.torso.scale.y=1+(a===0?Math.sin(t*1.1)*.025:0);
+    u.neck.rotation.x=damp(u.neck.rotation.x,T.nk,r,dt);
+    u.head.rotation.x=damp(u.head.rotation.x,T.hx,r,dt);u.head.rotation.z=damp(u.head.rotation.z,T.hz,r*.6,dt);
+    u.jaw.rotation.x=damp(u.jaw.rotation.x,T.jaw,a===1?3:6,dt);
+    u.arms.forEach((s,i)=>{const sw=move?Math.sin(ph+i*Math.PI)*.45:0;s.rotation.x=damp(s.rotation.x,T.sh+sw,r,dt);s.rotation.z=damp(s.rotation.z,(i?-1:1)*(a===1?.35:.12),r,dt);
+      s.userData.el.rotation.x=damp(s.userData.el.rotation.x,T.el-(move?Math.max(0,Math.sin(ph+i*Math.PI))*.4:0),r,dt)});
+    u.legs.forEach((l,i)=>{const sw=move?Math.sin(ph+i*Math.PI+Math.PI)*.35:0;l.th.rotation.x=damp(l.th.rotation.x,T.th+sw,r,dt);l.kn.rotation.x=damp(l.kn.rotation.x,T.kn,r,dt)});
+    for(const e of u.eyes)e.scale.y=damp(e.scale.y,a===0?.001:.012,6,dt)}
+  else if(v.ty===3){ // surfaces: 0 floor, 1 climbing the wall, 2 ceiling, 3 climbing down. a: 2 moving, 3 holding still, 4 dropping
+    const o=u.orient,k=v.k|0,r=10;o.rotation.x=damp(o.rotation.x,k===1?-Math.PI/2:k===3?Math.PI/2:0,r,dt);o.rotation.z=damp(o.rotation.z,k===2?Math.PI:0,r,dt);
+    const move=v.a===2;const p0=v.gp||0;v.gp=p0+(move?dt*(k===0?16:11):0);
+    u.limbs.forEach(l=>{const s=Math.sin(v.gp+l.ph);l.sh.rotation.y=damp(l.sh.rotation.y,move?s*.5:v.a===4?l.s*.4:0,14,dt);l.el.rotation.z=damp(l.el.rotation.z,move?l.s*Math.max(0,s)*.45:0,14,dt)});
+    // nails on metal with each step (it never makes a sound with its voice once it's out)
+    if(move&&Math.floor(p0/Math.PI)!==Math.floor(v.gp/Math.PI)&&Math.hypot(v.g.position.x-ME.x,v.g.position.z-ME.z)<26)SFX.tap({x:v.g.position.x,y:v.g.position.y,z:v.g.position.z},k===0);
+    u.body.position.y=.42+(move?Math.abs(Math.sin(v.gp))*.03:0);
+    const look=k===2?(v.a===3||v.a===4?-1.5:-1.15):k===1||k===3?-.5:-.1;
+    u.head.rotation.x=damp(u.head.rotation.x,look,8,dt);u.head.rotation.z=Math.sin(t*.7)*.15+(Math.sin(t*3.3)>.985?.6:0);
+    u.hair.quaternion.copy(u.head.getWorldQuaternion(_q).invert())}
   else if(v.ty===2){const mv=v.a===2,lit=v.a===1;
     u.legs.forEach((l,i)=>l.rotation.x=mv?Math.sin(t*5.5+i*Math.PI)*.45:0);
     u.arms.forEach((a,i)=>{a.rotation.x=lit?damp(a.rotation.x,-.4,10,dt):mv?Math.sin(t*5.5+i*Math.PI+Math.PI)*.35:Math.sin(t*.9+i)*.08;a.rotation.z=(i?-1:1)*(lit?.25:.08);a.userData.el.rotation.x=lit?-.8:-.15});
@@ -267,6 +291,9 @@ function onEvent(e){const me=NET.myId;
   case 'smash':SFX.smash({x:e.x,y:e.y,z:e.z});break;
   case 'growl':{const p=evPos(e);if(p)SFX.growl(p);break}
   case 'hiss':{const p=evPos(e);if(p)SFX.hiss(p);break}
+  case 'roar':{const p=evPos(e);if(p)SFX.roar(p);ME.shake=Math.max(ME.shake,.3);break}
+  case 'crawlOut':SFX.crawlOut({x:e.x,y:e.y,z:e.z});break;
+  case 'skitter':SFX.skitter({x:e.x,y:e.y,z:e.z});break;
   case 'shriek':{SFX.shriek({x:e.x,y:1.8,z:e.z});const d=Math.hypot(e.x-ME.x,e.z-ME.z);if(d<16){ME.flash=Math.max(ME.flash,.25);ME.shake=Math.max(ME.shake,.35)}break}
   case 'stalk':if(Math.random()<.6)setTimeout(()=>GAME.on&&toast(pick(['You feel like you are being watched.','Something moved in the dark.','The air just got colder.']),3.5),rand(1500,5000));break;
   case 'lamp':SFX.creak({x:LAMPS[e.i].x,y:5,z:LAMPS[e.i].z});break;
@@ -322,8 +349,8 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 
 // fear, heartbeat, flashlight flicker
 function updFear(dt){const me=S.players[NET.myId];let f=0,near=99;
-  for(const v of MV.values()){const d=Math.hypot(v.g.position.x-camera.position.x,v.g.position.z-camera.position.z);near=Math.min(near,d);
-    const w=v.ty===2?1:v.ty===1?(v.a===0?.45:1.2):.6;f=Math.max(f,clamp(1-d/(v.ty===2?9:10),0,1)*w)}
+  for(const v of MV.values()){if(v.ty===3&&v.a===0)continue;const d=Math.hypot(v.g.position.x-camera.position.x,v.g.position.z-camera.position.z);near=Math.min(near,d);
+    const w=v.ty===2||v.ty===3?1:v.ty===1?(v.a===0?.45:1.2):.6;f=Math.max(f,clamp(1-d/(v.ty===2?9:10),0,1)*w)}
   if(me&&me.hp<35&&!me.dead)f=Math.max(f,.35);
   ME.fear=damp(ME.fear,f,f>ME.fear?3:.8,dt);
   ME.beatT-=dt;if(ME.fear>.32&&ME.beatT<=0&&!(me&&me.dead)){ME.beatT=1.05-ME.fear*.55;SFX.beat(clamp(ME.fear,.2,1)*.9)}

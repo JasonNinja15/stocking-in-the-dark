@@ -18,7 +18,9 @@ const WH={x0:-30,x1:30,z0:-20,z1:20,h:7};
 const BAYS=[{x:-12,name:'A'},{x:12,name:'B'}];
 const TZ_DOCK=-20.25, TZ_FAR=-64, TRAIL_LEN=14, TRAIL_HW=1.25, TRAIL_H=2.9;
 const DOOR_HW=1.7, DOOR_H=3.6;
-const HOUR=50, SHIFT_HOURS=6, DOCK_TIME=115, SHIFT_END=HOUR*SHIFT_HOURS, OVERTIME=60, LAST_TRUCK_AT=HOUR*5+8;
+// one in-game minute per real second
+const HOUR=60, SHIFT_HOURS=6, DOCK_TIME=115, SHIFT_END=HOUR*SHIFT_HOURS, OVERTIME=60, LAST_TRUCK_AT=HOUR*5+8;
+const CEIL_Y=6.25; // where the crawler hangs, just under the trusses
 const RACK_ROWS=[-6,-1,4,9], RACK_COLS=[-27,-8,11], RACK_LEN=16, RACK_LEVELS=[0.14,1.34,2.54];
 const LAMPS=[{x:0,z:-13.5,r:3.6},{x:-9.5,z:1.5,r:3.2},{x:9.5,z:6.5,r:3.2},{x:-3,z:15.5,r:3.4}];
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
@@ -117,6 +119,18 @@ function faceTex(){return ctex(512,256,(g,w,h)=>{g.fillStyle='#a9a596';g.fillRec
   for(let i=-3;i<=3;i++){const x=cx+i*8,y=cy+104-Math.abs(i)*6;g.beginPath();g.moveTo(x-3,y);g.lineTo(x+3,y);g.lineTo(x,y-rand(9,14));g.fill()}
   stain(g,cx,cy+120,30,'50,0,0',.45)})}
 TEX.face=faceTex();
+// the sleeper's hide: grey, bruised, threaded with dark veins
+TEX.lskin=ctex(256,256,(g,w,h)=>{g.fillStyle='#6f6b60';g.fillRect(0,0,w,h);for(let i=0;i<26;i++)wstain(g,w,h,rand(0,w),rand(0,h),rand(10,46),pick(['40,38,44','92,70,64','50,58,48']),rand(.2,.45));
+  for(let i=0;i<14;i++)crack(g,rand(0,w),rand(0,h),randi(8,22),'35,22,30',.55);speckle(g,w,h,2500,'20,18,18',.3,2)},{rep:[2,2]});
+// the crawler's face: almost a person. Eyes a little too big and too far apart, no brows, a slack smile that's too wide
+TEX.cface=ctex(256,256,(g,w,h)=>{g.fillStyle='#d9cfc2';g.fillRect(0,0,w,h);speckle(g,w,h,1500,'150,130,120',.15,2);
+  const cx=128,cy=120;for(const s of[-1,1]){stain(g,cx+s*46,cy-14,34,'120,95,95',.35);
+    g.fillStyle='#050404';g.beginPath();g.ellipse(cx+s*44,cy-12,19,15,0,0,TAU);g.fill();
+    g.fillStyle='rgba(235,230,220,.9)';g.beginPath();g.arc(cx+s*40,cy-16,2.2,0,TAU);g.fill();
+    stain(g,cx+s*44,cy+10,22,'110,80,80',.3)}
+  g.fillStyle='rgba(80,55,50,.6)';g.fillRect(cx-6,cy+22,3,3);g.fillRect(cx+3,cy+22,3,3);
+  g.strokeStyle='#2a1414';g.lineWidth=3;g.beginPath();g.moveTo(cx-62,cy+46);g.quadraticCurveTo(cx,cy+64,cx+62,cy+46);g.stroke();
+  g.fillStyle='#160606';g.beginPath();g.moveTo(cx-40,cy+50);g.quadraticCurveTo(cx,cy+76,cx+40,cy+50);g.quadraticCurveTo(cx,cy+60,cx-40,cy+50);g.fill()});
 
 // shared geometries
 const GEO={box:new THREE.BoxGeometry(1,1,1),cyl:new THREE.CylinderGeometry(1,1,1,10),sph:new THREE.SphereGeometry(1,14,10),cone:new THREE.ConeGeometry(1,1,6),fang:new THREE.ConeGeometry(1,1,8)};
@@ -132,6 +146,6 @@ const MAT={
   bulbOn:basic(0xffd7a0),bulbOff:toon(0x2a2824),shade:toon(0x23352b),
   red:basic(0xff2a1a),green:basic(0x2aff6a),screen:basic(0x2f7a5e),
   skin:toon(0xc9a184),hat:toon(0xe0b51c),pants:toon(0x262a33),
-  lurkSkin:toon(0x5f5a4b),lurkDark:toon(0x3b362e),tooth:toon(0xe8e0c8),gum:toon(0x5a1414),eye:basic(0xfff2a0),
+  lurkSkin:toon(0xffffff,{map:TEX.lskin}),lurkDark:toon(0x35302a),lurkRib:toon(0x3a362f),crawlSkin:toon(0xb7ab9c),crawlFace:toon(0xffffff,{map:TEX.cface}),hair:toon(0x0b0a0a),tooth:toon(0xe8e0c8),gum:toon(0x5a1414),eye:basic(0xfff2a0),
   stalkBody:toon(0x1c1c22),stalkFace:toon(0xffffff,{map:TEX.face}),mimicLeg:toon(0x16120e),tongue:toon(0x9a2a2a),
 };

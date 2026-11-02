@@ -66,7 +66,7 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S
   ev:NETEV.splice(0)}}
 function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1])}
 function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11]}));
-  for(const s of SLOTS)s.box=-1;for(const b of S.boxes)if(b.st===2&&SLOTS[b.s])SLOTS[b.s].box=b.id}
+  for(const s of SLOTS)s.box=-1;for(const b of S.boxes)if((b.st===2||b.st===3)&&b.s>=0&&SLOTS[b.s])SLOTS[b.s].box=b.id}
 function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,inter:m.it,quota:m.q,shelved:m.sh,lost:m.lo,score:m.sc,total:m.to,aidLeft:m.ai,lamps:m.la,over:m.ov});
   const seen=new Set();
   for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry});

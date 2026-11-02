@@ -7,7 +7,7 @@ A first-person, cel-shaded horror game for one to four players. You work the nig
 ## The job
 
 - Trucks back into **Bay A** and **Bay B** every minute or so. Walk into the trailer, pick up boxes (**E**) and shelve them on any empty slot. A green outline shows where the box will go.
-- Shelve the quota before 6:00 AM (each in-game hour is 50 seconds). Night 1 asks for 15 boxes and each night adds 5. Crews get a bigger quota.
+- Shelve the quota before 6:00 AM (the clock moves one minute per real second, so an in-game hour is 60 seconds). Night 1 asks for 15 boxes and each night adds 5. Crews get a bigger quota.
 - The bar under the quota shows your progress, and its white marker shows where you should be by now. It turns amber, then red, as you fall behind. The supervisor radios at 3, 4 and 5 AM if you're behind pace, and the loudspeaker announces the final hour and the last truck of the night.
 - Short at 6:00 AM? You get **60 seconds of overtime**. Every light goes out, the monsters get bolder, and a last truck comes in if there's nothing left to unload. Make quota and you survive the night. Miss it and you're fired.
 - A truck leaves when it's empty or after about two minutes. Any boxes still on board are lost.
@@ -17,8 +17,9 @@ A first-person, cel-shaded horror game for one to four players. You work the nig
 
 | Threat | Where | Tells | What to do |
 |---|---|---|---|
-| **Mimic** | Inside a box | Twitches, scratching sounds, twitches more under your light | **Q** kick suspicious boxes before you lift them. A kicked mimic runs off harmlessly. Pick one up and it bites (about 30 damage). Kicking a *fragile* box breaks it. |
-| **The thing in the trailer** | Behind the blankets at the back of some trucks | Manifest says *scale reads more than the cargo weight*, claw marks on the trailer's front wall, breathing, two pairs of eye glints | It wakes when you go deep or take half the load. It freezes while your light is on it and backs off if you hold the light there. If it reaches you, your shift is over. Use the panel beside the bay door to refuse the delivery. |
+| **Mimic** | Inside a box | Keeps still until you're close, then twitches and scratches | **Q** kick suspicious boxes before you lift them. Pick one up and it bites (about 30 damage). Kicking a *fragile* box breaks it. A mimic that's been found out hides as a box again on the floor or a shelf, scrambles somewhere new when you get close, and bites if you grab it. Click your flashlight off and on at it and it leaves for good. |
+| **The sleeper** | Asleep behind the blankets at the back of some trailers | Manifest says *scale reads more than the cargo weight*, claw marks on the trailer's front wall, slow breathing | Reach the back of the trailer and it silently sits up. Light on it makes it growl; hold the light there and it charges. In the dark it only moves while nobody is looking at it. If it reaches you, your shift is over. Use the panel beside the bay door to refuse the delivery. |
+| **The crawler** | Inside some trailers | Weight mismatch; a high, wavering voice when the door opens; tapping on the ceiling | It climbs the wall and crosses the ceiling toward you. Shine your light up at it and it scatters. When the tapping stops right above you, move: it drops (about 45 damage). It crawls back into its truck before the truck leaves. |
 | **The stalker** | The dark aisles | Whispering, heartbeat, your flashlight stutters | It moves only when no light is on it. Catch it in your beam and it shrieks and vanishes. It can't enter a working lamp's light, but it can put a lamp out if you hide under it too long. |
 
 ## Controls
