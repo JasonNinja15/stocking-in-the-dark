@@ -197,6 +197,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   &bull; <b>The dark.</b> Something walks the aisles where the lights are out. It only moves when no light is on it. Turn around often. Working lamps keep it back&hellip; while they work.</p>
   <p><b>Later nights bring more.</b> A night manager who writes up anyone standing around empty-handed (three write-ups and he comes for you). A shrink-wrapped figure that hunts by sound: walk, don't run. A truck driver who passes for a crewmate but makes no footsteps. A loudspeaker voice that isn't quite the supervisor's, with a wrong chime.</p>
   <p><b>The roof.</b> A ladder in the south-west corner climbs to the roof, where it is snowing hard and only your flashlight shows anything. A supply crate up there gives one free item a night. The ventilation plant is in the room in the middle of the roof (its door faces the hatch). From night 3, every couple of nights the warehouse starts getting cold: you get two minutes to get up there and hold <kbd>E</kbd> on the plant before the cold sets in and starts hurting everyone. A heater from the shop buys an extra night between cold spells.</p>
+  <p><b>Robots.</b> Two warehouse robots can be bought: the small one takes a box from its pad on the dock and shelves it for you, the big one takes a pallet you set on its pad with the forklift up to a top shelf. Both are slow, carry one load at a time, and stop for anyone in their way.</p>
   <p><b>Difficulty</b> is picked on the title screen: Easy has smaller quotas, softer monsters and rarer bad luck; Hard has bigger quotas, harder hits and much more bad luck. A crew plays on the host's setting.</p>
   <p><b>Power outages.</b> From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel. And something that lives in the dark comes out: it can't see you, but it hears you, and it feels footsteps close by. Stand still.</p>
   <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items sit on the hotbar at the bottom of the screen: <kbd>scroll</kbd> (or a number key) to pick one, <kbd>right click</kbd> to use it. The red headlamp is on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold right click with the thermal scanner picked to use it. The <b>THIS WAY</b> board on the dock wall points to the roof ladder and to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
@@ -301,6 +302,8 @@ const RROOM={x0:-208,x1:-192,z0:-5,z1:5,h:3.2,door:{z0:1.6,z1:3.2}}, VENT={x:-19
 const inRoofRoom=p=>p.x>RROOM.x0&&p.x<RROOM.x1&&p.z>RROOM.z0&&p.z<RROOM.z1;
 const chilled=()=>!!(S&&S.chill&&S.chill.st==='cold'); // the warehouse has gone cold (see chillUpdate)
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
+// the two warehouse robots (additions): where their pads are on the dock, how fast they go, how high their decks sit
+const AMR={s:{x:-8,z:-15.6,speed:1.0,deck:.4,name:'AMR-S'},l:{x:4.6,z:-17.2,speed:.72,deck:.44,name:'AMR-L'}};
 const BOX_KINDS=[{w:.55,h:.42,d:.5,slow:.95},{w:.74,h:.56,d:.64,slow:.86},{w:.92,h:.72,d:.8,slow:.74}];
 // Better Stocking: a second box can go on top of a shelved one if the two together fit under the shelf above
 const STACK_H=1.0,canStack=(p,under,b)=>!!(p&&p.up&&p.up.stock2&&under&&under.st===2&&!under.m&&b&&BOX_KINDS[under.k].h+BOX_KINDS[b.k].h<=STACK_H);
@@ -797,6 +800,15 @@ function buildAdditions(){
     acol('gen',FUELR.x-.5,FUELR.z-.25,FUELR.x+.5,FUELR.z+.25);
     addSign([{t:'GENERATOR',size:64,bold:true},{t:'KEEP FUELLED',size:38}],WH.x0+.03,2.2,GEN.z+1.3,Math.PI/2,1.4,.55,g);
     flushStatics(g)}
+  // ---------------------------------------------------------------- the robots' pads on the dock floor
+  for(const k of['s','l']){const A=AMR[k],g=addGroup('amr'+k),w=k==='s'?1.1:1.9,d=k==='s'?1.3:2.3;
+    sbox(MAT.dark,w,.012,d,A.x,.006,A.z,{cast:false});
+    for(const s of[-1,1]){sbox(MAT.hazard,w+.12,.014,.08,A.x,.007,A.z+s*(d/2+.02),{cast:false});sbox(MAT.hazard,.08,.014,d+.12,A.x+s*(w/2+.02),.007,A.z,{cast:false})}
+    // a post with the pad's sign and a charging contact plate, set back towards the dock wall
+    sbox(MAT.steel,.07,1.9,.07,A.x+w/2+.25,.95,A.z-d/2+.1);sbox(MAT.dark,.3,.5,.12,A.x,.25,A.z-d/2-.18);
+    addSign(k==='s'?[{t:'AMR-S',size:80,bold:true},{t:'PUT ONE BOX HERE',size:30}]:[{t:'AMR-L',size:80,bold:true},{t:'PALLET DROP · FORKLIFT',size:28}],A.x+w/2+.25,1.7,A.z-d/2+.15,0,.9,.42,g);
+    if(k==='s'){const hit=inter(new THREE.Mesh(GEO.box,MAT.dark),{kind:'amrPad'},g);hit.scale.set(w,1.1,d);hit.position.set(A.x,.55,A.z);hit.visible=false}
+    flushStatics(g)}
   // ---------------------------------------------------------------- warehouse heater (high on the east wall)
   {const g=addGroup('heat'),x=WH.x1-.45,y=4.2,z=1.5;
     sbox(MAT.hvac,.8,1,1.6,x,y,z);sbox(MAT.dark,.04,.8,1.4,x-.41,y,z,{cast:false});
@@ -810,7 +822,7 @@ function buildAdditions(){
 // Hangs on the dock wall right in front of where everyone starts, listing what the crew owns with an arrow to
 // each one (as seen from the start, facing the dock: up is the dock wall, down is the south wall behind you).
 const DIR_INFO={roof:{n:'ROOF LADDER',x:LADDER.x,z:LADDER.z,always:true},fork:{n:'FORKLIFT',x:FORK_HOME.x,z:FORK_HOME.z},cold:{n:'COLD STORAGE',x:25.3,z:-13},bayc:{n:'BAY C',x:-24,z:-19},
-  base:{n:'FREIGHT ELEVATOR',x:-27.5,z:-9.3},gen:{n:'GENERATOR',x:GEN.x,z:GEN.z},conv:{n:'SORTING CONVEYOR',x:-7.5,z:18},heat:{n:'HEATER',x:29.5,z:1.5}};
+  base:{n:'FREIGHT ELEVATOR',x:-27.5,z:-9.3},gen:{n:'GENERATOR',x:GEN.x,z:GEN.z},conv:{n:'SORTING CONVEYOR',x:-7.5,z:18},heat:{n:'HEATER',x:29.5,z:1.5},amrs:{n:'ROBOT PAD S',x:AMR.s.x,z:AMR.s.z},amrl:{n:'ROBOT PAD L',x:AMR.l.x,z:AMR.l.z}};
 function drawDirectory(){const m=ADDV.dir,ks=Object.keys(DIR_INFO).filter(k=>DIR_INFO[k].always||owned(k));m.visible=ks.length>0;if(!ks.length)return;
   const W=1024,LH=74,H=96+ks.length*LH;
   const t=ctex(W,H,(g,w,h)=>{g.fillStyle='#c9a227';g.fillRect(0,0,w,h);g.strokeStyle='#16130c';g.lineWidth=10;g.strokeRect(9,9,w-18,h-18);
@@ -1152,6 +1164,38 @@ function makeForklift(){const g=new THREE.Group(),body=pivot(0,0,0,g);
   const lift=pivot(0,.08,.8,body);part(GEO.box,MAT.steel,.8,.5,.06,0,.3,0,lift);for(const s of[-.25,.25])part(GEO.box,MAT.steel,.12,.05,1.15,s,0,.58,lift);
   const beacon=new THREE.Mesh(GEO.sph,basic(0xffa020));beacon.scale.setScalar(.06);beacon.position.set(0,2.42,-.2);body.add(beacon);
   g.userData={body,lift,beacon};return g}
+
+// ---- the warehouse robots (autonomous mobile robots). Both face +Z, front lidar and bumper that way.
+// S: a small white tote-mover, low drive base with a dark skirt and a blue light band, a lidar puck up front, a slim
+// mast with a status screen, and a lift deck on top that carries one box and raises it to the shelf.
+const AMR_MAT={white:toon(0xe9ebe6),grey:toon(0x7d8287),band:basic(0x3aa8ff),lidar:toon(0x26292d),screen:basic(0x7fd0ff),beacon:basic(0xffb020)};
+function makeAmrS(){const g=new THREE.Group(),M=AMR_MAT;
+  part(GEO.box,MAT.dark,.66,.14,.9,0,.09,0,g);part(GEO.box,M.white,.62,.2,.86,0,.25,0,g);                  // skirt, shell
+  for(const z of[-.43,.43])part(GEO.cyl,M.white,.31,.2,.31,0,.25,z*.92,g,{cast:false});                     // rounded ends
+  part(GEO.box,M.band,.64,.03,.88,0,.17,0,g,{cast:false});                                                  // light band
+  part(GEO.box,MAT.hazard,.5,.08,.04,0,.12,.47,g,{cast:false});part(GEO.box,MAT.hazard,.5,.08,.04,0,.12,-.47,g,{cast:false}); // bumpers
+  part(GEO.cyl,M.lidar,.07,.07,.07,0,.39,.36,g);                                                             // lidar puck
+  for(const [x,z] of[[-.26,.3],[.26,.3],[-.26,-.3],[.26,-.3]])part(GEO.cyl,MAT.rubber,.07,.06,.07,x,.05,z,g,{rz:Math.PI/2,cast:false});
+  part(GEO.box,M.grey,.06,.62,.06,.22,.66,-.34,g);const scr=new THREE.Mesh(GEO.box,M.screen);scr.scale.set(.22,.14,.02);scr.position.set(.22,.92,-.32);scr.rotation.x=-.4;g.add(scr);
+  const lift=pivot(0,.36,0,g);part(GEO.box,M.grey,.56,.04,.6,0,.02,0,lift);                                  // the lift deck
+  const col=pivot(0,.36,0,g);part(GEO.box,MAT.steel,.16,1,.16,0,-.5,0,col,{cast:false});col.scale.y=.01;      // the column that pushes the deck up
+  g.userData={lift,col,band:M.band,kind:'s'};return g}
+// L: a big low pallet carrier, dark chassis with a yellow lift table edged in hazard tape, lidar pucks on two
+// corners, a blue light band, an amber beacon on a short post, and scissor arms under the table when it lifts.
+function makeAmrL(){const g=new THREE.Group(),M=AMR_MAT;
+  part(GEO.box,MAT.dark,1.3,.16,1.75,0,.1,0,g);part(GEO.box,M.grey,1.26,.22,1.7,0,.28,0,g);
+  part(GEO.box,M.band,1.28,.04,1.72,0,.19,0,g,{cast:false});
+  for(const s of[-1,1])part(GEO.box,MAT.hazard,1.2,.1,.05,0,.14,s*.89,g,{cast:false});
+  for(const [x,z] of[[.58,.82],[-.58,-.82]])part(GEO.cyl,M.lidar,.08,.08,.08,x,.44,z,g);
+  for(const [x,z] of[[-.5,.6],[.5,.6],[-.5,-.6],[.5,-.6]])part(GEO.cyl,MAT.rubber,.09,.08,.09,x,.06,z,g,{rz:Math.PI/2,cast:false});
+  part(GEO.cyl,MAT.steel,.025,.4,.025,-.58,.58,.82,g,{cast:false});const bc=new THREE.Mesh(GEO.sph,M.beacon);bc.scale.setScalar(.06);bc.position.set(-.58,.8,.82);g.add(bc);
+  const lift=pivot(0,.4,0,g);part(GEO.box,MAT.yellow,1.2,.05,1.5,0,.025,0,lift);for(const s of[-1,1])part(GEO.box,MAT.hazard,1.2,.06,.04,0,.03,s*.74,lift,{cast:false});
+  const sc=[];for(const s of[-1,1]){const a=pivot(s*.45,.4,0,g);part(GEO.box,MAT.steel,.05,.05,1.4,0,0,0,a,{cast:false});const b=pivot(s*.45,.4,0,g);part(GEO.box,MAT.steel,.05,.05,1.4,0,0,0,b,{cast:false});sc.push(a,b)}
+  g.userData={lift,sc,band:M.band,beacon:bc,kind:'l'};return g}
+// raise a robot's deck to height h above the floor (scissors open under the big one, a column pushes up the small one)
+function amrLift(g,h){const u=g.userData,base=u.kind==='s'?.36:.4,d=Math.max(0,h-base);u.lift.position.y=base+d;
+  if(u.col){u.col.position.y=base+d;u.col.scale.y=Math.max(.01,d)}
+  if(u.sc){const a=Math.atan2(d,1.3);u.sc.forEach((p,i)=>{p.position.y=base+d/2;p.rotation.x=(i%2?1:-1)*a;p.scale.z=Math.hypot(d,1.3)/1.4;p.visible=d>.02})}}
 
 // ---- a pallet load: eight boxes shrink-wrapped onto a pallet (counts as eight)
 function makePallet(){const g=new THREE.Group();part(GEO.box,MAT.pallet,1.1,.14,1.0,0,.07,0,g);
@@ -1795,7 +1839,7 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
   const drv=!!(S.fork&&S.fork.drv===pid),busy=p.can||(drv&&S.fork.pal>=0),tipD=w=>{const t=forkTip();return Math.hypot(t.x-w.x,t.z-w.z)};
   const nextCarry=()=>{p.carry=p.stack.length?p.stack.pop():-1};
   switch(a.a){
-  case 'pick':{const b=B(a.b);if(!b||(b.st!==0&&b.st!==3)||busy)return;
+  case 'pick':{const b=B(a.b);if(!b||(b.st!==0&&b.st!==3)||busy||b.amr)return;
     // the carry upgrade stacks up to three; otherwise hands must be empty
     if(p.carry>=0&&!((p.up.hand||drv)&&p.stack.length<2))return;const w=boxWorld(b);if(drv?tipD(w)>2.8:!near(w,3.4))return;
     if(b.m){burstMimic(b,pid,true);return}
@@ -1815,7 +1859,7 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
     const tb=trailerAt(x,z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=x-BAYS[tb].x;b.z=z-S.trucks[tb].z;b.y=0;settleTruck(tb)}else{b.st=3;b.x=x;b.z=z;b.y=0}
     b.ry=+a.ry||0;b.h='';nextCarry();p.baseIdle=0;S.bver++;noise(x,z,5);emit({e:'place',x,y:0,z});break}
   case 'kick':{if(a.pc!==undefined){kickParcel(p,a.pc,false);noise(p.x,p.z,10);return}
-    const b=B(a.b);if(!b||(b.st!==0&&b.st!==3))return;const w=boxWorld(b);if(!near(w,3.2))return;noise(w.x,w.z,10);
+    const b=B(a.b);if(!b||(b.st!==0&&b.st!==3)||b.amr)return;const w=boxWorld(b);if(!near(w,3.2))return;noise(w.x,w.z,10);
     if(b.m){const first=!b.roam;burstMimic(b,pid,false);if(first){pay(5);emit({e:'msg',m:'Good instincts.',p:pid})}return}
     if(b.f){const bay=b.st===0?b.bay:-1;b.st=4;S.lost++;S.bver++;if(bay>=0)settleTruck(bay);noise(w.x,w.z,12);emit({e:'smash',x:w.x,y:w.y,z:w.z});emit({e:'msg',m:'You broke something fragile.',p:pid});return}
     const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw);let nx=w.x+fx*1.1,nz=w.z+fz*1.1;if(insideAny(nx,nz,.3)){nx=w.x+fx*.3;nz=w.z+fz*.3;if(insideAny(nx,nz,.3)){nx=w.x;nz=w.z}}
@@ -1839,7 +1883,9 @@ const ADDS={
   gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power for outages (from night 3). Keep it fuelled with jerry cans from the rack by the roof ladder.'},
   bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'},
   heat:{name:'Warehouse Heater',price:250,q:0,time:0,desc:'A gas heater high on the east wall. The warehouse holds its warmth an extra night between cold spells.'},
-  medkit:{name:'Medkit Upgrade',price:300,q:0,time:0,desc:'A bigger first-aid cabinet: the crew can buy a third first-aid refill each night.'}};
+  medkit:{name:'Medkit Upgrade',price:300,q:0,time:0,desc:'A bigger first-aid cabinet: the crew can buy a third first-aid refill each night.'},
+  amrs:{name:'Autonomous Mobile Robot S',price:2000,q:0,time:0,desc:'A small robot with a pad on the dock near the bays. Put a box on the pad and it drives it to a free bottom or middle shelf and shelves it, one box at a time. Slow, and it stops for anyone in its way.'},
+  amrl:{name:'Autonomous Mobile Robot L',price:5000,q:0,time:0,desc:'A big pallet robot with a pad on the dock. Set a pallet on the pad with the forklift and it carries it to a free top shelf and lifts it in, one pallet at a time. Trucks bring pallets a little more often.'}};
 const SHOP={
   fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam. The battery lasts twice as long.'},
   shake:{name:'Shake flashlight',price:100,once:true,key:'R',desc:'Hold R to shake your flashlight and charge it anywhere. Anything listening hears it.'},
@@ -1877,10 +1923,10 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.aidLeft=2+(S.aidBonus||0);S.aidBonus=0;
   S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);
   S.parcels=[];S.pallets=[];S.flares=[];S.cold={door:0,open:false,t:0};S.conv={sel:S.conv?S.conv.sel:0,next:12,jam:false};
-  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.rg=null;S.stash=true;HOST.rgT=0;S.chill=null;HOST.frzT=0;HOST.chillAt=coldNight(S.night)?(SHIFT_END-S.extra)/2:Infinity;S.paN=0;S.outage=false;
+  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.amr=['s','l'].filter(k=>owned('amr'+k)).map(k=>({k,x:AMR[k].x,z:AMR[k].z,ry:Math.PI,st:'home',load:-1,slot:-1,t:0,path:null,rep:0,stop:0}));for(const b of S.boxes)if(b.amr){b.amr=1;b.x=AMR.s.x;b.z=AMR.s.z;b.y=owned('amrs')?AMR.s.deck:0}S.rg=null;S.stash=true;HOST.rgT=0;S.chill=null;HOST.frzT=0;HOST.chillAt=coldNight(S.night)?(SHIFT_END-S.extra)/2:Infinity;S.paN=0;S.outage=false;
   HOST.outageAt=S.night>=3&&Math.random()<Math.min(.6,.22+.07*S.night)*diffEv()?rand(SHIFT_END*.12,SHIFT_END*.8):1e9;
   S.fork={x:FORK_HOME.x,z:FORK_HOME.z,ry:FORK_HOME.ry,lift:0,drv:'',pal:-1,pass:null};
-  Object.assign(HOST,{nextPA:rand(70,120),nextMoth:rand(30,50),palDue:owned('fork')?3:0,mgr:false,noise:[]});
+  Object.assign(HOST,{nextPA:rand(70,120),nextMoth:rand(30,50),palDue:owned('fork')?(owned('amrl')?5:3):0,mgr:false,noise:[]});
   for(const p of Object.values(S.players))Object.assign(p,{can:false,stack:[],wu:0,idleT:0,wuCD:0,binT:0,spd:0,px:undefined,baseIdle:0,baseWarn:false,strug:0});
   if(owned('base'))S.mons.push({id:monSeq++,ty:14,x:HUNCH.x,z:HUNCH.z,y:0,ry:-2.4,st:'sit',a:0,t:0,cd:0,tg:''});
   // topped back up to ten: returns nobody dealt with last night are still lying there
@@ -1924,7 +1970,7 @@ function extrasUpdate(dt){
   S.flares=S.flares.filter(f=>(f.t-=dt)>0);
   // a power outage, once it happens, lasts until morning
   if(!S.outage&&!S.ot&&S.t>=HOST.outageAt){S.outage=true;if(!genPowered())S.lamps=S.lamps.map(()=>0);emit({e:'outage',gen:genPowered()});spawnBlind()}
-  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);
+  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);amrUpdate(dt);
   if(!HOST.mgr&&S.night>=3&&S.t>=-S.extra+50){HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:MGR_SPOT.x,z:MGR_SPOT.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0})}
   if(owned('gen')){HOST.nextMoth-=dt;if(HOST.nextMoth<=0){HOST.nextMoth=rand(40,70);spawnMoth()}}}
 
@@ -2171,6 +2217,55 @@ function chillUpdate(dt){
   HOST.frzT+=dt;if(HOST.frzT<1)return;HOST.frzT-=1;
   for(const p of alivePlayers()){p.hp-=1;if(p.hp<=0){p.hp=1;damage(p,999)}}}
 function fixVent(p){if(!S.chill||!nearPos(p,VENT.x,VENT.z,3.4))return;const was=S.chill.st;S.chill=null;emit({e:'warm',p:p.id,n:p.name,was})}
+
+// ---------------------------------------------------------------- the warehouse robots (AMR S and AMR L)
+// Each waits on its pad on the dock. Load it (a box on the S pad by hand, a pallet on the L pad with the forklift) and
+// it picks a free shelf (bottom or middle for S, top for L), drives there slowly down the aisles, lifts the load in,
+// shelves it, and comes back. One load at a time. It stops for anyone standing in front of it.
+const AMR_ST=['home','go','lift','back'];
+const AMR_LIFT=1.8;
+const amrAt=A=>(S.amr||[]).some(r=>r.k===(A===AMR.s?'s':'l')&&r.st==='home');
+// a free shelf for a robot's load, nearest the pad first, and the aisle spot in front of it
+function amrSlot(r){const A=AMR[r.k],taken=new Set((S.amr||[]).map(o=>o.slot));let best=null,bd=1e9;
+  for(const s of SLOTS){if(s.old||s.cold||!slotOn(s)||s.box!==-1||taken.has(s.id))continue;if(r.k==='s'?s.y>2:s.y<2)continue;
+    const d=Math.hypot(s.x-A.x,s.z-A.z);if(d<bd){const ap=amrAisle(s,r.x,r.z);if(ap){bd=d;best={s,ap}}}}return best}
+function amrAisle(s,fx,fz){const free=(x,z)=>{const [i,j]=cellOf(x,z);return!GRID.blk[j*GRID.nx+i]&&x>WH.x0+1&&x<WH.x1-1&&z>WH.z0+1&&z<WH.z1-1};
+  const c=[[s.x,s.z-1.4],[s.x,s.z+1.4]].filter(([x,z])=>free(x,z)).sort((a,b)=>Math.hypot(a[0]-fx,a[1]-fz)-Math.hypot(b[0]-fx,b[1]-fz));return c[0]?{x:c[0][0],z:c[0][1]}:null}
+function amrDrive(r,tx,tz,sp,dt){r.rep-=dt;if(r.rep<=0||!r.path){r.rep=.8;r.path=astar(r.x,r.z,tx,tz)}let px=tx,pz=tz;
+  if(r.path){while(r.path.length&&Math.hypot(r.path[0].x-r.x,r.path[0].z-r.z)<.45)r.path.shift();if(r.path.length){px=r.path[0].x;pz=r.path[0].z}}
+  const dx=px-r.x,dz=pz-r.z,d=Math.hypot(dx,dz);if(d<.02)return Math.hypot(tx-r.x,tz-r.z);
+  // turn on the spot first, then roll; and stop dead for anyone in the way
+  const want=Math.atan2(dx,dz),off=Math.abs(angDiff(r.ry,want));r.ry=angLerp(r.ry,want,dt*2.2);
+  const fx=Math.sin(r.ry),fz=Math.cos(r.ry),block=alivePlayers().some(p=>{const ox=p.x-r.x,oz=p.z-r.z,od=Math.hypot(ox,oz);return od<(r.k==='l'?1.9:1.3)&&(ox*fx+oz*fz)/Math.max(od,.01)>.2});
+  if(block){if((r.stop+=dt)>2.5){r.stop=0;emit({e:'amrBeep',x:r.x,z:r.z})}return 99}
+  if(off<.6){const s=Math.min(d,sp*dt);r.x+=dx/d*s;r.z+=dz/d*s}return Math.hypot(tx-r.x,tz-r.z)}
+function amrUpdate(dt){for(const r of S.amr||[]){const A=AMR[r.k];
+  const load=r.k==='s'?S.boxes.find(b=>b.id===r.load&&b.st!==4):S.pallets.find(p=>p.id===r.load&&p.st!==4);
+  // the pallet rides on the big one; lifting, it goes up first (60% of the time) and then slides across onto the shelf
+  const carry=()=>{if(r.k!=='l'||!load)return;const s=SLOTS[r.slot],k=r.st==='lift'?Math.min(1,r.t/AMR_LIFT):0,up=Math.min(1,k/.6),across=Math.max(0,(k-.6)/.4);
+    load.x=s?lerp(r.x,s.x,across):r.x;load.z=s?lerp(r.z,s.z,across):r.z;load.ry=lerp(r.ry,0,across);load.y=A.deck+up*(s?s.y-A.deck:0)};
+  switch(r.st){
+  case 'home':{r.ry=angLerp(r.ry,Math.PI,dt*2);
+    // something waiting on the pad?
+    const w=r.k==='s'?S.boxes.find(b=>b.st===3&&b.amr===1&&Math.hypot(b.x-A.x,b.z-A.z)<1):S.pallets.find(p=>p.st===3&&p.amr===1&&Math.hypot(p.x-A.x,p.z-A.z)<1.2);
+    if(!w)break;const sl=amrSlot(r);if(!sl){if((r.t-=dt)<=0){r.t=8;emit({e:'msg',m:`${A.name}: no free ${r.k==='s'?'lower':'top'} shelf to take it to.`})}break}
+    w.amr=2;w.y=A.deck;r.load=w.id;r.slot=sl.s.id;r.goal=sl.ap;r.path=null;r.st='go';if(r.k==='s')S.bver++;emit({e:'amrGo',k:r.k,x:r.x,z:r.z});break}
+  case 'go':{if(!load){r.st='back';break}carry();const s=SLOTS[r.slot];
+    if(s.box!==-1){const sl=amrSlot(r);if(!sl){r.st='back';break}r.slot=sl.s.id;r.goal=sl.ap;r.path=null} // someone filled it first
+    if(amrDrive(r,r.goal.x,r.goal.z,A.speed,dt)<.25){r.st='lift';r.t=0;r.ry=Math.atan2(s.x-r.x,s.z-r.z)}break}
+  case 'lift':{if(!load){r.st='back';break}r.t+=dt;r.ry=angLerp(r.ry,Math.atan2(SLOTS[r.slot].x-r.x,SLOTS[r.slot].z-r.z),dt*4);carry();if(r.t<AMR_LIFT)break;
+    const s=SLOTS[r.slot];if(s.box!==-1){r.st='go';r.t=0;break}
+    if(r.k==='s'){const b=load;b.st=2;b.s=s.id;b.x=s.x+rand(-.12,.12);b.y=s.y;b.z=s.z+rand(-.06,.06);b.ry=rand(-.1,.1);b.amr=0;s.box=b.id;S.shelved++;pay(b.pri?20:b.f?15:10);S.bver++}
+    else{const p=load;p.st=2;p.x=s.x;p.z=s.z;p.ry=0;p.y=0;p.amr=0;p.s=s.id;s.box=-(1000+p.id);S.shelved+=8;pay(80)}
+    emit({e:'place',x:s.x,y:s.y,z:s.z});if(S.shelved>=S.quota&&S.shelved-(r.k==='s'?1:8)<S.quota)emit({e:'quota'});
+    r.load=-1;r.slot=-1;r.st='back';r.path=null;r.t=0;break}
+  case 'back':{if(load&&load.amr===2){load.amr=1;load.x=A.x;load.z=A.z;load.y=0;if(r.k==='s')S.bver++;r.load=-1;r.slot=-1}  // couldn't place it: brings it home
+    if(amrDrive(r,A.x,A.z,A.speed,dt)<.2){r.x=A.x;r.z=A.z;r.st='home';r.t=0}break}}}}
+// a box from your arms onto the AMR-S pad
+function amrLoad(p){if(!owned('amrs'))return;const no=m=>toP(p,m),b=S.boxes.find(x=>x.id===p.carry&&x.st!==4);if(!b)return no('Bring a box to put on the pad.');
+  if(!nearPos(p,AMR.s.x,AMR.s.z,2.8))return;if(b.ret)return no('The robot doesn\'t take returns. They go in the basement shredder.');if(b.fz)return no('Frozen crates need a person: take it to the freezer.');
+  if(S.boxes.some(x=>x.st===3&&x.amr===1))return no('There\'s already a box waiting on the pad.');
+  const home=amrAt(AMR.s);b.st=3;b.amr=1;b.h='';b.s=-1;b.x=AMR.s.x;b.z=AMR.s.z;b.y=home?AMR.s.deck:0;b.ry=0;p.carry=p.stack.length?p.stack.pop():-1;S.bver++;emit({e:'place',x:b.x,y:b.y,z:b.z})}
 // ---------------------------------------------------------------- the night manager
 function managerUpdate(m,dt){m.t+=dt;
   const walkTo=(tx,tz,sp)=>{m.rep-=dt;if(m.rep<=0||!m.path){m.rep=.6;m.path=astar(m.x,m.z,tx,tz)}let px=tx,pz=tz;
@@ -2279,6 +2374,7 @@ function act2(pid,p,a){
     const x=up?HATCH.x+1.15:LADDER.x+1.1,z=up?HATCH.z-1.1:LADDER.z-.9;p.x=x;p.z=z;p.tpT=.8;
     emit({e:'tp',p:pid,x:r2(x),z:r2(z),climb:up?1:-1});return true}
   case 'vent':fixVent(p);return true;
+  case 'amrLoad':amrLoad(p);return true;
   case 'stash':{if(!nearPos(p,STASH.x,STASH.z,2.4))return true;if(!S.stash)return toP(p,'Empty. Someone already went through it tonight.'),true;
     S.stash=false;const k=['batt','flare','drink','horn','strobe'][randi(0,4)];p.inv[k]=(p.inv[k]||0)+1;emit({e:'stash',p:pid,k});return true}
   case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>m.ty===14&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
@@ -2289,12 +2385,12 @@ function act2(pid,p,a){
       p.x=x;p.z=z;p.tpT=.6;emit({e:'tp',p:pid,x:r2(x),z:r2(z)});emit({e:'forkOut',p:pid});return true}
     if(!owned("fork")||f.drv||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>5.2)return true; // (matches the reach of the hit box around it)
     f.drv=pid;if(S.night>=2&&!f.pass&&Math.random()<.25*diffEv())f.pass={lit:0,dark:0};emit({e:'forkIn',p:pid});return true}
-  case 'fpick':{const f=S.fork;if(f.drv!==pid||f.pal>=0||p.carry>=0)return true;const t=forkTip();const pal=S.pallets.find(x=>(x.st===0||x.st===3)&&Math.hypot(palWorld(x).x-t.x,palWorld(x).z-t.z)<1.3);
-    if(!pal)return true;pal.st=1;f.pal=pal.id;f.lift=2.62;emit({e:'pick',x:t.x,y:.5,z:t.z});return true}
+  case 'fpick':{const f=S.fork;if(f.drv!==pid||f.pal>=0||p.carry>=0)return true;const t=forkTip();const pal=S.pallets.find(x=>(x.st===0||x.st===3)&&x.amr!==2&&Math.hypot(palWorld(x).x-t.x,palWorld(x).z-t.z)<1.3);
+    if(!pal)return true;pal.st=1;f.pal=pal.id;pal.amr=0;pal.y=0;f.lift=2.62;emit({e:'pick',x:t.x,y:.5,z:t.z});return true}
   case 'fplace':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal),s=SLOTS[a.s];if(f.drv!==pid||!pal||!s)return true;const t=forkTip();
     if(s.old||s.box!==-1||s.cold||!slotOn(s)||s.y<2||Math.hypot(t.x-s.x,t.z-s.z)>2.6)return true;
     pal.st=2;pal.x=s.x;pal.z=s.z;pal.ry=0;pal.s=s.id;s.box=-(1000+pal.id);f.pal=-1;f.lift=.1;S.shelved+=8;pay(80);emit({e:"place",x:s.x,y:s.y,z:s.z});if(S.shelved>=S.quota&&S.shelved-8<S.quota)emit({e:'quota'});return true}
-  case 'fdrop':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal);if(f.drv!==pid||!pal)return true;const t=forkTip();pal.st=3;pal.x=t.x;pal.z=t.z;f.pal=-1;f.lift=.1;emit({e:'place',x:t.x,y:0,z:t.z});return true}
+  case 'fdrop':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal);if(f.drv!==pid||!pal)return true;const t=forkTip();pal.st=3;pal.x=t.x;pal.z=t.z;if(owned('amrl')&&Math.hypot(t.x-AMR.l.x,t.z-AMR.l.z)<1.7&&!S.pallets.some(q=>q!==pal&&q.st===3&&q.amr)){pal.x=AMR.l.x;pal.z=AMR.l.z;pal.ry=0;pal.amr=1;pal.y=amrAt(AMR.l)?AMR.l.deck:0} /* onto the robot pad */f.pal=-1;f.lift=.1;emit({e:'place',x:t.x,y:0,z:t.z});return true}
   }
   return false}
 function palWorld(pal){if(pal.st===0){const tr=S.trucks[pal.bay];return{x:BAYS[pal.bay].x+pal.lx,z:tr.z+pal.lz}}return{x:pal.x,z:pal.z}}
@@ -2466,14 +2562,14 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S
   mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0,m.tg||'']),
   // the additions' moving parts
   x:{cash:Math.round(S.cash||0),adds:S.adds,fixed:S.fixed,ab:S.aidBonus|0,ex:S.extra|0,shopT:Math.round(S.shopT||0),vo:S.votes||[],
-    par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1]),
+    par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1,r2(p.y||0),p.amr|0]),
     fl:(S.flares||[]).map(f=>[f.id,r2(f.x),r2(f.z),Math.round(f.t)]),cold:S.cold&&[r2(S.cold.door),S.cold.open?1:0],conv:S.conv&&[S.conv.sel,S.conv.jam?1:0],
     elev:S.elev&&[S.elev.lvl,S.elev.st,r2(S.elev.t),r2(S.elev.gate),r2(S.elev.hl||0),r2(S.elev.ht||0)],df:S.diff,gen:S.gen&&[Math.round(S.gen.fuel),S.gen.out?1:0],
-    out:S.outage?1:0,fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage,S.yard.hit||'',r2(S.yard.ht||0)],st:S.stash?1:0,ch:S.chill&&[S.chill.st==='cold'?1:0,Math.ceil(S.chill.t)],
+    out:S.outage?1:0,fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage,S.yard.hit||'',r2(S.yard.ht||0)],am:(S.amr||[]).map(r=>[r.k,r2(r.x),r2(r.z),r3(r.ry),AMR_ST.indexOf(r.st),r.load,r.slot,r2(r.t)]),st:S.stash?1:0,ch:S.chill&&[S.chill.st==='cold'?1:0,Math.ceil(S.chill.t)],
     rg:S.rg&&[RG_ST.indexOf(S.rg.st),r2(S.rg.x),r2(S.rg.z),r3(S.rg.ry),r2(S.rg.k),r2(S.rg.hx),r2(S.rg.hz),S.rg.tg||'',r2(S.rg.t),S.rg.b|0]},
   ev:NETEV.splice(0)}}
-function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1,b.fz?1:0,Math.round(b.th||0),b.ret?1:0,b.pri?1:0,b.m?1:0])}
-function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11],fz:!!a[12],th:a[13],ret:!!a[14],pri:!!a[15],m:!!a[16]}));
+function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1,b.fz?1:0,Math.round(b.th||0),b.ret?1:0,b.pri?1:0,b.m?1:0,b.amr|0])}
+function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11],fz:!!a[12],th:a[13],ret:!!a[14],pri:!!a[15],m:!!a[16],amr:a[17]|0}));
   markSlots()}
 // which box sits in each shelf slot, and (Better Stocking) which one is stacked on top of it
 function markSlots(){for(const s of SLOTS){s.box=-1;s.box2=-1}
@@ -2488,9 +2584,9 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
   m.tr.forEach((a,i)=>Object.assign(S.trucks[i],{st:a[0],z:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]}));
   S.mons=m.mo.map(a=>({id:a[0],ty:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],a:a[6],k:a[7],v:a[8],f:!!a[9],tg:a[10]||''}));
   const x=m.x||{};const addsChanged=JSON.stringify(x.adds||[])!==JSON.stringify(S.adds||[]);
-  Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1],hit:x.yard[2]||'',ht:x.yard[3]||0}:null,stash:!!x.st,chill:x.ch?{st:x.ch[0]?'cold':'warn',t:x.ch[1]}:null,
+  Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1],hit:x.yard[2]||'',ht:x.yard[3]||0}:null,amr:(x.am||[]).map(a=>({k:a[0],x:a[1],z:a[2],ry:a[3],st:AMR_ST[a[4]],load:a[5],slot:a[6],t:a[7]})),stash:!!x.st,chill:x.ch?{st:x.ch[0]?'cold':'warn',t:x.ch[1]}:null,
     rg:x.rg?{st:RG_ST[x.rg[0]],x:x.rg[1],z:x.rg[2],ry:x.rg[3],k:x.rg[4],hx:x.rg[5],hz:x.rg[6],tg:x.rg[7],t:x.rg[8],b:x.rg[9]|0}:null,
-    parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8]})),
+    parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8],y:a[9]||0,amr:a[10]||0})),
     flares:(x.fl||[]).map(a=>({id:a[0],x:a[1],z:a[2],t:a[3]}))});
   if(x.cold)S.cold={door:x.cold[0],open:!!x.cold[1]};if(x.conv)S.conv={sel:x.conv[0],jam:!!x.conv[1]};
   if(x.elev)S.elev={lvl:x.elev[0],st:x.elev[1],t:x.elev[2],gate:x.elev[3],hl:x.elev[4],ht:x.elev[5]};if(x.df!=null)S.diff=x.df;if(x.gen)S.gen={fuel:x.gen[0],out:!!x.gen[1]};
@@ -2638,7 +2734,7 @@ function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.s
   for(const h of hits){const ud=h.object.userData;if(!shown(h.object)||(drv&&ud.kind!=='box'))continue;
     // (parcels ride on top of the belt, inside its collider, so they can't be hidden behind it)
     if(ud.kind!=='parcel'&&segBlocked(ME.x,ME.z,h.point.x-(h.point.x-ME.x)*.08,h.point.z-(h.point.z-ME.z)*.08))break;
-    if(ud.kind==='box'){const b=S.boxes.find(x=>x.id===ud.id);if(b&&b.st===1)continue;if(!b||b.st===2)break;if(!carrying||(many&&(me.stack||[]).length<2))ME.target={kind:'box',b};break}
+    if(ud.kind==='box'){const b=S.boxes.find(x=>x.id===ud.id);if(b&&(b.st===1||b.amr))continue; /* (the robots' loads aren't yours to grab) */if(!b||b.st===2)break;if(!carrying||(many&&(me.stack||[]).length<2))ME.target={kind:'box',b};break}
     if(findTarget2(me,h))break;if(ud.kind)ME.target={kind:ud.kind,bay:ud.bay};break}}
 
 function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
@@ -2909,7 +3005,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
       else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=!bayOn(t.bay)?`Bay ${BAYS[t.bay].name}: not in service`:tr.st===0&&tr.stuck>0?`<kbd>E</kbd> Close the Bay ${BAYS[t.bay].name} door`:tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
       else if(t.kind==='exit')pr='<kbd>E</kbd> Exit';}
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
-    if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?' &nbsp; <kbd>G</kbd> Set the pallet down':carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
+    if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?(owned('amrl')&&Math.hypot(forkTip().x-AMR.l.x,forkTip().z-AMR.l.z)<1.7?' &nbsp; <kbd>G</kbd> Set the pallet on the robot pad':' &nbsp; <kbd>G</kbd> Set the pallet down'):carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
     const hn=hatchNote()||grabNote();if(hn)pr=hn;}
   pr=relabel(pr);if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
@@ -3144,7 +3240,7 @@ function syncExtras(dt,time){if(!S)return;const t=time;
     if(p.st===0){const tr=S.trucks[p.bay];g.visible=tr.st!==0;g.position.set(BAYS[p.bay].x+p.lx,0,tr.z+p.lz);g.rotation.y=0}
     else if(p.st===1&&f){g.visible=true;const u=FORK3D.userData;g.position.set(f.x+Math.sin(f.ry)*1.45,u.lift.position.y+.02,f.z+Math.cos(f.ry)*1.45);g.rotation.y=f.ry}
     else if(p.st===2){const s=SLOTS[p.s];g.visible=true;if(s)g.position.set(s.x,s.y,s.z);g.rotation.y=0}
-    else{g.visible=true;g.position.set(p.x,0,p.z);g.rotation.y=p.ry}
+    else{g.visible=true;g.position.set(p.x,p.y||0,p.z);g.rotation.y=p.ry}
     if(g.visible)g.traverse(o=>{if(o.isMesh)PALPICK.push(o)})}
   for(const [id,g] of PALV)if(!pl.has(id)){ROOT.remove(g);PALV.delete(id)}
   // flares, and one real light for the one nearest you
@@ -3169,9 +3265,22 @@ function syncExtras(dt,time){if(!S)return;const t=time;
       reach=e<.5?GIANT.localToWorld(_rv.set(-2.1,.9,1.6)).lerp(door,e*2):door.lerp(tgt,(e-.5)*2)}
     poseGiant(GIANT,{walk:v.walk,stride:v.st,crouch:v.cr,lean:v.ln+(vt?.15:0),look:vt&&y.hit!==NET.myId?_rm.set(vt.x,1.6,vt.z):camera.position,hands:[reach,grip],curl:[vt?.6:0,grip?.75:0],t})}
   else{GIANT.visible=false;GIANT.position.z=0}
-  syncRoof(dt,t)}
+  syncAmr(dt,t);syncRoof(dt,t)}
 const reach0=g=>g.st==='reach'||g.st==='retract'||g.st==='eat',_pv=new THREE.Vector3(),_pw=new THREE.Vector3();
 const _yv=new THREE.Vector3(),_rv=new THREE.Vector3(),_rm=new THREE.Vector3(),_rh=new THREE.Vector3();
+
+// ---------------------------------------------------------------- the warehouse robots
+const AMRV={};
+function syncAmr(dt,t){const live=new Set();
+  for(const r of S.amr||[]){live.add(r.k);let v=AMRV[r.k];if(!v){v=AMRV[r.k]={g:r.k==='s'?makeAmrS():makeAmrL(),x:r.x,z:r.z,h:0,snd:null};ROOT.add(v.g)}
+    const A=AMR[r.k],g=v.g,ox=v.x,oz=v.z;v.x=damp(v.x,r.x,8,dt);v.z=damp(v.z,r.z,8,dt);g.visible=true;g.position.set(v.x,0,v.z);g.rotation.y=angLerp(g.rotation.y,r.ry,1-Math.exp(-10*dt));
+    const moving=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3)>.1,s=SLOTS[r.slot],k=r.st==='lift'?clamp(r.t/AMR_LIFT,0,1):0;
+    // the deck: down while driving; lifting, it rises to the shelf (the small one's box then slides across onto it)
+    const top=r.k==='s'&&s?s.y:(r.k==='l'&&s?s.y:A.deck);v.h=damp(v.h,r.st==='lift'?A.deck+(top-A.deck)*Math.min(1,k/.6):A.deck,6,dt);amrLift(g,v.h);
+    if(r.k==='s'&&r.load>=0){const m=BM.get(r.load);if(m){m.visible=true;let x=v.x,z=v.z;if(s&&k>.6){const e=(k-.6)/.4;x=lerp(v.x,s.x,e);z=lerp(v.z,s.z,e)}m.position.set(x,v.h,z);m.rotation.set(0,g.rotation.y,0)}}
+    g.userData.band.color.setHSL(.57,1,r.st==='home'?.35:.45+.15*Math.sin(t*6));if(g.userData.beacon)g.userData.beacon.material.color.set(moving&&Math.sin(t*9)>0?0xffb020:0x3a2408);
+    if(AU.ready){if(!v.snd)v.snd=loop('lift',{x:v.x,y:.4,z:v.z},.35);if(v.snd){v.snd.pos({x:v.x,y:.4,z:v.z});v.snd.set(moving||r.st==='lift'?.5:0,.2)}}}
+  for(const k in AMRV)if(!live.has(k)){AMRV[k].g.visible=false;AMRV[k].snd&&AMRV[k].snd.set(0,.2)}}
 
 // ---------------------------------------------------------------- up on the roof: the storm, and what comes out of it
 let ROOFG=null,SNOW=null,WIND=null;
@@ -3293,6 +3402,7 @@ function onKey2(code,me){
     case 'fuelrack':if(me.can)toast('You already have a can.',2);else if(me.carry>=0)toast('Your hands are full.',2);else doAct({a:'can'});return true;
     case 'shred':if(me.carry<0)toast('Bring a box to feed it.',2);else doAct({a:'shred'});return true;
     case 'ladder':case 'hatch':if(me.carry>=0||me.can){toast('You need both hands for the ladder.',2.5);SFX.deny()}else doAct({a:'climb'});return true;
+    case 'amrPad':if(me.carry<0)toast('Bring a box. The robot takes it to a shelf for you.',2.5);else doAct({a:'amrLoad'});return true;
     case 'stash':doAct({a:'stash'});return true}}
   if(code==='KeyQ'&&ME.target&&ME.target.kind==='parcel'){if(ME.kickCD>0)return true;ME.kickCD=.8;ME.kickA=.35;doAct({a:'kick',pc:ME.target.id});return true}
   return false}
@@ -3428,6 +3538,7 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'warm':SFX.ok();toast(e.p===me?'The ventilation is running again.':`${e.n} got the ventilation running again.`,4);break;
   case 'yreach':SFX.gcreak(P(e.x,e.z,4));ME.shake=Math.max(ME.shake,.3);break;
   case 'yhit':if(e.p===me){ME.shake=1;ME.flash=Math.max(ME.flash,.35)}break;
+  case 'amrBeep':SFX.ding(P(e.x,e.z,.6));break;
   case 'gflinch':if(onRoof(ME))SFX.gcreak(P(e.x,e.z,ROOF.gy+16));break;
   case 'coldDoor':SFX.thunk(P((COLD.dx0+COLD.dx1)/2,COLD.z1,1));break;
   case 'lever':SFX.lever(P(e.x,e.z,1.2));break;
@@ -3472,6 +3583,9 @@ function promptFor(t,me){switch(t.kind){
   case 'ladder':return me.carry>=0||me.can?'Roof ladder (you need both hands)':'<kbd>E</kbd> Climb to the roof';
   case 'hatch':return'<kbd>E</kbd> Climb back down';
   case 'vent':return S.chill?`Hold <kbd>E</kbd> Restart the ventilation <span class="meter"><i style="width:${Math.round(clamp((ME.ventT||0)/2,0,1)*100)}%"></i></span>`:'Ventilation plant: running';
+  case 'amrPad':{if(me.carry<0)return'AMR-S pad: put a box here and the robot shelves it';const b=S.boxes.find(x=>x.id===me.carry);
+    if(b&&b.ret)return'The robot does not take returns';if(b&&b.fz)return'Frozen crates go to the freezer by hand';
+    if(S.boxes.some(x=>x.st===3&&x.amr===1))return'A box is already waiting on the pad';return'<kbd>E</kbd> Put it on the robot pad'}
   case 'stash':return S.stash?'<kbd>E</kbd> Look in the supply crate':'The crate is empty tonight';
   case 'fslot':return t.ok?'<kbd>E</kbd> Set the pallet on the shelf':'Shelf is full';
   case 'fpal':return'<kbd>E</kbd> Lift the pallet';}return null}
@@ -3511,6 +3625,8 @@ const ADD_INTRO={fork:'The forklift is parked by the dock, just east of where yo
   conv:'The sorting conveyor is on the south wall, behind you as you start. Set its lever to the colour of the next parcel to reach the end.',
   base:'The freight elevator is on the west wall, past Bay A. Ten damaged returns wait in the basement. They can\'t be shelved: feed them to the shredder down there.',
   gen:'The generator is on the west wall near the roof ladder. If the power fails, it keeps the lights and the charger running while it has fuel.',
+  amrs:'The AMR-S pad is on the dock, west of the charger. Put a box on it (E) and the robot shelves it on a free bottom or middle shelf.',
+  amrl:'The AMR-L pad is on the dock, east of the charger. Set a pallet on it with the forklift (G) and the robot puts it on a free top shelf.',
   heat:'The heater is high on the east wall. The warehouse now takes an extra night to go cold between spells.',
   bayc:'Bay C is open in the north-west corner. Its refrigerated trucks bring more boxes, and more frozen crates if you have cold storage.'};
 function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const fresh=(S.adds||[]).filter(k=>!seen.has(k));if(!fresh.length)return;

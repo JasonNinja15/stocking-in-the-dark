@@ -124,6 +124,15 @@ function buildAdditions(){
     acol('gen',FUELR.x-.5,FUELR.z-.25,FUELR.x+.5,FUELR.z+.25);
     addSign([{t:'GENERATOR',size:64,bold:true},{t:'KEEP FUELLED',size:38}],WH.x0+.03,2.2,GEN.z+1.3,Math.PI/2,1.4,.55,g);
     flushStatics(g)}
+  // ---------------------------------------------------------------- the robots' pads on the dock floor
+  for(const k of['s','l']){const A=AMR[k],g=addGroup('amr'+k),w=k==='s'?1.1:1.9,d=k==='s'?1.3:2.3;
+    sbox(MAT.dark,w,.012,d,A.x,.006,A.z,{cast:false});
+    for(const s of[-1,1]){sbox(MAT.hazard,w+.12,.014,.08,A.x,.007,A.z+s*(d/2+.02),{cast:false});sbox(MAT.hazard,.08,.014,d+.12,A.x+s*(w/2+.02),.007,A.z,{cast:false})}
+    // a post with the pad's sign and a charging contact plate, set back towards the dock wall
+    sbox(MAT.steel,.07,1.9,.07,A.x+w/2+.25,.95,A.z-d/2+.1);sbox(MAT.dark,.3,.5,.12,A.x,.25,A.z-d/2-.18);
+    addSign(k==='s'?[{t:'AMR-S',size:80,bold:true},{t:'PUT ONE BOX HERE',size:30}]:[{t:'AMR-L',size:80,bold:true},{t:'PALLET DROP · FORKLIFT',size:28}],A.x+w/2+.25,1.7,A.z-d/2+.15,0,.9,.42,g);
+    if(k==='s'){const hit=inter(new THREE.Mesh(GEO.box,MAT.dark),{kind:'amrPad'},g);hit.scale.set(w,1.1,d);hit.position.set(A.x,.55,A.z);hit.visible=false}
+    flushStatics(g)}
   // ---------------------------------------------------------------- warehouse heater (high on the east wall)
   {const g=addGroup('heat'),x=WH.x1-.45,y=4.2,z=1.5;
     sbox(MAT.hvac,.8,1,1.6,x,y,z);sbox(MAT.dark,.04,.8,1.4,x-.41,y,z,{cast:false});
@@ -137,7 +146,7 @@ function buildAdditions(){
 // Hangs on the dock wall right in front of where everyone starts, listing what the crew owns with an arrow to
 // each one (as seen from the start, facing the dock: up is the dock wall, down is the south wall behind you).
 const DIR_INFO={roof:{n:'ROOF LADDER',x:LADDER.x,z:LADDER.z,always:true},fork:{n:'FORKLIFT',x:FORK_HOME.x,z:FORK_HOME.z},cold:{n:'COLD STORAGE',x:25.3,z:-13},bayc:{n:'BAY C',x:-24,z:-19},
-  base:{n:'FREIGHT ELEVATOR',x:-27.5,z:-9.3},gen:{n:'GENERATOR',x:GEN.x,z:GEN.z},conv:{n:'SORTING CONVEYOR',x:-7.5,z:18},heat:{n:'HEATER',x:29.5,z:1.5}};
+  base:{n:'FREIGHT ELEVATOR',x:-27.5,z:-9.3},gen:{n:'GENERATOR',x:GEN.x,z:GEN.z},conv:{n:'SORTING CONVEYOR',x:-7.5,z:18},heat:{n:'HEATER',x:29.5,z:1.5},amrs:{n:'ROBOT PAD S',x:AMR.s.x,z:AMR.s.z},amrl:{n:'ROBOT PAD L',x:AMR.l.x,z:AMR.l.z}};
 function drawDirectory(){const m=ADDV.dir,ks=Object.keys(DIR_INFO).filter(k=>DIR_INFO[k].always||owned(k));m.visible=ks.length>0;if(!ks.length)return;
   const W=1024,LH=74,H=96+ks.length*LH;
   const t=ctex(W,H,(g,w,h)=>{g.fillStyle='#c9a227';g.fillRect(0,0,w,h);g.strokeStyle='#16130c';g.lineWidth=10;g.strokeRect(9,9,w-18,h-18);

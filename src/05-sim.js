@@ -347,7 +347,7 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
   const drv=!!(S.fork&&S.fork.drv===pid),busy=p.can||(drv&&S.fork.pal>=0),tipD=w=>{const t=forkTip();return Math.hypot(t.x-w.x,t.z-w.z)};
   const nextCarry=()=>{p.carry=p.stack.length?p.stack.pop():-1};
   switch(a.a){
-  case 'pick':{const b=B(a.b);if(!b||(b.st!==0&&b.st!==3)||busy)return;
+  case 'pick':{const b=B(a.b);if(!b||(b.st!==0&&b.st!==3)||busy||b.amr)return;
     // the carry upgrade stacks up to three; otherwise hands must be empty
     if(p.carry>=0&&!((p.up.hand||drv)&&p.stack.length<2))return;const w=boxWorld(b);if(drv?tipD(w)>2.8:!near(w,3.4))return;
     if(b.m){burstMimic(b,pid,true);return}
@@ -367,7 +367,7 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
     const tb=trailerAt(x,z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=x-BAYS[tb].x;b.z=z-S.trucks[tb].z;b.y=0;settleTruck(tb)}else{b.st=3;b.x=x;b.z=z;b.y=0}
     b.ry=+a.ry||0;b.h='';nextCarry();p.baseIdle=0;S.bver++;noise(x,z,5);emit({e:'place',x,y:0,z});break}
   case 'kick':{if(a.pc!==undefined){kickParcel(p,a.pc,false);noise(p.x,p.z,10);return}
-    const b=B(a.b);if(!b||(b.st!==0&&b.st!==3))return;const w=boxWorld(b);if(!near(w,3.2))return;noise(w.x,w.z,10);
+    const b=B(a.b);if(!b||(b.st!==0&&b.st!==3)||b.amr)return;const w=boxWorld(b);if(!near(w,3.2))return;noise(w.x,w.z,10);
     if(b.m){const first=!b.roam;burstMimic(b,pid,false);if(first){pay(5);emit({e:'msg',m:'Good instincts.',p:pid})}return}
     if(b.f){const bay=b.st===0?b.bay:-1;b.st=4;S.lost++;S.bver++;if(bay>=0)settleTruck(bay);noise(w.x,w.z,12);emit({e:'smash',x:w.x,y:w.y,z:w.z});emit({e:'msg',m:'You broke something fragile.',p:pid});return}
     const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw);let nx=w.x+fx*1.1,nz=w.z+fz*1.1;if(insideAny(nx,nz,.3)){nx=w.x+fx*.3;nz=w.z+fz*.3;if(insideAny(nx,nz,.3)){nx=w.x;nz=w.z}}

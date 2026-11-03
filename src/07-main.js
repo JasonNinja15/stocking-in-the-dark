@@ -132,7 +132,7 @@ function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.s
   for(const h of hits){const ud=h.object.userData;if(!shown(h.object)||(drv&&ud.kind!=='box'))continue;
     // (parcels ride on top of the belt, inside its collider, so they can't be hidden behind it)
     if(ud.kind!=='parcel'&&segBlocked(ME.x,ME.z,h.point.x-(h.point.x-ME.x)*.08,h.point.z-(h.point.z-ME.z)*.08))break;
-    if(ud.kind==='box'){const b=S.boxes.find(x=>x.id===ud.id);if(b&&b.st===1)continue;if(!b||b.st===2)break;if(!carrying||(many&&(me.stack||[]).length<2))ME.target={kind:'box',b};break}
+    if(ud.kind==='box'){const b=S.boxes.find(x=>x.id===ud.id);if(b&&(b.st===1||b.amr))continue; /* (the robots' loads aren't yours to grab) */if(!b||b.st===2)break;if(!carrying||(many&&(me.stack||[]).length<2))ME.target={kind:'box',b};break}
     if(findTarget2(me,h))break;if(ud.kind)ME.target={kind:ud.kind,bay:ud.bay};break}}
 
 function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
@@ -403,7 +403,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
       else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=!bayOn(t.bay)?`Bay ${BAYS[t.bay].name}: not in service`:tr.st===0&&tr.stuck>0?`<kbd>E</kbd> Close the Bay ${BAYS[t.bay].name} door`:tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
       else if(t.kind==='exit')pr='<kbd>E</kbd> Exit';}
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
-    if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?' &nbsp; <kbd>G</kbd> Set the pallet down':carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
+    if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?(owned('amrl')&&Math.hypot(forkTip().x-AMR.l.x,forkTip().z-AMR.l.z)<1.7?' &nbsp; <kbd>G</kbd> Set the pallet on the robot pad':' &nbsp; <kbd>G</kbd> Set the pallet down'):carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
     const hn=hatchNote()||grabNote();if(hn)pr=hn;}
   pr=relabel(pr);if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}

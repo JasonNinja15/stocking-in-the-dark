@@ -9,7 +9,9 @@ const ADDS={
   gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power for outages (from night 3). Keep it fuelled with jerry cans from the rack by the roof ladder.'},
   bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'},
   heat:{name:'Warehouse Heater',price:250,q:0,time:0,desc:'A gas heater high on the east wall. The warehouse holds its warmth an extra night between cold spells.'},
-  medkit:{name:'Medkit Upgrade',price:300,q:0,time:0,desc:'A bigger first-aid cabinet: the crew can buy a third first-aid refill each night.'}};
+  medkit:{name:'Medkit Upgrade',price:300,q:0,time:0,desc:'A bigger first-aid cabinet: the crew can buy a third first-aid refill each night.'},
+  amrs:{name:'Autonomous Mobile Robot S',price:2000,q:0,time:0,desc:'A small robot with a pad on the dock near the bays. Put a box on the pad and it drives it to a free bottom or middle shelf and shelves it, one box at a time. Slow, and it stops for anyone in its way.'},
+  amrl:{name:'Autonomous Mobile Robot L',price:5000,q:0,time:0,desc:'A big pallet robot with a pad on the dock. Set a pallet on the pad with the forklift and it carries it to a free top shelf and lifts it in, one pallet at a time. Trucks bring pallets a little more often.'}};
 const SHOP={
   fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam. The battery lasts twice as long.'},
   shake:{name:'Shake flashlight',price:100,once:true,key:'R',desc:'Hold R to shake your flashlight and charge it anywhere. Anything listening hears it.'},
@@ -47,10 +49,10 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.aidLeft=2+(S.aidBonus||0);S.aidBonus=0;
   S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);
   S.parcels=[];S.pallets=[];S.flares=[];S.cold={door:0,open:false,t:0};S.conv={sel:S.conv?S.conv.sel:0,next:12,jam:false};
-  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.rg=null;S.stash=true;HOST.rgT=0;S.chill=null;HOST.frzT=0;HOST.chillAt=coldNight(S.night)?(SHIFT_END-S.extra)/2:Infinity;S.paN=0;S.outage=false;
+  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.amr=['s','l'].filter(k=>owned('amr'+k)).map(k=>({k,x:AMR[k].x,z:AMR[k].z,ry:Math.PI,st:'home',load:-1,slot:-1,t:0,path:null,rep:0,stop:0}));for(const b of S.boxes)if(b.amr){b.amr=1;b.x=AMR.s.x;b.z=AMR.s.z;b.y=owned('amrs')?AMR.s.deck:0}S.rg=null;S.stash=true;HOST.rgT=0;S.chill=null;HOST.frzT=0;HOST.chillAt=coldNight(S.night)?(SHIFT_END-S.extra)/2:Infinity;S.paN=0;S.outage=false;
   HOST.outageAt=S.night>=3&&Math.random()<Math.min(.6,.22+.07*S.night)*diffEv()?rand(SHIFT_END*.12,SHIFT_END*.8):1e9;
   S.fork={x:FORK_HOME.x,z:FORK_HOME.z,ry:FORK_HOME.ry,lift:0,drv:'',pal:-1,pass:null};
-  Object.assign(HOST,{nextPA:rand(70,120),nextMoth:rand(30,50),palDue:owned('fork')?3:0,mgr:false,noise:[]});
+  Object.assign(HOST,{nextPA:rand(70,120),nextMoth:rand(30,50),palDue:owned('fork')?(owned('amrl')?5:3):0,mgr:false,noise:[]});
   for(const p of Object.values(S.players))Object.assign(p,{can:false,stack:[],wu:0,idleT:0,wuCD:0,binT:0,spd:0,px:undefined,baseIdle:0,baseWarn:false,strug:0});
   if(owned('base'))S.mons.push({id:monSeq++,ty:14,x:HUNCH.x,z:HUNCH.z,y:0,ry:-2.4,st:'sit',a:0,t:0,cd:0,tg:''});
   // topped back up to ten: returns nobody dealt with last night are still lying there
@@ -94,7 +96,7 @@ function extrasUpdate(dt){
   S.flares=S.flares.filter(f=>(f.t-=dt)>0);
   // a power outage, once it happens, lasts until morning
   if(!S.outage&&!S.ot&&S.t>=HOST.outageAt){S.outage=true;if(!genPowered())S.lamps=S.lamps.map(()=>0);emit({e:'outage',gen:genPowered()});spawnBlind()}
-  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);
+  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);amrUpdate(dt);
   if(!HOST.mgr&&S.night>=3&&S.t>=-S.extra+50){HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:MGR_SPOT.x,z:MGR_SPOT.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0})}
   if(owned('gen')){HOST.nextMoth-=dt;if(HOST.nextMoth<=0){HOST.nextMoth=rand(40,70);spawnMoth()}}}
 
@@ -341,6 +343,55 @@ function chillUpdate(dt){
   HOST.frzT+=dt;if(HOST.frzT<1)return;HOST.frzT-=1;
   for(const p of alivePlayers()){p.hp-=1;if(p.hp<=0){p.hp=1;damage(p,999)}}}
 function fixVent(p){if(!S.chill||!nearPos(p,VENT.x,VENT.z,3.4))return;const was=S.chill.st;S.chill=null;emit({e:'warm',p:p.id,n:p.name,was})}
+
+// ---------------------------------------------------------------- the warehouse robots (AMR S and AMR L)
+// Each waits on its pad on the dock. Load it (a box on the S pad by hand, a pallet on the L pad with the forklift) and
+// it picks a free shelf (bottom or middle for S, top for L), drives there slowly down the aisles, lifts the load in,
+// shelves it, and comes back. One load at a time. It stops for anyone standing in front of it.
+const AMR_ST=['home','go','lift','back'];
+const AMR_LIFT=1.8;
+const amrAt=A=>(S.amr||[]).some(r=>r.k===(A===AMR.s?'s':'l')&&r.st==='home');
+// a free shelf for a robot's load, nearest the pad first, and the aisle spot in front of it
+function amrSlot(r){const A=AMR[r.k],taken=new Set((S.amr||[]).map(o=>o.slot));let best=null,bd=1e9;
+  for(const s of SLOTS){if(s.old||s.cold||!slotOn(s)||s.box!==-1||taken.has(s.id))continue;if(r.k==='s'?s.y>2:s.y<2)continue;
+    const d=Math.hypot(s.x-A.x,s.z-A.z);if(d<bd){const ap=amrAisle(s,r.x,r.z);if(ap){bd=d;best={s,ap}}}}return best}
+function amrAisle(s,fx,fz){const free=(x,z)=>{const [i,j]=cellOf(x,z);return!GRID.blk[j*GRID.nx+i]&&x>WH.x0+1&&x<WH.x1-1&&z>WH.z0+1&&z<WH.z1-1};
+  const c=[[s.x,s.z-1.4],[s.x,s.z+1.4]].filter(([x,z])=>free(x,z)).sort((a,b)=>Math.hypot(a[0]-fx,a[1]-fz)-Math.hypot(b[0]-fx,b[1]-fz));return c[0]?{x:c[0][0],z:c[0][1]}:null}
+function amrDrive(r,tx,tz,sp,dt){r.rep-=dt;if(r.rep<=0||!r.path){r.rep=.8;r.path=astar(r.x,r.z,tx,tz)}let px=tx,pz=tz;
+  if(r.path){while(r.path.length&&Math.hypot(r.path[0].x-r.x,r.path[0].z-r.z)<.45)r.path.shift();if(r.path.length){px=r.path[0].x;pz=r.path[0].z}}
+  const dx=px-r.x,dz=pz-r.z,d=Math.hypot(dx,dz);if(d<.02)return Math.hypot(tx-r.x,tz-r.z);
+  // turn on the spot first, then roll; and stop dead for anyone in the way
+  const want=Math.atan2(dx,dz),off=Math.abs(angDiff(r.ry,want));r.ry=angLerp(r.ry,want,dt*2.2);
+  const fx=Math.sin(r.ry),fz=Math.cos(r.ry),block=alivePlayers().some(p=>{const ox=p.x-r.x,oz=p.z-r.z,od=Math.hypot(ox,oz);return od<(r.k==='l'?1.9:1.3)&&(ox*fx+oz*fz)/Math.max(od,.01)>.2});
+  if(block){if((r.stop+=dt)>2.5){r.stop=0;emit({e:'amrBeep',x:r.x,z:r.z})}return 99}
+  if(off<.6){const s=Math.min(d,sp*dt);r.x+=dx/d*s;r.z+=dz/d*s}return Math.hypot(tx-r.x,tz-r.z)}
+function amrUpdate(dt){for(const r of S.amr||[]){const A=AMR[r.k];
+  const load=r.k==='s'?S.boxes.find(b=>b.id===r.load&&b.st!==4):S.pallets.find(p=>p.id===r.load&&p.st!==4);
+  // the pallet rides on the big one; lifting, it goes up first (60% of the time) and then slides across onto the shelf
+  const carry=()=>{if(r.k!=='l'||!load)return;const s=SLOTS[r.slot],k=r.st==='lift'?Math.min(1,r.t/AMR_LIFT):0,up=Math.min(1,k/.6),across=Math.max(0,(k-.6)/.4);
+    load.x=s?lerp(r.x,s.x,across):r.x;load.z=s?lerp(r.z,s.z,across):r.z;load.ry=lerp(r.ry,0,across);load.y=A.deck+up*(s?s.y-A.deck:0)};
+  switch(r.st){
+  case 'home':{r.ry=angLerp(r.ry,Math.PI,dt*2);
+    // something waiting on the pad?
+    const w=r.k==='s'?S.boxes.find(b=>b.st===3&&b.amr===1&&Math.hypot(b.x-A.x,b.z-A.z)<1):S.pallets.find(p=>p.st===3&&p.amr===1&&Math.hypot(p.x-A.x,p.z-A.z)<1.2);
+    if(!w)break;const sl=amrSlot(r);if(!sl){if((r.t-=dt)<=0){r.t=8;emit({e:'msg',m:`${A.name}: no free ${r.k==='s'?'lower':'top'} shelf to take it to.`})}break}
+    w.amr=2;w.y=A.deck;r.load=w.id;r.slot=sl.s.id;r.goal=sl.ap;r.path=null;r.st='go';if(r.k==='s')S.bver++;emit({e:'amrGo',k:r.k,x:r.x,z:r.z});break}
+  case 'go':{if(!load){r.st='back';break}carry();const s=SLOTS[r.slot];
+    if(s.box!==-1){const sl=amrSlot(r);if(!sl){r.st='back';break}r.slot=sl.s.id;r.goal=sl.ap;r.path=null} // someone filled it first
+    if(amrDrive(r,r.goal.x,r.goal.z,A.speed,dt)<.25){r.st='lift';r.t=0;r.ry=Math.atan2(s.x-r.x,s.z-r.z)}break}
+  case 'lift':{if(!load){r.st='back';break}r.t+=dt;r.ry=angLerp(r.ry,Math.atan2(SLOTS[r.slot].x-r.x,SLOTS[r.slot].z-r.z),dt*4);carry();if(r.t<AMR_LIFT)break;
+    const s=SLOTS[r.slot];if(s.box!==-1){r.st='go';r.t=0;break}
+    if(r.k==='s'){const b=load;b.st=2;b.s=s.id;b.x=s.x+rand(-.12,.12);b.y=s.y;b.z=s.z+rand(-.06,.06);b.ry=rand(-.1,.1);b.amr=0;s.box=b.id;S.shelved++;pay(b.pri?20:b.f?15:10);S.bver++}
+    else{const p=load;p.st=2;p.x=s.x;p.z=s.z;p.ry=0;p.y=0;p.amr=0;p.s=s.id;s.box=-(1000+p.id);S.shelved+=8;pay(80)}
+    emit({e:'place',x:s.x,y:s.y,z:s.z});if(S.shelved>=S.quota&&S.shelved-(r.k==='s'?1:8)<S.quota)emit({e:'quota'});
+    r.load=-1;r.slot=-1;r.st='back';r.path=null;r.t=0;break}
+  case 'back':{if(load&&load.amr===2){load.amr=1;load.x=A.x;load.z=A.z;load.y=0;if(r.k==='s')S.bver++;r.load=-1;r.slot=-1}  // couldn't place it: brings it home
+    if(amrDrive(r,A.x,A.z,A.speed,dt)<.2){r.x=A.x;r.z=A.z;r.st='home';r.t=0}break}}}}
+// a box from your arms onto the AMR-S pad
+function amrLoad(p){if(!owned('amrs'))return;const no=m=>toP(p,m),b=S.boxes.find(x=>x.id===p.carry&&x.st!==4);if(!b)return no('Bring a box to put on the pad.');
+  if(!nearPos(p,AMR.s.x,AMR.s.z,2.8))return;if(b.ret)return no('The robot doesn\'t take returns. They go in the basement shredder.');if(b.fz)return no('Frozen crates need a person: take it to the freezer.');
+  if(S.boxes.some(x=>x.st===3&&x.amr===1))return no('There\'s already a box waiting on the pad.');
+  const home=amrAt(AMR.s);b.st=3;b.amr=1;b.h='';b.s=-1;b.x=AMR.s.x;b.z=AMR.s.z;b.y=home?AMR.s.deck:0;b.ry=0;p.carry=p.stack.length?p.stack.pop():-1;S.bver++;emit({e:'place',x:b.x,y:b.y,z:b.z})}
 // ---------------------------------------------------------------- the night manager
 function managerUpdate(m,dt){m.t+=dt;
   const walkTo=(tx,tz,sp)=>{m.rep-=dt;if(m.rep<=0||!m.path){m.rep=.6;m.path=astar(m.x,m.z,tx,tz)}let px=tx,pz=tz;
@@ -449,6 +500,7 @@ function act2(pid,p,a){
     const x=up?HATCH.x+1.15:LADDER.x+1.1,z=up?HATCH.z-1.1:LADDER.z-.9;p.x=x;p.z=z;p.tpT=.8;
     emit({e:'tp',p:pid,x:r2(x),z:r2(z),climb:up?1:-1});return true}
   case 'vent':fixVent(p);return true;
+  case 'amrLoad':amrLoad(p);return true;
   case 'stash':{if(!nearPos(p,STASH.x,STASH.z,2.4))return true;if(!S.stash)return toP(p,'Empty. Someone already went through it tonight.'),true;
     S.stash=false;const k=['batt','flare','drink','horn','strobe'][randi(0,4)];p.inv[k]=(p.inv[k]||0)+1;emit({e:'stash',p:pid,k});return true}
   case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>m.ty===14&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
@@ -459,12 +511,12 @@ function act2(pid,p,a){
       p.x=x;p.z=z;p.tpT=.6;emit({e:'tp',p:pid,x:r2(x),z:r2(z)});emit({e:'forkOut',p:pid});return true}
     if(!owned("fork")||f.drv||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>5.2)return true; // (matches the reach of the hit box around it)
     f.drv=pid;if(S.night>=2&&!f.pass&&Math.random()<.25*diffEv())f.pass={lit:0,dark:0};emit({e:'forkIn',p:pid});return true}
-  case 'fpick':{const f=S.fork;if(f.drv!==pid||f.pal>=0||p.carry>=0)return true;const t=forkTip();const pal=S.pallets.find(x=>(x.st===0||x.st===3)&&Math.hypot(palWorld(x).x-t.x,palWorld(x).z-t.z)<1.3);
-    if(!pal)return true;pal.st=1;f.pal=pal.id;f.lift=2.62;emit({e:'pick',x:t.x,y:.5,z:t.z});return true}
+  case 'fpick':{const f=S.fork;if(f.drv!==pid||f.pal>=0||p.carry>=0)return true;const t=forkTip();const pal=S.pallets.find(x=>(x.st===0||x.st===3)&&x.amr!==2&&Math.hypot(palWorld(x).x-t.x,palWorld(x).z-t.z)<1.3);
+    if(!pal)return true;pal.st=1;f.pal=pal.id;pal.amr=0;pal.y=0;f.lift=2.62;emit({e:'pick',x:t.x,y:.5,z:t.z});return true}
   case 'fplace':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal),s=SLOTS[a.s];if(f.drv!==pid||!pal||!s)return true;const t=forkTip();
     if(s.old||s.box!==-1||s.cold||!slotOn(s)||s.y<2||Math.hypot(t.x-s.x,t.z-s.z)>2.6)return true;
     pal.st=2;pal.x=s.x;pal.z=s.z;pal.ry=0;pal.s=s.id;s.box=-(1000+pal.id);f.pal=-1;f.lift=.1;S.shelved+=8;pay(80);emit({e:"place",x:s.x,y:s.y,z:s.z});if(S.shelved>=S.quota&&S.shelved-8<S.quota)emit({e:'quota'});return true}
-  case 'fdrop':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal);if(f.drv!==pid||!pal)return true;const t=forkTip();pal.st=3;pal.x=t.x;pal.z=t.z;f.pal=-1;f.lift=.1;emit({e:'place',x:t.x,y:0,z:t.z});return true}
+  case 'fdrop':{const f=S.fork,pal=S.pallets.find(x=>x.id===f.pal);if(f.drv!==pid||!pal)return true;const t=forkTip();pal.st=3;pal.x=t.x;pal.z=t.z;if(owned('amrl')&&Math.hypot(t.x-AMR.l.x,t.z-AMR.l.z)<1.7&&!S.pallets.some(q=>q!==pal&&q.st===3&&q.amr)){pal.x=AMR.l.x;pal.z=AMR.l.z;pal.ry=0;pal.amr=1;pal.y=amrAt(AMR.l)?AMR.l.deck:0} /* onto the robot pad */f.pal=-1;f.lift=.1;emit({e:'place',x:t.x,y:0,z:t.z});return true}
   }
   return false}
 function palWorld(pal){if(pal.st===0){const tr=S.trucks[pal.bay];return{x:BAYS[pal.bay].x+pal.lx,z:tr.z+pal.lz}}return{x:pal.x,z:pal.z}}

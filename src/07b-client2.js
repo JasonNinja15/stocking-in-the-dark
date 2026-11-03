@@ -49,7 +49,7 @@ function syncExtras(dt,time){if(!S)return;const t=time;
     if(p.st===0){const tr=S.trucks[p.bay];g.visible=tr.st!==0;g.position.set(BAYS[p.bay].x+p.lx,0,tr.z+p.lz);g.rotation.y=0}
     else if(p.st===1&&f){g.visible=true;const u=FORK3D.userData;g.position.set(f.x+Math.sin(f.ry)*1.45,u.lift.position.y+.02,f.z+Math.cos(f.ry)*1.45);g.rotation.y=f.ry}
     else if(p.st===2){const s=SLOTS[p.s];g.visible=true;if(s)g.position.set(s.x,s.y,s.z);g.rotation.y=0}
-    else{g.visible=true;g.position.set(p.x,0,p.z);g.rotation.y=p.ry}
+    else{g.visible=true;g.position.set(p.x,p.y||0,p.z);g.rotation.y=p.ry}
     if(g.visible)g.traverse(o=>{if(o.isMesh)PALPICK.push(o)})}
   for(const [id,g] of PALV)if(!pl.has(id)){ROOT.remove(g);PALV.delete(id)}
   // flares, and one real light for the one nearest you
@@ -74,9 +74,22 @@ function syncExtras(dt,time){if(!S)return;const t=time;
       reach=e<.5?GIANT.localToWorld(_rv.set(-2.1,.9,1.6)).lerp(door,e*2):door.lerp(tgt,(e-.5)*2)}
     poseGiant(GIANT,{walk:v.walk,stride:v.st,crouch:v.cr,lean:v.ln+(vt?.15:0),look:vt&&y.hit!==NET.myId?_rm.set(vt.x,1.6,vt.z):camera.position,hands:[reach,grip],curl:[vt?.6:0,grip?.75:0],t})}
   else{GIANT.visible=false;GIANT.position.z=0}
-  syncRoof(dt,t)}
+  syncAmr(dt,t);syncRoof(dt,t)}
 const reach0=g=>g.st==='reach'||g.st==='retract'||g.st==='eat',_pv=new THREE.Vector3(),_pw=new THREE.Vector3();
 const _yv=new THREE.Vector3(),_rv=new THREE.Vector3(),_rm=new THREE.Vector3(),_rh=new THREE.Vector3();
+
+// ---------------------------------------------------------------- the warehouse robots
+const AMRV={};
+function syncAmr(dt,t){const live=new Set();
+  for(const r of S.amr||[]){live.add(r.k);let v=AMRV[r.k];if(!v){v=AMRV[r.k]={g:r.k==='s'?makeAmrS():makeAmrL(),x:r.x,z:r.z,h:0,snd:null};ROOT.add(v.g)}
+    const A=AMR[r.k],g=v.g,ox=v.x,oz=v.z;v.x=damp(v.x,r.x,8,dt);v.z=damp(v.z,r.z,8,dt);g.visible=true;g.position.set(v.x,0,v.z);g.rotation.y=angLerp(g.rotation.y,r.ry,1-Math.exp(-10*dt));
+    const moving=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3)>.1,s=SLOTS[r.slot],k=r.st==='lift'?clamp(r.t/AMR_LIFT,0,1):0;
+    // the deck: down while driving; lifting, it rises to the shelf (the small one's box then slides across onto it)
+    const top=r.k==='s'&&s?s.y:(r.k==='l'&&s?s.y:A.deck);v.h=damp(v.h,r.st==='lift'?A.deck+(top-A.deck)*Math.min(1,k/.6):A.deck,6,dt);amrLift(g,v.h);
+    if(r.k==='s'&&r.load>=0){const m=BM.get(r.load);if(m){m.visible=true;let x=v.x,z=v.z;if(s&&k>.6){const e=(k-.6)/.4;x=lerp(v.x,s.x,e);z=lerp(v.z,s.z,e)}m.position.set(x,v.h,z);m.rotation.set(0,g.rotation.y,0)}}
+    g.userData.band.color.setHSL(.57,1,r.st==='home'?.35:.45+.15*Math.sin(t*6));if(g.userData.beacon)g.userData.beacon.material.color.set(moving&&Math.sin(t*9)>0?0xffb020:0x3a2408);
+    if(AU.ready){if(!v.snd)v.snd=loop('lift',{x:v.x,y:.4,z:v.z},.35);if(v.snd){v.snd.pos({x:v.x,y:.4,z:v.z});v.snd.set(moving||r.st==='lift'?.5:0,.2)}}}
+  for(const k in AMRV)if(!live.has(k)){AMRV[k].g.visible=false;AMRV[k].snd&&AMRV[k].snd.set(0,.2)}}
 
 // ---------------------------------------------------------------- up on the roof: the storm, and what comes out of it
 let ROOFG=null,SNOW=null,WIND=null;
@@ -198,6 +211,7 @@ function onKey2(code,me){
     case 'fuelrack':if(me.can)toast('You already have a can.',2);else if(me.carry>=0)toast('Your hands are full.',2);else doAct({a:'can'});return true;
     case 'shred':if(me.carry<0)toast('Bring a box to feed it.',2);else doAct({a:'shred'});return true;
     case 'ladder':case 'hatch':if(me.carry>=0||me.can){toast('You need both hands for the ladder.',2.5);SFX.deny()}else doAct({a:'climb'});return true;
+    case 'amrPad':if(me.carry<0)toast('Bring a box. The robot takes it to a shelf for you.',2.5);else doAct({a:'amrLoad'});return true;
     case 'stash':doAct({a:'stash'});return true}}
   if(code==='KeyQ'&&ME.target&&ME.target.kind==='parcel'){if(ME.kickCD>0)return true;ME.kickCD=.8;ME.kickA=.35;doAct({a:'kick',pc:ME.target.id});return true}
   return false}
@@ -333,6 +347,7 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'warm':SFX.ok();toast(e.p===me?'The ventilation is running again.':`${e.n} got the ventilation running again.`,4);break;
   case 'yreach':SFX.gcreak(P(e.x,e.z,4));ME.shake=Math.max(ME.shake,.3);break;
   case 'yhit':if(e.p===me){ME.shake=1;ME.flash=Math.max(ME.flash,.35)}break;
+  case 'amrBeep':SFX.ding(P(e.x,e.z,.6));break;
   case 'gflinch':if(onRoof(ME))SFX.gcreak(P(e.x,e.z,ROOF.gy+16));break;
   case 'coldDoor':SFX.thunk(P((COLD.dx0+COLD.dx1)/2,COLD.z1,1));break;
   case 'lever':SFX.lever(P(e.x,e.z,1.2));break;
@@ -377,6 +392,9 @@ function promptFor(t,me){switch(t.kind){
   case 'ladder':return me.carry>=0||me.can?'Roof ladder (you need both hands)':'<kbd>E</kbd> Climb to the roof';
   case 'hatch':return'<kbd>E</kbd> Climb back down';
   case 'vent':return S.chill?`Hold <kbd>E</kbd> Restart the ventilation <span class="meter"><i style="width:${Math.round(clamp((ME.ventT||0)/2,0,1)*100)}%"></i></span>`:'Ventilation plant: running';
+  case 'amrPad':{if(me.carry<0)return'AMR-S pad: put a box here and the robot shelves it';const b=S.boxes.find(x=>x.id===me.carry);
+    if(b&&b.ret)return'The robot does not take returns';if(b&&b.fz)return'Frozen crates go to the freezer by hand';
+    if(S.boxes.some(x=>x.st===3&&x.amr===1))return'A box is already waiting on the pad';return'<kbd>E</kbd> Put it on the robot pad'}
   case 'stash':return S.stash?'<kbd>E</kbd> Look in the supply crate':'The crate is empty tonight';
   case 'fslot':return t.ok?'<kbd>E</kbd> Set the pallet on the shelf':'Shelf is full';
   case 'fpal':return'<kbd>E</kbd> Lift the pallet';}return null}
@@ -416,6 +434,8 @@ const ADD_INTRO={fork:'The forklift is parked by the dock, just east of where yo
   conv:'The sorting conveyor is on the south wall, behind you as you start. Set its lever to the colour of the next parcel to reach the end.',
   base:'The freight elevator is on the west wall, past Bay A. Ten damaged returns wait in the basement. They can\'t be shelved: feed them to the shredder down there.',
   gen:'The generator is on the west wall near the roof ladder. If the power fails, it keeps the lights and the charger running while it has fuel.',
+  amrs:'The AMR-S pad is on the dock, west of the charger. Put a box on it (E) and the robot shelves it on a free bottom or middle shelf.',
+  amrl:'The AMR-L pad is on the dock, east of the charger. Set a pallet on it with the forklift (G) and the robot puts it on a free top shelf.',
   heat:'The heater is high on the east wall. The warehouse now takes an extra night to go cold between spells.',
   bayc:'Bay C is open in the north-west corner. Its refrigerated trucks bring more boxes, and more frozen crates if you have cold storage.'};
 function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const fresh=(S.adds||[]).filter(k=>!seen.has(k));if(!fresh.length)return;

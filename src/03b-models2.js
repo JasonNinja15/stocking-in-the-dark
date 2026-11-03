@@ -126,6 +126,38 @@ function makeForklift(){const g=new THREE.Group(),body=pivot(0,0,0,g);
   const beacon=new THREE.Mesh(GEO.sph,basic(0xffa020));beacon.scale.setScalar(.06);beacon.position.set(0,2.42,-.2);body.add(beacon);
   g.userData={body,lift,beacon};return g}
 
+// ---- the warehouse robots (autonomous mobile robots). Both face +Z, front lidar and bumper that way.
+// S: a small white tote-mover, low drive base with a dark skirt and a blue light band, a lidar puck up front, a slim
+// mast with a status screen, and a lift deck on top that carries one box and raises it to the shelf.
+const AMR_MAT={white:toon(0xe9ebe6),grey:toon(0x7d8287),band:basic(0x3aa8ff),lidar:toon(0x26292d),screen:basic(0x7fd0ff),beacon:basic(0xffb020)};
+function makeAmrS(){const g=new THREE.Group(),M=AMR_MAT;
+  part(GEO.box,MAT.dark,.66,.14,.9,0,.09,0,g);part(GEO.box,M.white,.62,.2,.86,0,.25,0,g);                  // skirt, shell
+  for(const z of[-.43,.43])part(GEO.cyl,M.white,.31,.2,.31,0,.25,z*.92,g,{cast:false});                     // rounded ends
+  part(GEO.box,M.band,.64,.03,.88,0,.17,0,g,{cast:false});                                                  // light band
+  part(GEO.box,MAT.hazard,.5,.08,.04,0,.12,.47,g,{cast:false});part(GEO.box,MAT.hazard,.5,.08,.04,0,.12,-.47,g,{cast:false}); // bumpers
+  part(GEO.cyl,M.lidar,.07,.07,.07,0,.39,.36,g);                                                             // lidar puck
+  for(const [x,z] of[[-.26,.3],[.26,.3],[-.26,-.3],[.26,-.3]])part(GEO.cyl,MAT.rubber,.07,.06,.07,x,.05,z,g,{rz:Math.PI/2,cast:false});
+  part(GEO.box,M.grey,.06,.62,.06,.22,.66,-.34,g);const scr=new THREE.Mesh(GEO.box,M.screen);scr.scale.set(.22,.14,.02);scr.position.set(.22,.92,-.32);scr.rotation.x=-.4;g.add(scr);
+  const lift=pivot(0,.36,0,g);part(GEO.box,M.grey,.56,.04,.6,0,.02,0,lift);                                  // the lift deck
+  const col=pivot(0,.36,0,g);part(GEO.box,MAT.steel,.16,1,.16,0,-.5,0,col,{cast:false});col.scale.y=.01;      // the column that pushes the deck up
+  g.userData={lift,col,band:M.band,kind:'s'};return g}
+// L: a big low pallet carrier, dark chassis with a yellow lift table edged in hazard tape, lidar pucks on two
+// corners, a blue light band, an amber beacon on a short post, and scissor arms under the table when it lifts.
+function makeAmrL(){const g=new THREE.Group(),M=AMR_MAT;
+  part(GEO.box,MAT.dark,1.3,.16,1.75,0,.1,0,g);part(GEO.box,M.grey,1.26,.22,1.7,0,.28,0,g);
+  part(GEO.box,M.band,1.28,.04,1.72,0,.19,0,g,{cast:false});
+  for(const s of[-1,1])part(GEO.box,MAT.hazard,1.2,.1,.05,0,.14,s*.89,g,{cast:false});
+  for(const [x,z] of[[.58,.82],[-.58,-.82]])part(GEO.cyl,M.lidar,.08,.08,.08,x,.44,z,g);
+  for(const [x,z] of[[-.5,.6],[.5,.6],[-.5,-.6],[.5,-.6]])part(GEO.cyl,MAT.rubber,.09,.08,.09,x,.06,z,g,{rz:Math.PI/2,cast:false});
+  part(GEO.cyl,MAT.steel,.025,.4,.025,-.58,.58,.82,g,{cast:false});const bc=new THREE.Mesh(GEO.sph,M.beacon);bc.scale.setScalar(.06);bc.position.set(-.58,.8,.82);g.add(bc);
+  const lift=pivot(0,.4,0,g);part(GEO.box,MAT.yellow,1.2,.05,1.5,0,.025,0,lift);for(const s of[-1,1])part(GEO.box,MAT.hazard,1.2,.06,.04,0,.03,s*.74,lift,{cast:false});
+  const sc=[];for(const s of[-1,1]){const a=pivot(s*.45,.4,0,g);part(GEO.box,MAT.steel,.05,.05,1.4,0,0,0,a,{cast:false});const b=pivot(s*.45,.4,0,g);part(GEO.box,MAT.steel,.05,.05,1.4,0,0,0,b,{cast:false});sc.push(a,b)}
+  g.userData={lift,sc,band:M.band,beacon:bc,kind:'l'};return g}
+// raise a robot's deck to height h above the floor (scissors open under the big one, a column pushes up the small one)
+function amrLift(g,h){const u=g.userData,base=u.kind==='s'?.36:.4,d=Math.max(0,h-base);u.lift.position.y=base+d;
+  if(u.col){u.col.position.y=base+d;u.col.scale.y=Math.max(.01,d)}
+  if(u.sc){const a=Math.atan2(d,1.3);u.sc.forEach((p,i)=>{p.position.y=base+d/2;p.rotation.x=(i%2?1:-1)*a;p.scale.z=Math.hypot(d,1.3)/1.4;p.visible=d>.02})}}
+
 // ---- a pallet load: eight boxes shrink-wrapped onto a pallet (counts as eight)
 function makePallet(){const g=new THREE.Group();part(GEO.box,MAT.pallet,1.1,.14,1.0,0,.07,0,g);
   const k=BOX_KINDS[0];for(const dx of[-.28,.28])for(const dz of[-.25,.25])for(const dy of[0,1]){const m=new THREE.Mesh(k.geo,MAT.box[(dx>0?1:0)+dy*2]);m.position.set(dx,.14+dy*k.h,dz);m.castShadow=true;m.receiveShadow=true;g.add(m)}

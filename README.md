@@ -86,6 +86,8 @@ After each night you survive, the crew's pay buys things. **Prices rise 12% for 
 | Bay C | $500 | +10 | +60 s | A third dock in the north-west corner for refrigerated trailers. | The sleepers in those trailers are colder: they creep faster, but light halves the speed of their charge. |
 | Warehouse Heater | $250 | 0 | 0 | A gas heater high on the east wall. The warehouse goes cold every third night instead of every second (see *The cold*). | Nothing. |
 | Medkit Upgrade | $300 | 0 | 0 | A bigger first-aid cabinet: the crew can buy a third first-aid refill each night instead of two. | Nothing. |
+| Autonomous Mobile Robot S | $2000 | 0 | 0 | A small white robot with its own pad on the dock, west of the charger. Put a box on the pad (E) and it drives it slowly to the nearest free bottom or middle shelf, lifts it in, shelves it (it counts and pays like any box) and comes back. One box at a time; one more can wait on the pad. It won't take returns or frozen crates, and it stops for anyone standing in front of it. | Nothing. |
+| Autonomous Mobile Robot L | $5000 | 0 | 0 | A big pallet robot with a scissor lift and its own pad on the dock, east of the charger. Set a pallet on the pad with the forklift (drive up and press G; the prompt says when you're lined up) and it carries it slowly to the nearest free top shelf, lifts it up and slides it on (eight boxes shelved). One pallet at a time. Trucks bring pallets more often once you own it. Needs the forklift to be useful. | Nothing. |
 
 **Equipment (yours).** Items you carry sit on the **hotbar** at the bottom of the screen. Scroll the mouse wheel to pick one (or press its number), and right click to use it.
 

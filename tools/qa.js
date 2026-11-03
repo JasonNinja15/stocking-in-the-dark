@@ -59,6 +59,7 @@ QA.play=async(nights=1,{keepAlive=true,every=8,topUp=true}={})=>{const S=GS.S;
   for(let n=0;n<nights;n++){const start=S.night;let guard=0;
     while(S.night===start&&S.phase!=='shop'&&guard++<9000){
       if(S.phase==='play')for(const id in S.players)if(id!=='me')botStep(id);
+      if(S.phase==='play'&&QA.onTick)QA.onTick(); // a test's own extra step, if it set one
       for(const p of Object.values(S.players)){if(p.dead){QA.stats.deaths++;if(keepAlive){p.dead=false;p.hp=100}}else if(keepAlive&&p.hp<25)p.hp=60}
       if(S.over){QA.log.push(`night ${S.night}: over (${S.over.why})`);S.over=null}
       // bots can fall short; note by how much and top up so the run continues

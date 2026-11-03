@@ -45,6 +45,8 @@ const RROOM={x0:-208,x1:-192,z0:-5,z1:5,h:3.2,door:{z0:1.6,z1:3.2}}, VENT={x:-19
 const inRoofRoom=p=>p.x>RROOM.x0&&p.x<RROOM.x1&&p.z>RROOM.z0&&p.z<RROOM.z1;
 const chilled=()=>!!(S&&S.chill&&S.chill.st==='cold'); // the warehouse has gone cold (see chillUpdate)
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
+// the two warehouse robots (additions): where their pads are on the dock, how fast they go, how high their decks sit
+const AMR={s:{x:-8,z:-15.6,speed:1.0,deck:.4,name:'AMR-S'},l:{x:4.6,z:-17.2,speed:.72,deck:.44,name:'AMR-L'}};
 const BOX_KINDS=[{w:.55,h:.42,d:.5,slow:.95},{w:.74,h:.56,d:.64,slow:.86},{w:.92,h:.72,d:.8,slow:.74}];
 // Better Stocking: a second box can go on top of a shelved one if the two together fit under the shelf above
 const STACK_H=1.0,canStack=(p,under,b)=>!!(p&&p.up&&p.up.stock2&&under&&under.st===2&&!under.m&&b&&BOX_KINDS[under.k].h+BOX_KINDS[b.k].h<=STACK_H);
