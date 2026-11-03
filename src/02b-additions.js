@@ -194,7 +194,7 @@ function buildRoof(){const R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,W=R.x1-R.x0,
     sbox(MAT.hvac,W+.7,.22,D+.7,mx,h+.11,mz);sbox(MAT.snow,W+.75,.14,D+.75,mx,h+.29,mz,{cast:false});sbox(MAT.dark,W-.1,.04,D-.1,mx,h-.02,mz,{cast:false});
     // the door, swung open against the outside wall, and a sign over it
     sbox(MAT.door,.06,dh-.05,Q.door.z1-Q.door.z0,Q.x0-t-.05,dh/2,Q.door.z1+(Q.door.z1-Q.door.z0)/2+.05);
-    const s=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.38),toon(0xffffff,{map:signTex([{t:'PLANT ROOM',size:62,bold:true},{t:'VENTILATION',size:30}],{w:300,h:90})}));
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.5),toon(0xffffff,{map:signTex([{t:'PLANT ROOM',size:80,bold:true},{t:'VENTILATION',size:44}],{w:600,h:200})}));
     s.position.set(Q.x0-t-.01,dh+.4,(Q.door.z0+Q.door.z1)/2);s.rotation.y=-Math.PI/2;ROOT.add(s);
     // the lamp: a cord, a tin shade, a bare bulb
     scyl(MAT.dark,.01,.01,.7,mx,h-.35,mz,{cast:false});const sh=new THREE.ConeGeometry(.32,.24,12,1,true);sh.translate(mx,h-.78,mz);sg(MAT.shade,sh,false);
@@ -205,7 +205,7 @@ function buildRoof(){const R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,W=R.x1-R.x0,
     for(let i=0;i<5;i++)sbox(MAT.steel,2.1,.04,.03,x,.45+i*.3,z+.18,{cast:false});
     for(const dx of[-.75,.75]){scyl(MAT.steel,.32,.32,h-2,x+dx,2+(h-2)/2,z-.7,{seg:14});scyl(MAT.steel,.36,.36,.1,x+dx,2.02,z-.7,{seg:14})}
     sbox(MAT.steel,.7,.9,.12,x+1.75,1.35,z-.1);const lamp=new THREE.Mesh(GEO.sph,basic(0x2aff6a));lamp.scale.setScalar(.06);lamp.position.set(x+1.62,1.65,z-.03);ROOT.add(lamp);ROOFV.ventLamp=lamp;
-    const vs=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.32),toon(0xffffff,{map:signTex([{t:'WAREHOUSE AIR',size:54,bold:true},{t:'KEEP RUNNING',size:30}],{w:300,h:80})}));vs.position.set(x,2.2,z+.16);ROOT.add(vs);
+    const vs=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.4),toon(0xffffff,{map:signTex([{t:'WAREHOUSE AIR',size:70,bold:true},{t:'KEEP RUNNING',size:40}],{w:600,h:200})}));vs.position.set(x,2.2,z+.16);ROOT.add(vs);
     col(x-1.3,z-1.35,x+2.1,z+.2);
     const hit=new THREE.Mesh(GEO.box,MAT.steel);hit.scale.set(3.4,2.2,1.8);hit.position.set(x+.35,1.1,z-.5);hit.userData={kind:'vent'};hit.visible=false;ROOT.add(hit);INTER.push(hit);
     // a bench and a toolbox, so it reads as somewhere people actually come

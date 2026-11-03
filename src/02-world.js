@@ -116,7 +116,7 @@ function buildWorld(){
     for(const s of[-1,1])for(const y of[2.4,4.6])sbox(MAT.dark,.16,.06,.06,wx-.02,y,z+s*.27,{cast:false});
     sbox(MAT.dark,1.3,.02,1.3,x+.1,WH.h-.02,z,{cast:false});
     const sky=new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.1).rotateX(Math.PI/2),basic(0x1b2533));sky.position.set(x+.1,WH.h-.04,z);ROOT.add(sky);
-    const s=new THREE.Mesh(new THREE.PlaneGeometry(.9,.42),toon(0xffffff,{map:signTex([{t:'ROOF ACCESS',size:62,bold:true},{t:'AUTHORISED STAFF ONLY',size:30}],{w:300,h:140})}));
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(.9,.45),toon(0xffffff,{map:signTex([{t:'ROOF ACCESS',size:84,bold:true},{t:'AUTHORISED STAFF ONLY',size:40}],{w:512,h:256})}));
     s.position.set(wx+.01,2.1,z-.85);s.rotation.y=Math.PI/2;ROOT.add(s);
     const hit=new THREE.Mesh(GEO.box,MAT.steel);hit.scale.set(.7,2.6,.9);hit.position.set(wx+.3,1.3,z);hit.userData={kind:'ladder'};hit.visible=false;ROOT.add(hit);INTER.push(hit);
     col(WH.x0,z-.35,WH.x0+.25,z+.35)}

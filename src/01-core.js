@@ -147,7 +147,8 @@ TEX.wrap=ctex(128,128,(g,w,h)=>{g.fillStyle='#aab3b7';g.fillRect(0,0,w,h);for(le
 
 function signTex(lines,{w=512,h=256,bg='#d8d2bd',fg='#141210',border=true,dirt=true,font='Special Elite'}={}){return ctex(w,h,(g)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);if(border){g.strokeStyle=fg;g.lineWidth=10;g.strokeRect(12,12,w-24,h-24)}
   g.fillStyle=fg;g.textAlign='center';g.textBaseline='middle';const n=lines.length;
-  lines.forEach((l,i)=>{const sz=l.size||Math.min(90,(h-60)/n*.8);g.font=`${l.bold?'bold ':''}${sz}px '${font}', Courier New`;g.fillText(l.t,w/2,h/2+(i-(n-1)/2)*(h-60)/n)});
+  lines.forEach((l,i)=>{let sz=Math.min(l.size||Math.min(90,(h-60)/n*.8),n>1?(h-40)/n*.9:h*.8);const f=s=>g.font=`${l.bold?"bold ":""}${s}px '${font}', Courier New`;f(sz);const tw=g.measureText(l.t).width;if(tw>w-60){sz*=(w-60)/tw;f(sz)} /* shrink anything too wide to fit */
+    g.fillText(l.t,w/2,h/2+(i-(n-1)/2)*(h-60)/n)});
   if(dirt){for(let i=0;i<10;i++)stain(g,rand(0,w),rand(0,h),rand(20,90),'40,30,20',rand(.1,.35));speckle(g,w,h,2500,'30,25,20',.3,2)}})}
 
 // the stalker's face: hollow sockets with pinprick pupils, cheekbones, a mouth stretched open too far

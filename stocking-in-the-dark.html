@@ -98,6 +98,9 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 #lockmsg{position:fixed;left:50%;top:60%;transform:translateX(-50%);z-index:15;font-size:18px;background:var(--panel);border:1px solid var(--line);padding:10px 18px;pointer-events:none}
 #fps{position:fixed;left:6px;bottom:2px;font-size:11px;color:#666;z-index:30}
 #frost{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 52%,rgba(150,180,215,.16) 76%,rgba(215,232,255,.5) 100%)}
+#chillHint{position:absolute;left:50%;top:27%;transform:translateX(-50%);font-size:1.15em;color:#a8dcff;text-align:center;background:rgba(6,14,24,.82);border:1px solid rgba(127,200,255,.45);padding:.35em 1em;text-shadow:0 1px 2px #000;white-space:nowrap}
+#chillHint:empty{display:none}
+#chillHint .arrow{color:#e6f5ff;font-size:1.2em}
 #fade{position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0;background:#000}
 #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;z-index:50;font-size:18px;letter-spacing:.2em;color:var(--dim)}
 /* cash, hotbar, shop */
@@ -131,6 +134,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <div id="cross"></div>
   <div id="prompt"></div>
   <div id="toast"></div>
+  <div id="chillHint"></div>
   <div id="big"></div>
   <div id="bl" class="panel">
     <div class="bar" id="hpb"><i></i><span>HEALTH</span></div>
@@ -371,7 +375,8 @@ TEX.wrap=ctex(128,128,(g,w,h)=>{g.fillStyle='#aab3b7';g.fillRect(0,0,w,h);for(le
 
 function signTex(lines,{w=512,h=256,bg='#d8d2bd',fg='#141210',border=true,dirt=true,font='Special Elite'}={}){return ctex(w,h,(g)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);if(border){g.strokeStyle=fg;g.lineWidth=10;g.strokeRect(12,12,w-24,h-24)}
   g.fillStyle=fg;g.textAlign='center';g.textBaseline='middle';const n=lines.length;
-  lines.forEach((l,i)=>{const sz=l.size||Math.min(90,(h-60)/n*.8);g.font=`${l.bold?'bold ':''}${sz}px '${font}', Courier New`;g.fillText(l.t,w/2,h/2+(i-(n-1)/2)*(h-60)/n)});
+  lines.forEach((l,i)=>{let sz=Math.min(l.size||Math.min(90,(h-60)/n*.8),n>1?(h-40)/n*.9:h*.8);const f=s=>g.font=`${l.bold?"bold ":""}${s}px '${font}', Courier New`;f(sz);const tw=g.measureText(l.t).width;if(tw>w-60){sz*=(w-60)/tw;f(sz)} /* shrink anything too wide to fit */
+    g.fillText(l.t,w/2,h/2+(i-(n-1)/2)*(h-60)/n)});
   if(dirt){for(let i=0;i<10;i++)stain(g,rand(0,w),rand(0,h),rand(20,90),'40,30,20',rand(.1,.35));speckle(g,w,h,2500,'30,25,20',.3,2)}})}
 
 // the stalker's face: hollow sockets with pinprick pupils, cheekbones, a mouth stretched open too far
@@ -544,7 +549,7 @@ function buildWorld(){
     for(const s of[-1,1])for(const y of[2.4,4.6])sbox(MAT.dark,.16,.06,.06,wx-.02,y,z+s*.27,{cast:false});
     sbox(MAT.dark,1.3,.02,1.3,x+.1,WH.h-.02,z,{cast:false});
     const sky=new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.1).rotateX(Math.PI/2),basic(0x1b2533));sky.position.set(x+.1,WH.h-.04,z);ROOT.add(sky);
-    const s=new THREE.Mesh(new THREE.PlaneGeometry(.9,.42),toon(0xffffff,{map:signTex([{t:'ROOF ACCESS',size:62,bold:true},{t:'AUTHORISED STAFF ONLY',size:30}],{w:300,h:140})}));
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(.9,.45),toon(0xffffff,{map:signTex([{t:'ROOF ACCESS',size:84,bold:true},{t:'AUTHORISED STAFF ONLY',size:40}],{w:512,h:256})}));
     s.position.set(wx+.01,2.1,z-.85);s.rotation.y=Math.PI/2;ROOT.add(s);
     const hit=new THREE.Mesh(GEO.box,MAT.steel);hit.scale.set(.7,2.6,.9);hit.position.set(wx+.3,1.3,z);hit.userData={kind:'ladder'};hit.visible=false;ROOT.add(hit);INTER.push(hit);
     col(WH.x0,z-.35,WH.x0+.25,z+.35)}
@@ -830,7 +835,7 @@ function buildRoof(){const R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,W=R.x1-R.x0,
     sbox(MAT.hvac,W+.7,.22,D+.7,mx,h+.11,mz);sbox(MAT.snow,W+.75,.14,D+.75,mx,h+.29,mz,{cast:false});sbox(MAT.dark,W-.1,.04,D-.1,mx,h-.02,mz,{cast:false});
     // the door, swung open against the outside wall, and a sign over it
     sbox(MAT.door,.06,dh-.05,Q.door.z1-Q.door.z0,Q.x0-t-.05,dh/2,Q.door.z1+(Q.door.z1-Q.door.z0)/2+.05);
-    const s=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.38),toon(0xffffff,{map:signTex([{t:'PLANT ROOM',size:62,bold:true},{t:'VENTILATION',size:30}],{w:300,h:90})}));
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.5),toon(0xffffff,{map:signTex([{t:'PLANT ROOM',size:80,bold:true},{t:'VENTILATION',size:44}],{w:600,h:200})}));
     s.position.set(Q.x0-t-.01,dh+.4,(Q.door.z0+Q.door.z1)/2);s.rotation.y=-Math.PI/2;ROOT.add(s);
     // the lamp: a cord, a tin shade, a bare bulb
     scyl(MAT.dark,.01,.01,.7,mx,h-.35,mz,{cast:false});const sh=new THREE.ConeGeometry(.32,.24,12,1,true);sh.translate(mx,h-.78,mz);sg(MAT.shade,sh,false);
@@ -841,7 +846,7 @@ function buildRoof(){const R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,W=R.x1-R.x0,
     for(let i=0;i<5;i++)sbox(MAT.steel,2.1,.04,.03,x,.45+i*.3,z+.18,{cast:false});
     for(const dx of[-.75,.75]){scyl(MAT.steel,.32,.32,h-2,x+dx,2+(h-2)/2,z-.7,{seg:14});scyl(MAT.steel,.36,.36,.1,x+dx,2.02,z-.7,{seg:14})}
     sbox(MAT.steel,.7,.9,.12,x+1.75,1.35,z-.1);const lamp=new THREE.Mesh(GEO.sph,basic(0x2aff6a));lamp.scale.setScalar(.06);lamp.position.set(x+1.62,1.65,z-.03);ROOT.add(lamp);ROOFV.ventLamp=lamp;
-    const vs=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.32),toon(0xffffff,{map:signTex([{t:'WAREHOUSE AIR',size:54,bold:true},{t:'KEEP RUNNING',size:30}],{w:300,h:80})}));vs.position.set(x,2.2,z+.16);ROOT.add(vs);
+    const vs=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.4),toon(0xffffff,{map:signTex([{t:'WAREHOUSE AIR',size:70,bold:true},{t:'KEEP RUNNING',size:40}],{w:600,h:200})}));vs.position.set(x,2.2,z+.16);ROOT.add(vs);
     col(x-1.3,z-1.35,x+2.1,z+.2);
     const hit=new THREE.Mesh(GEO.box,MAT.steel);hit.scale.set(3.4,2.2,1.8);hit.position.set(x+.35,1.1,z-.5);hit.userData={kind:'vent'};hit.visible=false;ROOT.add(hit);INTER.push(hit);
     // a bench and a toolbox, so it reads as somewhere people actually come
@@ -1063,16 +1068,16 @@ function makeGiant(){const g=new THREE.Group(),M=MAT.giant.clone(),D=MAT.giantDa
 // Pose it. walk: stride phase; stride/crouch/lean/jaw 0..1; look: a world point its head turns to; hands: world points
 // for the two hands (null hangs that arm at its side); curl: how closed each hand is.
 const _gv=new THREE.Vector3(),_gs=new THREE.Vector3(),_gup=new THREE.Vector3();
-function poseGiant(g,{walk=0,stride=0,crouch=0,lean=0,jaw=0,look=null,hands=[null,null],curl=[0,0],t=0}={}){const u=g.userData;let H=0;
+function poseGiant(g,{walk=0,stride=0,crouch=0,lean=0,jaw=0,look=null,hands=[null,null],curl=[0,0],out=[0,0],t=0}={}){const u=g.userData;let H=0;
   u.legs.forEach((l,i)=>{const ph=walk+i*Math.PI,sw=Math.sin(ph)*.3*stride,a=-(crouch*1.15)-sw,b=.22+crouch*2.1+Math.max(0,-Math.cos(ph))*.45*stride;
     l.hip.rotation.x=a;l.knee.rotation.x=b;l.foot.rotation.x=-(a+b);H=Math.max(H,GI.TH*Math.cos(a)+GI.SH*Math.cos(a+b)+.14)});
   u.body.position.y=H-GI.HIP;
-  u.torso.rotation.set(.16+lean*1.2+crouch*.35,0,Math.sin(t*.23)*.04);u.neck.rotation.set(.5-lean*.55-crouch*.2,0,0);u.jaw.rotation.x=.3+jaw*.75;
+  u.torso.rotation.set(.16+lean*1.2+crouch*.35,0,Math.sin(t*.23)*.04);u.neck.rotation.set(.5-lean*.55-crouch*.2,0,0);u.jaw.rotation.x=.25+jaw*1.1;
   g.updateMatrixWorld(true);
   if(look){u.head.lookAt(look);u.head.rotateZ(.32+Math.sin(t*.37)*.07)}else u.head.rotation.set(.25,0,.3);
   for(let i=0;i<2;i++){const A=u.arms[i];A.sh.getWorldPosition(_gs);
     if(hands[i])_gv.copy(hands[i]);else{_gv.set(A.s*2.1,.9+Math.sin(t*.5+i*2)*.25,1.6+lean*3+Math.sin(t*.31+i)*.2);g.localToWorld(_gv)}
-    _gup.set(A.s*.3,1,-.45).transformDirection(g.matrixWorld);A.sh.up.copy(_gup);
+    _gup.set(A.s*(.3+out[i]*1.2),1-out[i]*1.3,-.45+out[i]*.5).transformDirection(g.matrixWorld);A.sh.up.copy(_gup);
     const d=clamp(_gv.distanceTo(_gs),1,(GI.UA+GI.FA)*.995),c1=clamp((GI.UA*GI.UA+d*d-GI.FA*GI.FA)/(2*GI.UA*d),-1,1),c2=clamp((GI.UA*GI.UA+GI.FA*GI.FA-d*d)/(2*GI.UA*GI.FA),-1,1);
     A.sh.lookAt(_gv);A.sh.rotateX(-Math.acos(c1));A.el.rotation.x=Math.PI-Math.acos(c2);A.wr.rotation.x=.25+curl[i]*.3;
     for(const f of A.fingers){f.fp.rotation.x=.2+curl[i]*1.1;f.tip.rotation.x=.25+curl[i]*1.3}}}
@@ -1305,6 +1310,27 @@ const SFX={
   writeup(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.2,ref:2});for(let i=0;i<9;i++)nz(d,{t:i*.07,dur:.06,a:.004,g:.22,f:rand(3000,4500),q:4});
     voice(d,{t:.75,dur:.35,a:.03,rel:.15,f0:105,f1:88,v:'eh',v2:'oo',rasp:20,raspD:.3,noise:.1,sub:.2,g:.3,drive:2})},
   boom(pos){if(!AU.ready)return;const d=dest(pos,{rev:.8,gain:1.6,ref:12,roll:.6});tone(d,{f:44,f2:26,dur:1.4,a:.01,g:.8});nz(d,{dur:.6,a:.01,g:.4,type:'lowpass',f:160})},
+  // ---- the thing in the yard: everything about it is too big and too slow
+  // a call from very far up: a hollow, horn-like moan from a throat the size of a room, a second, wrong voice under it,
+  // both sliding down together; the short one is it snatching its hand back
+  gmoan(pos,short){if(!AU.ready)return;const d=dest(pos,{rev:.95,gain:short?1.2:1.5,ref:14,roll:.45}),L=short?1.4:4.6;
+    voice(d,{dur:L,a:short?.15:1.3,rel:short?.6:1.8,f0:short?38:52,f1:short?55:31,v:'oo',v2:'aw',rasp:5,raspD:.45,jit:.015,vib:.012,noise:.18,sub:.9,g:.5,drive:1.6});
+    voice(d,{t:short?0:.35,dur:L*.92,a:1,rel:1.5,f0:short?27:37,f1:short?39:22,v:'oo',rasp:3,raspD:.3,jit:.01,noise:.1,sub:1,g:.32,drive:1.3});
+    tone(d,{f:short?22:26,f2:short?30:17,dur:L,a:L*.3,g:.55});nz(d,{dur:L,a:L*.4,g:.12,type:'lowpass',f:180})},
+  // one footfall: a deep thump through the ground and a crust of snow giving way under it
+  gstep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.7,gain:1.7,ref:12,roll:.5});tone(d,{f:38,f2:19,dur:1.3,a:.01,g:.95});tone(d,{f:62,f2:30,dur:.4,a:.005,g:.4});
+    nz(d,{dur:.7,a:.02,g:.45,type:'lowpass',f:140});nz(d,{t:.02,dur:.35,a:.01,g:.18,type:'bandpass',f:900,q:.7})},
+  // its joints: slow, stick-slip creaks like old ship timbers, far too low for anything alive
+  gcreak(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.5,ref:8,roll:.6});let t=0;
+    for(let k=0;k<3;k++){const f=rand(170,320),n=randi(9,16);for(let i=0;i<n;i++)nz(d,{t:t+i*rand(.025,.045),dur:.05,a:.003,g:.35,f:f*(1-i*.012),q:14});t+=rand(.55,.9)}
+    tone(d,{f:44,f2:36,dur:t,a:.3,g:.25})},
+  // the jaw coming unhinged: a long creak, flesh stretching wet, and breath rolling out of it
+  gjaw(pos){if(!AU.ready)return;const d=dest(pos,{rev:.5,gain:1.6,ref:6,roll:.7});
+    for(let i=0;i<22;i++)nz(d,{t:i*.055,dur:.06,a:.003,g:.3,f:260-i*4,q:12});
+    nz(d,{t:.2,dur:1.3,a:.4,g:.35,f:900,f2:280,q:3});nz(d,{t:.6,dur:1.8,a:.6,g:.5,type:'lowpass',f:320});tone(d,{t:.6,f:48,f2:34,dur:1.8,a:.5,g:.4})},
+  // the bite: teeth the size of fence posts meeting, and the wet crunch of what was between them
+  gbite(pos){if(!AU.ready)return;const d=dest(pos,{rev:pos?.5:.25,gain:1.8,ref:6});impact(d,1);
+    for(let i=0;i<8;i++)nz(d,{t:.04+i*.035,dur:.07,a:.002,g:.5,f:rand(400,1400),q:2});nz(d,{t:.05,dur:.6,a:.02,g:.4,f:500,q:1.5});tone(d,{f:70,f2:28,dur:.8,a:.005,g:.7})},
   crunch(run){if(!AU.ready)return;const d=dest(null,{rev:.05,gain:run?.75:.55});nz(d,{dur:.16,a:.004,g:.35,f:rand(1300,1900),q:.8});nz(d,{t:.03,dur:.1,a:.002,g:.25,type:'lowpass',f:500})},
   roofStep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.25,gain:1.2,ref:2});tone(d,{f:90,f2:50,dur:.18,a:.002,g:.5});nz(d,{dur:.08,a:.002,g:.2,f:700,q:2})},
   hatch(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1});tone(d,{type:'sawtooth',f:180,f2:120,dur:.9,a:.2,g:.06})},
@@ -1381,6 +1407,9 @@ function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.create
   else if(kind==='lift'){const f=filt('lowpass',220);osc('sawtooth',62).connect(f);osc('sawtooth',63.5).connect(f);amp(f,.5);const n=filt('bandpass',500,2);ns().connect(n);amp(n,.2)}
   else if(kind==='gen'){const f=filt('lowpass',380);osc('sawtooth',30).connect(f);osc('square',60).connect(f);const a=amp(f,.4);lfoTo(a.gain,15,.12);const n=filt('lowpass',600);ns().connect(n);amp(n,.15)}
   else if(kind==='flare'){const f=filt('bandpass',3500,.8);ns().connect(f);const a=amp(f,.4);lfoTo(a.gain,9,.12)}
+  else if(kind==='gbreath'){ // the thing in the yard breathing: one breath every ten seconds, from somewhere far overhead
+    const f=filt('lowpass',240);ns().connect(f);const a=amp(f,.45);lfoTo(a.gain,.1,.45);const s=filt('lowpass',60);osc('sine',29).connect(s);const b=amp(s,.5);lfoTo(b.gain,.1,.5);
+    const w=filt('bandpass',520,4);ns().connect(w);const c=amp(w,.08);lfoTo(c.gain,.1,.08)}
   else if(kind==='wind'){ // a storm over a flat roof: a broad roar, a whistle that rises and falls, gusts
     const f=filt('lowpass',420);ns().connect(f);const a=amp(f,.55);lfoTo(a.gain,.11,.3);lfoTo(f.frequency,.07,220);
     const w=filt('bandpass',900,9);ns().connect(w);const b=amp(w,.18);lfoTo(w.frequency,.13,420);lfoTo(b.gain,.19,.16)}
@@ -2017,7 +2046,7 @@ function yardUpdate(dt){const y=S.yard;if(!y)return;const tr=S.trucks[y.bay];if(
 // hand follows you at a walk, so you can step out from under it. If you're further in than its arm goes, it plants its
 // other hand on the roof and leans right over the building. Nobody in the room in the middle of the roof can be
 // reached. If the hand closes on you it lifts you up to its mouth. It gives up after a while and wanders off.
-const RG_O=2.8,RG_REACH=13.6,RG_REACH2=23.5,RG_SPD=2.1,RG_ST=['walk','reach','retract','eat','leave','wait'];
+const RG_BITE=4.6,RG_O=2.8,RG_REACH=13.6,RG_REACH2=23.5,RG_SPD=2.1,RG_ST=['walk','reach','retract','eat','leave','wait'];
 const rgRect=()=>({x0:ROOF.x0-RG_O,z0:ROOF.z0-RG_O,x1:ROOF.x1+RG_O,z1:ROOF.z1+RG_O});
 const rgP=()=>{const r=rgRect();return 2*(r.x1-r.x0+r.z1-r.z0)};
 function perimAt(s){const r=rgRect(),W=r.x1-r.x0,H=r.z1-r.z0,P=2*(W+H);s=((s%P)+P)%P;
@@ -2077,7 +2106,9 @@ function roofUpdate(dt){const ups=alivePlayers().filter(onRoof),R=ROOF,cx=(R.x0+
     if(g.k>=1&&Math.hypot(tg.x-g.hx,tg.z-g.hz)<1.15){g.st='eat';g.t=0;g.tg=tg.id;emit({e:'ggrab',p:tg.id})}break}
   case 'retract':g.k=Math.max(0,g.k-dt/2.6);if(g.k<=0){g.b=0;g.re=0;g.st=g.pt>48||!ups.length?'leave':'walk'}break;
   case 'eat':{const v=S.players[g.tg];if(!v||v.dead){g.st='leave';break}g.t+=dt;v.x=g.hx;v.z=g.hz;v.tpT=.5;
-    if(g.t>=3.6){emit({e:'scare',p:v.id,ty:9});emit({e:'chomp',x:r2(g.x),z:r2(g.z)});damage(v,999);g.st='leave'}break}
+    // lifted to its face (2.4 s), the mouth opens, you go in, it closes on you
+    if(g.t>=RG_BITE&&!g.bit){g.bit=1;emit({e:'gbite',p:v.id,x:r2(g.x),z:r2(g.z)})}
+    if(g.t>=RG_BITE+.6){damage(v,999);g.st='leave';g.bit=0}break}
   case 'leave':{g.k=ease(g.k-dt/2);if(g.k<=0)g.b=0;const dx=g.x-cx,dz=g.z-cz,d=Math.hypot(dx,dz)||1;stepTo(g.x+dx/d*5,g.z+dz/d*5,RG_SPD*1.15);
     if(d>78){S.rg=null;HOST.rgT=-rand(25,40)}break}}}
 
@@ -3041,7 +3072,7 @@ function buildRoofVisuals(){ROOFG=makeGiant();ROOFG.visible=false;ROOT.add(ROOFG
     fragmentShader:`varying float vA;void main(){vec2 c=gl_PointCoord-.5;float r=dot(c,c);if(r>.25)discard;gl_FragColor=vec4(.86,.9,1.,vA*(1.-r*4.));}`}));
   SNOW.frustumCulled=false;SNOW.visible=false;scene.add(SNOW)}
 const FOG0={c:new THREE.Color(0x030305),d:.052},FOG_ROOF={c:new THREE.Color(0x07090d),d:.06};
-function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.myId];
+function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.myId];chillHint(me);
   // the storm: a lighter, bluer murk, snow in the air, wind, frost creeping in at the edges of your sight
   scene.fog.color.lerp(up?FOG_ROOF.c:FOG0.c,1-Math.exp(-6*dt));scene.fog.density=damp(scene.fog.density,up?FOG_ROOF.d:FOG0.d,6,dt);AMB.intensity=damp(AMB.intensity,up?.07:.32,6,dt);
   const inRm=up&&inRoofRoom(ME); // indoors up there: out of the snow and most of the wind
@@ -3054,7 +3085,7 @@ function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.m
   if(ROOFV.lid){ROOFV.lid.visible=!S.stash;ROOFV.lid.rotation.x=-1.9}
   // the thing itself
   // (only drawn for someone up there, or watching someone up there)
-  const g=S.rg;ROOFG.visible=!!g&&camera.position.x<-100;if(!g){ROOFG.userData.v=null;return}
+  const g=S.rg;ROOFG.visible=!!g&&camera.position.x<-100;if(!g){ROOFG.userData.v=null;if(ROOFG.userData.breath)ROOFG.userData.breath.set(0,.5);return}
   const u=ROOFG.userData;let v=u.v;if(!v)v=u.v={x:g.x,z:g.z,walk:0,st:0,k:0,hx:g.hx,hz:g.hz,hi:1};
   const ox=v.x,oz=v.z;v.x=damp(v.x,g.x,4,dt);v.z=damp(v.z,g.z,4,dt);const sp=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3);
   v.walk+=sp*dt*.5;v.st=damp(v.st,Math.min(1,sp/1.4),3,dt);v.k=damp(v.k,g.k,5,dt);v.br=damp(v.br||0,g.b&&reach0(g)?1:0,1.4,dt);v.hx=damp(v.hx,g.hx,6,dt);v.hz=damp(v.hz,g.hz,6,dt);
@@ -3068,19 +3099,35 @@ function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.m
     // up over the parapet first, then down across the roof towards you
     if(k<.35){const rest=ROOFG.localToWorld(_yv.set(ROOFG.userData.arms[v.hi].s*2.1,.9,1.6)),a=clamp(k/.35,0,1);hand=rest.lerp(e,a*a*(3-2*a))}else hand=e.lerp(_rh,(k-.35)/.65);
     curl=g.k>=1?.2:0;
-    if(eat){const lift=clamp(g.t/2.6,0,1),m=ROOFG.userData.head.localToWorld(_yv.set(0,-.1,1.4));hand=_rh.lerp(m,lift*lift*(3-2*lift));curl=Math.min(1,g.t*1.6);jaw=clamp((g.t-1.7)/1.2,0,1)}
+    // eating: up in front of its face with the elbow swung out of the way, the jaw drops open, the hand goes in
+    // through the teeth, and the mouth shuts
+    if(eat){const T=g.t,H=ROOFG.userData.head,a=clamp(T/2.4,0,1);hand=_rh.lerp(H.localToWorld(_yv.set(0,-.5,3.2)),a*a*(3-2*a));
+      if(T>RG_BITE-1.1){const b=clamp((T-RG_BITE+1.1)/1.1,0,1);hand.lerp(H.localToWorld(_pv.set(0,-.15,.3)),b*b*(3-2*b))}
+      curl=.5;jaw=T<1.6?0:T<RG_BITE?Math.min(1,(T-1.6)/1.3):Math.max(0,1-(T-RG_BITE)/.15);
+      if(T>1.6&&!v.jawS){v.jawS=1;SFX.gjaw(H.getWorldPosition(_pw))}}
     _rh.copy(hand);hand=_rh}
-  const hands=[null,null];if(hand)hands[v.hi]=hand;const cl=[0,0];cl[v.hi]=curl;
+  if(!eat)v.jawS=0;
+  // from inside its fist your view of its face would be all forearm and fingers, so you don't see your own hand of it
+  ROOFG.userData.arms.forEach((A,i)=>A.el.visible=!(eat&&g.tg===NET.myId&&i===v.hi));
+  const hands=[null,null];if(hand)hands[v.hi]=hand;const cl=[0,0];cl[v.hi]=curl;const out=[0,0];if(eat)out[v.hi]=1;
   // reaching far: the other hand comes down flat on the roof beside it and takes its weight, and it leans right over
   if(v.br>.01){const o=1-v.hi,A=ROOFG.userData.arms[o],sx=Math.cos(ROOFG.rotation.y),sz=-Math.sin(ROOFG.rotation.y),fx=Math.sin(ROOFG.rotation.y),fz=Math.cos(ROOFG.rotation.y);
     const px=clamp(v.x+fx*(RG_O+2.2)+sx*A.s*3.2,ROOF.x0+.6,ROOF.x1-.6),pz=clamp(v.z+fz*(RG_O+2.2)+sz*A.s*3.2,ROOF.z0+.6,ROOF.z1-.6);
     const rest=ROOFG.localToWorld(_pv.set(A.s*2.1,.9,1.6));hands[o]=rest.lerp(_pw.set(px,.12,pz),v.br);cl[o]=.35*v.br}
-  poseGiant(ROOFG,{walk:v.walk,stride:v.st,lean:Math.min(1,v.k*1.25)+(g.st==='wait'?.15:0)+v.br*.12,crouch:v.k*.35-v.br*.15,jaw,look,hands,curl:cl,t})}
+  poseGiant(ROOFG,{walk:v.walk,stride:v.st,lean:Math.min(1,v.k*1.25)+(g.st==='wait'?.15:0)+v.br*.12,crouch:v.k*.35-v.br*.15,jaw,look,hands,curl:cl,out,t});
+  // its breathing, and now and then a call
+  if(AU.ready){const hp=ROOFG.userData.head.getWorldPosition(_pw);if(!u.breath){u.breath=loop('gbreath',hp,1);if(u.breath){u.breath.P.refDistance=9;u.breath.P.rolloffFactor=.5}}
+    if(u.breath){u.breath.pos(hp);u.breath.set(ROOFG.visible?.9:0,.5)}
+    v.mt=(v.mt??rand(6,10))-dt;if(v.mt<=0){v.mt=rand(10,20);if(ROOFG.visible&&!eat)SFX.gmoan(hp)}}}
 // where a held player is: in its fist
 function rgHeldAt(id){const g=S.rg;if(!g||g.st!=='eat'||g.tg!==id||!ROOFG||!ROOFG.userData.v)return null;return giantHand(ROOFG,ROOFG.userData.v.hi,_rm)}
 // being lifted: the camera rides in its hand, turned to face what it's lifting you to
-function rgHeld(dt,me){const h=rgHeldAt(NET.myId);if(!h)return false;ME.vx=ME.vz=0;ME.fear=1;ME.shake=Math.max(ME.shake,.25);
-  const head=ROOFG.userData.head.getWorldPosition(_yv);camera.position.set(h.x,h.y+.45,h.z);camera.lookAt(head);camera.rotation.z+=Math.sin(performance.now()*.006)*.06;return true}
+// (sat out past the fingers, so nothing of the hand is between you and its face), and in the end into its mouth
+function rgHeld(dt,me){const h=rgHeldAt(NET.myId);if(!h){ME.eatFade=0;return false}ME.vx=ME.vz=0;ME.fear=1;ME.shake=Math.max(ME.shake,.25);
+  const mouth=ROOFG.userData.head.localToWorld(_yv.set(0,-.15,.3));camera.position.copy(h).lerp(mouth,.45);camera.position.y+=.2;camera.lookAt(mouth);camera.rotation.z+=Math.sin(performance.now()*.006)*.06;
+  // the jaw shuts and everything goes black
+  if(S.rg.t>RG_BITE-.05&&!ME.eatFade){ME.eatFade=1;const f=$('fade');f.style.transition='opacity .12s';f.style.opacity=1;setTimeout(()=>{f.style.transition='opacity 1.4s';f.style.opacity=0},2200)}
+  return true}
 
 // ---------------------------------------------------------------- driving the forklift
 function driveUpdate(dt,me){const f=S.fork,busy=!!ME.scare||S.phase!=='play';
@@ -3249,7 +3296,7 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'vanish':SFX.vanish(P(e.x,e.z,e.y||1));break;
   case 'writeup':SFX.writeup(evPos(e)||P(ME.x,ME.z));if(e.p===me)toast(e.n>=2?'The night manager writes you up again. Keep busy. Don\'t let it happen a third time.':'The night manager writes you up for standing around. That\'s $10 off your pay.',5,'radio');break;
   case 'mgrFinal':if(e.p===me){toast('He lowers the clipboard. Don\'t stop moving.',5,'radio');ME.shake=Math.max(ME.shake,.4)}break;
-  case 'boom':SFX.boom(P(e.x,e.z,0));ME.shake=Math.max(ME.shake,.25);break;
+  case 'boom':SFX.gstep(P(e.x,e.z,-1));ME.shake=Math.max(ME.shake,.25);setTimeout(()=>SFX.gmoan(P(e.x,e.z,14)),700);break; // the thing in the yard takes a step closer
   case 'roof':SFX.roofStep(P(e.x,e.z,2.8));break;
   case 'stall':SFX.thunk(P(ME.x,ME.z,2));if(AU.ready&&ADDV.lift)ADDV.lift.set(0,.1);if(Math.abs(ME.x-(e.lvl===0?-28.7:71.3))<3)toast('The elevator jerks to a stop. Something is on the roof. Shine your flashlight up at the hatch!',6,'radio');break;
   case 'unstall':SFX.thunk(P(ME.x,ME.z,2));break;
@@ -3260,15 +3307,15 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
         for(let i=0;i<5;i++)setTimeout(()=>SFX.step(true,false),i*120);ME.yaw=e.climb>0?Math.PI*.75:Math.PI*.25;ME.pitch=0;
         if(e.climb>0&&!GAME.hints.roof){GAME.hints.roof=1;toast('The roof. It\'s snowing hard and nothing up here is lit. Someone keeps a supply crate at the far end.',6)}}}break;
   case 'stash':if(e.p===me){SFX.ok();toast(`Someone stashed supplies up here: +1 ${SHOP[e.k].name.toLowerCase()}.`,3.5)}break;
-  case 'gnear':if(onRoof(ME))SFX.boom(P(ME.x+40,ME.z,ROOF.gy));break;
-  case 'gstep':{const d=Math.hypot(e.x-ME.x,e.z-ME.z);if(onRoof(ME)){SFX.boom(P(e.x,e.z,ROOF.gy));ME.shake=Math.max(ME.shake,clamp(1-d/45,0,1)*.45)}break}
-  case 'greach':if(onRoof(ME)){SFX.creak(P(S.rg?S.rg.x:ME.x,S.rg?S.rg.z:ME.z,6))}break;
-  case 'ggrab':if(e.p===me){SFX.scare(9);ME.flash=.6;ME.fear=1}else{const v=AV.get(e.p);if(v)SFX.scream({x:v.x,y:4,z:v.z})}break;
-  case 'chomp':SFX.chomp(P(e.x,e.z,ROOF.gy+18));break;
-  case 'chill':big('<span style="color:#7fc8ff">The Warehouse Is Getting Cold</span>','Restart the ventilation in the room on the roof within 2 minutes',5.5);SFX.radio();break;
+  case 'gnear':if(onRoof(ME)&&S.rg)SFX.gmoan(P(S.rg.x,S.rg.z,ROOF.gy+18));break;
+  case 'gstep':{const d=Math.hypot(e.x-ME.x,e.z-ME.z);if(onRoof(ME)){SFX.gstep(P(e.x,e.z,ROOF.gy));ME.shake=Math.max(ME.shake,clamp(1-d/45,0,1)*.45)}break}
+  case 'greach':if(onRoof(ME)&&S.rg)SFX.gcreak(P(S.rg.x,S.rg.z,ROOF.gy+16));break;
+  case 'ggrab':if(e.p===me){SFX.gcreak(P(ME.x,ME.z,1.5));ME.shake=Math.max(ME.shake,.7);ME.fear=1}else{const v=AV.get(e.p);if(v)SFX.scream({x:v.x,y:4,z:v.z})}break;
+  case 'gbite':if(onRoof(ME)||e.p===me)SFX.gbite(e.p===me?null:P(e.x,e.z,ROOF.gy+17));break;
+  case 'chill':big('<span style="color:#7fc8ff">The Warehouse Is Getting Cold</span>','Restart the ventilation in the room on the roof within 2 minutes',5.5);SFX.radio();ME.chillAt=performance.now()+5600;break;
   case 'frozen':big('<span style="color:#7fc8ff">The Warehouse Is Freezing</span>','Everyone is losing health. Restart the ventilation on the roof',5);SFX.thunk(P(ME.x,ME.z,3));break;
   case 'warm':SFX.ok();toast(e.p===me?'The ventilation is running again.':`${e.n} got the ventilation running again.`,4);break;
-  case 'gflinch':if(onRoof(ME))SFX.boom(P(e.x,e.z,ROOF.gy+10));break;
+  case 'gflinch':if(onRoof(ME))SFX.gmoan(P(e.x,e.z,ROOF.gy+18),true);break;
   case 'coldDoor':SFX.thunk(P((COLD.dx0+COLD.dx1)/2,COLD.z1,1));break;
   case 'lever':SFX.lever(P(e.x,e.z,1.2));break;
   case 'jam':SFX.deny();toast('The conveyor jammed. Hold E on the red button by the bins.',4);break;
@@ -3318,6 +3365,14 @@ function promptFor(t,me){switch(t.kind){
 // stuck in the elevator: shown in the middle of the screen, how long the light has been on the hatch and how long before it opens
 function hatchNote(){const e=S.elev;if(!e||e.st!=='stall'||!owned('base')||!inCar(ME,e.lvl===0?CAR_UP:CAR_DN))return'';const k=clamp((e.hl||0)/ELEV_HOLD,0,1);
   return`<span class="warnline">SOMETHING IS ON THE ROOF &middot; ${Math.max(0,Math.ceil(ELEV_WAIT-(e.ht||0)))}s</span><br>${ME.lightOn()?'Shine your light up at the hatch':'<kbd>F</kbd> Turn your flashlight on and shine it up at the hatch'} <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}
+// right after the cold warning, and until the plant is running again: which way to go
+function chillHint(me){const el=$('chillHint');let h='';
+  if(S&&S.chill&&S.phase==='play'&&me&&!me.dead&&performance.now()>(ME.chillAt||0)){const pre=S.chill.st==='cold'?'FREEZING &middot; ':'';
+    if(inRoofRoom(ME))h=`${pre}The ventilation plant is in here: hold <b>E</b> on it`;
+    else if(onRoof(ME))h=`${pre}Ventilation plant room ${dirTo(RROOM.x0-.8,(RROOM.door.z0+RROOM.door.z1)/2)}`;
+    else if(ME.x>60)h=`${pre}The ventilation is on the roof &middot; take the elevator up first`;
+    else h=`${pre}The ventilation is on the roof &middot; ladder ${dirTo(LADDER.x+.8,LADDER.z)}`}
+  if(h!==ME.chillH){el.innerHTML=h;ME.chillH=h}}
 function statusLines(me){let h='';
   if(S.chill)h+=S.chill.st==='cold'?`<div class="bay warnline" style="color:#8fd0ff">FREEZING &middot; ventilation on the roof</div>`:`<div class="bay" style="color:#8fd0ff">GETTING COLD &middot; ventilation on the roof &middot; ${mmss(S.chill.t)}</div>`;
   if(mainsDown())h+=`<div class="bay warnline">POWER OUT &middot; charger slowed</div>`;

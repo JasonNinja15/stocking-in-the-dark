@@ -73,16 +73,16 @@ function makeGiant(){const g=new THREE.Group(),M=MAT.giant.clone(),D=MAT.giantDa
 // Pose it. walk: stride phase; stride/crouch/lean/jaw 0..1; look: a world point its head turns to; hands: world points
 // for the two hands (null hangs that arm at its side); curl: how closed each hand is.
 const _gv=new THREE.Vector3(),_gs=new THREE.Vector3(),_gup=new THREE.Vector3();
-function poseGiant(g,{walk=0,stride=0,crouch=0,lean=0,jaw=0,look=null,hands=[null,null],curl=[0,0],t=0}={}){const u=g.userData;let H=0;
+function poseGiant(g,{walk=0,stride=0,crouch=0,lean=0,jaw=0,look=null,hands=[null,null],curl=[0,0],out=[0,0],t=0}={}){const u=g.userData;let H=0;
   u.legs.forEach((l,i)=>{const ph=walk+i*Math.PI,sw=Math.sin(ph)*.3*stride,a=-(crouch*1.15)-sw,b=.22+crouch*2.1+Math.max(0,-Math.cos(ph))*.45*stride;
     l.hip.rotation.x=a;l.knee.rotation.x=b;l.foot.rotation.x=-(a+b);H=Math.max(H,GI.TH*Math.cos(a)+GI.SH*Math.cos(a+b)+.14)});
   u.body.position.y=H-GI.HIP;
-  u.torso.rotation.set(.16+lean*1.2+crouch*.35,0,Math.sin(t*.23)*.04);u.neck.rotation.set(.5-lean*.55-crouch*.2,0,0);u.jaw.rotation.x=.3+jaw*.75;
+  u.torso.rotation.set(.16+lean*1.2+crouch*.35,0,Math.sin(t*.23)*.04);u.neck.rotation.set(.5-lean*.55-crouch*.2,0,0);u.jaw.rotation.x=.25+jaw*1.1;
   g.updateMatrixWorld(true);
   if(look){u.head.lookAt(look);u.head.rotateZ(.32+Math.sin(t*.37)*.07)}else u.head.rotation.set(.25,0,.3);
   for(let i=0;i<2;i++){const A=u.arms[i];A.sh.getWorldPosition(_gs);
     if(hands[i])_gv.copy(hands[i]);else{_gv.set(A.s*2.1,.9+Math.sin(t*.5+i*2)*.25,1.6+lean*3+Math.sin(t*.31+i)*.2);g.localToWorld(_gv)}
-    _gup.set(A.s*.3,1,-.45).transformDirection(g.matrixWorld);A.sh.up.copy(_gup);
+    _gup.set(A.s*(.3+out[i]*1.2),1-out[i]*1.3,-.45+out[i]*.5).transformDirection(g.matrixWorld);A.sh.up.copy(_gup);
     const d=clamp(_gv.distanceTo(_gs),1,(GI.UA+GI.FA)*.995),c1=clamp((GI.UA*GI.UA+d*d-GI.FA*GI.FA)/(2*GI.UA*d),-1,1),c2=clamp((GI.UA*GI.UA+GI.FA*GI.FA-d*d)/(2*GI.UA*GI.FA),-1,1);
     A.sh.lookAt(_gv);A.sh.rotateX(-Math.acos(c1));A.el.rotation.x=Math.PI-Math.acos(c2);A.wr.rotation.x=.25+curl[i]*.3;
     for(const f of A.fingers){f.fp.rotation.x=.2+curl[i]*1.1;f.tip.rotation.x=.25+curl[i]*1.3}}}

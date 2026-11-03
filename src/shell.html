@@ -98,6 +98,9 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 #lockmsg{position:fixed;left:50%;top:60%;transform:translateX(-50%);z-index:15;font-size:18px;background:var(--panel);border:1px solid var(--line);padding:10px 18px;pointer-events:none}
 #fps{position:fixed;left:6px;bottom:2px;font-size:11px;color:#666;z-index:30}
 #frost{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 52%,rgba(150,180,215,.16) 76%,rgba(215,232,255,.5) 100%)}
+#chillHint{position:absolute;left:50%;top:27%;transform:translateX(-50%);font-size:1.15em;color:#a8dcff;text-align:center;background:rgba(6,14,24,.82);border:1px solid rgba(127,200,255,.45);padding:.35em 1em;text-shadow:0 1px 2px #000;white-space:nowrap}
+#chillHint:empty{display:none}
+#chillHint .arrow{color:#e6f5ff;font-size:1.2em}
 #fade{position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0;background:#000}
 #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;z-index:50;font-size:18px;letter-spacing:.2em;color:var(--dim)}
 /* cash, hotbar, shop */
@@ -131,6 +134,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <div id="cross"></div>
   <div id="prompt"></div>
   <div id="toast"></div>
+  <div id="chillHint"></div>
   <div id="big"></div>
   <div id="bl" class="panel">
     <div class="bar" id="hpb"><i></i><span>HEALTH</span></div>

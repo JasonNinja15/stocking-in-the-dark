@@ -249,7 +249,7 @@ function yardUpdate(dt){const y=S.yard;if(!y)return;const tr=S.trucks[y.bay];if(
 // hand follows you at a walk, so you can step out from under it. If you're further in than its arm goes, it plants its
 // other hand on the roof and leans right over the building. Nobody in the room in the middle of the roof can be
 // reached. If the hand closes on you it lifts you up to its mouth. It gives up after a while and wanders off.
-const RG_O=2.8,RG_REACH=13.6,RG_REACH2=23.5,RG_SPD=2.1,RG_ST=['walk','reach','retract','eat','leave','wait'];
+const RG_BITE=4.6,RG_O=2.8,RG_REACH=13.6,RG_REACH2=23.5,RG_SPD=2.1,RG_ST=['walk','reach','retract','eat','leave','wait'];
 const rgRect=()=>({x0:ROOF.x0-RG_O,z0:ROOF.z0-RG_O,x1:ROOF.x1+RG_O,z1:ROOF.z1+RG_O});
 const rgP=()=>{const r=rgRect();return 2*(r.x1-r.x0+r.z1-r.z0)};
 function perimAt(s){const r=rgRect(),W=r.x1-r.x0,H=r.z1-r.z0,P=2*(W+H);s=((s%P)+P)%P;
@@ -309,7 +309,9 @@ function roofUpdate(dt){const ups=alivePlayers().filter(onRoof),R=ROOF,cx=(R.x0+
     if(g.k>=1&&Math.hypot(tg.x-g.hx,tg.z-g.hz)<1.15){g.st='eat';g.t=0;g.tg=tg.id;emit({e:'ggrab',p:tg.id})}break}
   case 'retract':g.k=Math.max(0,g.k-dt/2.6);if(g.k<=0){g.b=0;g.re=0;g.st=g.pt>48||!ups.length?'leave':'walk'}break;
   case 'eat':{const v=S.players[g.tg];if(!v||v.dead){g.st='leave';break}g.t+=dt;v.x=g.hx;v.z=g.hz;v.tpT=.5;
-    if(g.t>=3.6){emit({e:'scare',p:v.id,ty:9});emit({e:'chomp',x:r2(g.x),z:r2(g.z)});damage(v,999);g.st='leave'}break}
+    // lifted to its face (2.4 s), the mouth opens, you go in, it closes on you
+    if(g.t>=RG_BITE&&!g.bit){g.bit=1;emit({e:'gbite',p:v.id,x:r2(g.x),z:r2(g.z)})}
+    if(g.t>=RG_BITE+.6){damage(v,999);g.st='leave';g.bit=0}break}
   case 'leave':{g.k=ease(g.k-dt/2);if(g.k<=0)g.b=0;const dx=g.x-cx,dz=g.z-cz,d=Math.hypot(dx,dz)||1;stepTo(g.x+dx/d*5,g.z+dz/d*5,RG_SPD*1.15);
     if(d>78){S.rg=null;HOST.rgT=-rand(25,40)}break}}}
 

@@ -89,7 +89,7 @@ function buildRoofVisuals(){ROOFG=makeGiant();ROOFG.visible=false;ROOT.add(ROOFG
     fragmentShader:`varying float vA;void main(){vec2 c=gl_PointCoord-.5;float r=dot(c,c);if(r>.25)discard;gl_FragColor=vec4(.86,.9,1.,vA*(1.-r*4.));}`}));
   SNOW.frustumCulled=false;SNOW.visible=false;scene.add(SNOW)}
 const FOG0={c:new THREE.Color(0x030305),d:.052},FOG_ROOF={c:new THREE.Color(0x07090d),d:.06};
-function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.myId];
+function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.myId];chillHint(me);
   // the storm: a lighter, bluer murk, snow in the air, wind, frost creeping in at the edges of your sight
   scene.fog.color.lerp(up?FOG_ROOF.c:FOG0.c,1-Math.exp(-6*dt));scene.fog.density=damp(scene.fog.density,up?FOG_ROOF.d:FOG0.d,6,dt);AMB.intensity=damp(AMB.intensity,up?.07:.32,6,dt);
   const inRm=up&&inRoofRoom(ME); // indoors up there: out of the snow and most of the wind
@@ -102,7 +102,7 @@ function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.m
   if(ROOFV.lid){ROOFV.lid.visible=!S.stash;ROOFV.lid.rotation.x=-1.9}
   // the thing itself
   // (only drawn for someone up there, or watching someone up there)
-  const g=S.rg;ROOFG.visible=!!g&&camera.position.x<-100;if(!g){ROOFG.userData.v=null;return}
+  const g=S.rg;ROOFG.visible=!!g&&camera.position.x<-100;if(!g){ROOFG.userData.v=null;if(ROOFG.userData.breath)ROOFG.userData.breath.set(0,.5);return}
   const u=ROOFG.userData;let v=u.v;if(!v)v=u.v={x:g.x,z:g.z,walk:0,st:0,k:0,hx:g.hx,hz:g.hz,hi:1};
   const ox=v.x,oz=v.z;v.x=damp(v.x,g.x,4,dt);v.z=damp(v.z,g.z,4,dt);const sp=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3);
   v.walk+=sp*dt*.5;v.st=damp(v.st,Math.min(1,sp/1.4),3,dt);v.k=damp(v.k,g.k,5,dt);v.br=damp(v.br||0,g.b&&reach0(g)?1:0,1.4,dt);v.hx=damp(v.hx,g.hx,6,dt);v.hz=damp(v.hz,g.hz,6,dt);
@@ -116,19 +116,35 @@ function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.m
     // up over the parapet first, then down across the roof towards you
     if(k<.35){const rest=ROOFG.localToWorld(_yv.set(ROOFG.userData.arms[v.hi].s*2.1,.9,1.6)),a=clamp(k/.35,0,1);hand=rest.lerp(e,a*a*(3-2*a))}else hand=e.lerp(_rh,(k-.35)/.65);
     curl=g.k>=1?.2:0;
-    if(eat){const lift=clamp(g.t/2.6,0,1),m=ROOFG.userData.head.localToWorld(_yv.set(0,-.1,1.4));hand=_rh.lerp(m,lift*lift*(3-2*lift));curl=Math.min(1,g.t*1.6);jaw=clamp((g.t-1.7)/1.2,0,1)}
+    // eating: up in front of its face with the elbow swung out of the way, the jaw drops open, the hand goes in
+    // through the teeth, and the mouth shuts
+    if(eat){const T=g.t,H=ROOFG.userData.head,a=clamp(T/2.4,0,1);hand=_rh.lerp(H.localToWorld(_yv.set(0,-.5,3.2)),a*a*(3-2*a));
+      if(T>RG_BITE-1.1){const b=clamp((T-RG_BITE+1.1)/1.1,0,1);hand.lerp(H.localToWorld(_pv.set(0,-.15,.3)),b*b*(3-2*b))}
+      curl=.5;jaw=T<1.6?0:T<RG_BITE?Math.min(1,(T-1.6)/1.3):Math.max(0,1-(T-RG_BITE)/.15);
+      if(T>1.6&&!v.jawS){v.jawS=1;SFX.gjaw(H.getWorldPosition(_pw))}}
     _rh.copy(hand);hand=_rh}
-  const hands=[null,null];if(hand)hands[v.hi]=hand;const cl=[0,0];cl[v.hi]=curl;
+  if(!eat)v.jawS=0;
+  // from inside its fist your view of its face would be all forearm and fingers, so you don't see your own hand of it
+  ROOFG.userData.arms.forEach((A,i)=>A.el.visible=!(eat&&g.tg===NET.myId&&i===v.hi));
+  const hands=[null,null];if(hand)hands[v.hi]=hand;const cl=[0,0];cl[v.hi]=curl;const out=[0,0];if(eat)out[v.hi]=1;
   // reaching far: the other hand comes down flat on the roof beside it and takes its weight, and it leans right over
   if(v.br>.01){const o=1-v.hi,A=ROOFG.userData.arms[o],sx=Math.cos(ROOFG.rotation.y),sz=-Math.sin(ROOFG.rotation.y),fx=Math.sin(ROOFG.rotation.y),fz=Math.cos(ROOFG.rotation.y);
     const px=clamp(v.x+fx*(RG_O+2.2)+sx*A.s*3.2,ROOF.x0+.6,ROOF.x1-.6),pz=clamp(v.z+fz*(RG_O+2.2)+sz*A.s*3.2,ROOF.z0+.6,ROOF.z1-.6);
     const rest=ROOFG.localToWorld(_pv.set(A.s*2.1,.9,1.6));hands[o]=rest.lerp(_pw.set(px,.12,pz),v.br);cl[o]=.35*v.br}
-  poseGiant(ROOFG,{walk:v.walk,stride:v.st,lean:Math.min(1,v.k*1.25)+(g.st==='wait'?.15:0)+v.br*.12,crouch:v.k*.35-v.br*.15,jaw,look,hands,curl:cl,t})}
+  poseGiant(ROOFG,{walk:v.walk,stride:v.st,lean:Math.min(1,v.k*1.25)+(g.st==='wait'?.15:0)+v.br*.12,crouch:v.k*.35-v.br*.15,jaw,look,hands,curl:cl,out,t});
+  // its breathing, and now and then a call
+  if(AU.ready){const hp=ROOFG.userData.head.getWorldPosition(_pw);if(!u.breath){u.breath=loop('gbreath',hp,1);if(u.breath){u.breath.P.refDistance=9;u.breath.P.rolloffFactor=.5}}
+    if(u.breath){u.breath.pos(hp);u.breath.set(ROOFG.visible?.9:0,.5)}
+    v.mt=(v.mt??rand(6,10))-dt;if(v.mt<=0){v.mt=rand(10,20);if(ROOFG.visible&&!eat)SFX.gmoan(hp)}}}
 // where a held player is: in its fist
 function rgHeldAt(id){const g=S.rg;if(!g||g.st!=='eat'||g.tg!==id||!ROOFG||!ROOFG.userData.v)return null;return giantHand(ROOFG,ROOFG.userData.v.hi,_rm)}
 // being lifted: the camera rides in its hand, turned to face what it's lifting you to
-function rgHeld(dt,me){const h=rgHeldAt(NET.myId);if(!h)return false;ME.vx=ME.vz=0;ME.fear=1;ME.shake=Math.max(ME.shake,.25);
-  const head=ROOFG.userData.head.getWorldPosition(_yv);camera.position.set(h.x,h.y+.45,h.z);camera.lookAt(head);camera.rotation.z+=Math.sin(performance.now()*.006)*.06;return true}
+// (sat out past the fingers, so nothing of the hand is between you and its face), and in the end into its mouth
+function rgHeld(dt,me){const h=rgHeldAt(NET.myId);if(!h){ME.eatFade=0;return false}ME.vx=ME.vz=0;ME.fear=1;ME.shake=Math.max(ME.shake,.25);
+  const mouth=ROOFG.userData.head.localToWorld(_yv.set(0,-.15,.3));camera.position.copy(h).lerp(mouth,.45);camera.position.y+=.2;camera.lookAt(mouth);camera.rotation.z+=Math.sin(performance.now()*.006)*.06;
+  // the jaw shuts and everything goes black
+  if(S.rg.t>RG_BITE-.05&&!ME.eatFade){ME.eatFade=1;const f=$('fade');f.style.transition='opacity .12s';f.style.opacity=1;setTimeout(()=>{f.style.transition='opacity 1.4s';f.style.opacity=0},2200)}
+  return true}
 
 // ---------------------------------------------------------------- driving the forklift
 function driveUpdate(dt,me){const f=S.fork,busy=!!ME.scare||S.phase!=='play';
@@ -297,7 +313,7 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'vanish':SFX.vanish(P(e.x,e.z,e.y||1));break;
   case 'writeup':SFX.writeup(evPos(e)||P(ME.x,ME.z));if(e.p===me)toast(e.n>=2?'The night manager writes you up again. Keep busy. Don\'t let it happen a third time.':'The night manager writes you up for standing around. That\'s $10 off your pay.',5,'radio');break;
   case 'mgrFinal':if(e.p===me){toast('He lowers the clipboard. Don\'t stop moving.',5,'radio');ME.shake=Math.max(ME.shake,.4)}break;
-  case 'boom':SFX.boom(P(e.x,e.z,0));ME.shake=Math.max(ME.shake,.25);break;
+  case 'boom':SFX.gstep(P(e.x,e.z,-1));ME.shake=Math.max(ME.shake,.25);setTimeout(()=>SFX.gmoan(P(e.x,e.z,14)),700);break; // the thing in the yard takes a step closer
   case 'roof':SFX.roofStep(P(e.x,e.z,2.8));break;
   case 'stall':SFX.thunk(P(ME.x,ME.z,2));if(AU.ready&&ADDV.lift)ADDV.lift.set(0,.1);if(Math.abs(ME.x-(e.lvl===0?-28.7:71.3))<3)toast('The elevator jerks to a stop. Something is on the roof. Shine your flashlight up at the hatch!',6,'radio');break;
   case 'unstall':SFX.thunk(P(ME.x,ME.z,2));break;
@@ -308,15 +324,15 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
         for(let i=0;i<5;i++)setTimeout(()=>SFX.step(true,false),i*120);ME.yaw=e.climb>0?Math.PI*.75:Math.PI*.25;ME.pitch=0;
         if(e.climb>0&&!GAME.hints.roof){GAME.hints.roof=1;toast('The roof. It\'s snowing hard and nothing up here is lit. Someone keeps a supply crate at the far end.',6)}}}break;
   case 'stash':if(e.p===me){SFX.ok();toast(`Someone stashed supplies up here: +1 ${SHOP[e.k].name.toLowerCase()}.`,3.5)}break;
-  case 'gnear':if(onRoof(ME))SFX.boom(P(ME.x+40,ME.z,ROOF.gy));break;
-  case 'gstep':{const d=Math.hypot(e.x-ME.x,e.z-ME.z);if(onRoof(ME)){SFX.boom(P(e.x,e.z,ROOF.gy));ME.shake=Math.max(ME.shake,clamp(1-d/45,0,1)*.45)}break}
-  case 'greach':if(onRoof(ME)){SFX.creak(P(S.rg?S.rg.x:ME.x,S.rg?S.rg.z:ME.z,6))}break;
-  case 'ggrab':if(e.p===me){SFX.scare(9);ME.flash=.6;ME.fear=1}else{const v=AV.get(e.p);if(v)SFX.scream({x:v.x,y:4,z:v.z})}break;
-  case 'chomp':SFX.chomp(P(e.x,e.z,ROOF.gy+18));break;
-  case 'chill':big('<span style="color:#7fc8ff">The Warehouse Is Getting Cold</span>','Restart the ventilation in the room on the roof within 2 minutes',5.5);SFX.radio();break;
+  case 'gnear':if(onRoof(ME)&&S.rg)SFX.gmoan(P(S.rg.x,S.rg.z,ROOF.gy+18));break;
+  case 'gstep':{const d=Math.hypot(e.x-ME.x,e.z-ME.z);if(onRoof(ME)){SFX.gstep(P(e.x,e.z,ROOF.gy));ME.shake=Math.max(ME.shake,clamp(1-d/45,0,1)*.45)}break}
+  case 'greach':if(onRoof(ME)&&S.rg)SFX.gcreak(P(S.rg.x,S.rg.z,ROOF.gy+16));break;
+  case 'ggrab':if(e.p===me){SFX.gcreak(P(ME.x,ME.z,1.5));ME.shake=Math.max(ME.shake,.7);ME.fear=1}else{const v=AV.get(e.p);if(v)SFX.scream({x:v.x,y:4,z:v.z})}break;
+  case 'gbite':if(onRoof(ME)||e.p===me)SFX.gbite(e.p===me?null:P(e.x,e.z,ROOF.gy+17));break;
+  case 'chill':big('<span style="color:#7fc8ff">The Warehouse Is Getting Cold</span>','Restart the ventilation in the room on the roof within 2 minutes',5.5);SFX.radio();ME.chillAt=performance.now()+5600;break;
   case 'frozen':big('<span style="color:#7fc8ff">The Warehouse Is Freezing</span>','Everyone is losing health. Restart the ventilation on the roof',5);SFX.thunk(P(ME.x,ME.z,3));break;
   case 'warm':SFX.ok();toast(e.p===me?'The ventilation is running again.':`${e.n} got the ventilation running again.`,4);break;
-  case 'gflinch':if(onRoof(ME))SFX.boom(P(e.x,e.z,ROOF.gy+10));break;
+  case 'gflinch':if(onRoof(ME))SFX.gmoan(P(e.x,e.z,ROOF.gy+18),true);break;
   case 'coldDoor':SFX.thunk(P((COLD.dx0+COLD.dx1)/2,COLD.z1,1));break;
   case 'lever':SFX.lever(P(e.x,e.z,1.2));break;
   case 'jam':SFX.deny();toast('The conveyor jammed. Hold E on the red button by the bins.',4);break;
@@ -366,6 +382,14 @@ function promptFor(t,me){switch(t.kind){
 // stuck in the elevator: shown in the middle of the screen, how long the light has been on the hatch and how long before it opens
 function hatchNote(){const e=S.elev;if(!e||e.st!=='stall'||!owned('base')||!inCar(ME,e.lvl===0?CAR_UP:CAR_DN))return'';const k=clamp((e.hl||0)/ELEV_HOLD,0,1);
   return`<span class="warnline">SOMETHING IS ON THE ROOF &middot; ${Math.max(0,Math.ceil(ELEV_WAIT-(e.ht||0)))}s</span><br>${ME.lightOn()?'Shine your light up at the hatch':'<kbd>F</kbd> Turn your flashlight on and shine it up at the hatch'} <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}
+// right after the cold warning, and until the plant is running again: which way to go
+function chillHint(me){const el=$('chillHint');let h='';
+  if(S&&S.chill&&S.phase==='play'&&me&&!me.dead&&performance.now()>(ME.chillAt||0)){const pre=S.chill.st==='cold'?'FREEZING &middot; ':'';
+    if(inRoofRoom(ME))h=`${pre}The ventilation plant is in here: hold <b>E</b> on it`;
+    else if(onRoof(ME))h=`${pre}Ventilation plant room ${dirTo(RROOM.x0-.8,(RROOM.door.z0+RROOM.door.z1)/2)}`;
+    else if(ME.x>60)h=`${pre}The ventilation is on the roof &middot; take the elevator up first`;
+    else h=`${pre}The ventilation is on the roof &middot; ladder ${dirTo(LADDER.x+.8,LADDER.z)}`}
+  if(h!==ME.chillH){el.innerHTML=h;ME.chillH=h}}
 function statusLines(me){let h='';
   if(S.chill)h+=S.chill.st==='cold'?`<div class="bay warnline" style="color:#8fd0ff">FREEZING &middot; ventilation on the roof</div>`:`<div class="bay" style="color:#8fd0ff">GETTING COLD &middot; ventilation on the roof &middot; ${mmss(S.chill.t)}</div>`;
   if(mainsDown())h+=`<div class="bay warnline">POWER OUT &middot; charger slowed</div>`;

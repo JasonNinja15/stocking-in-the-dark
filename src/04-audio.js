@@ -152,6 +152,27 @@ const SFX={
   writeup(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.2,ref:2});for(let i=0;i<9;i++)nz(d,{t:i*.07,dur:.06,a:.004,g:.22,f:rand(3000,4500),q:4});
     voice(d,{t:.75,dur:.35,a:.03,rel:.15,f0:105,f1:88,v:'eh',v2:'oo',rasp:20,raspD:.3,noise:.1,sub:.2,g:.3,drive:2})},
   boom(pos){if(!AU.ready)return;const d=dest(pos,{rev:.8,gain:1.6,ref:12,roll:.6});tone(d,{f:44,f2:26,dur:1.4,a:.01,g:.8});nz(d,{dur:.6,a:.01,g:.4,type:'lowpass',f:160})},
+  // ---- the thing in the yard: everything about it is too big and too slow
+  // a call from very far up: a hollow, horn-like moan from a throat the size of a room, a second, wrong voice under it,
+  // both sliding down together; the short one is it snatching its hand back
+  gmoan(pos,short){if(!AU.ready)return;const d=dest(pos,{rev:.95,gain:short?1.2:1.5,ref:14,roll:.45}),L=short?1.4:4.6;
+    voice(d,{dur:L,a:short?.15:1.3,rel:short?.6:1.8,f0:short?38:52,f1:short?55:31,v:'oo',v2:'aw',rasp:5,raspD:.45,jit:.015,vib:.012,noise:.18,sub:.9,g:.5,drive:1.6});
+    voice(d,{t:short?0:.35,dur:L*.92,a:1,rel:1.5,f0:short?27:37,f1:short?39:22,v:'oo',rasp:3,raspD:.3,jit:.01,noise:.1,sub:1,g:.32,drive:1.3});
+    tone(d,{f:short?22:26,f2:short?30:17,dur:L,a:L*.3,g:.55});nz(d,{dur:L,a:L*.4,g:.12,type:'lowpass',f:180})},
+  // one footfall: a deep thump through the ground and a crust of snow giving way under it
+  gstep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.7,gain:1.7,ref:12,roll:.5});tone(d,{f:38,f2:19,dur:1.3,a:.01,g:.95});tone(d,{f:62,f2:30,dur:.4,a:.005,g:.4});
+    nz(d,{dur:.7,a:.02,g:.45,type:'lowpass',f:140});nz(d,{t:.02,dur:.35,a:.01,g:.18,type:'bandpass',f:900,q:.7})},
+  // its joints: slow, stick-slip creaks like old ship timbers, far too low for anything alive
+  gcreak(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.5,ref:8,roll:.6});let t=0;
+    for(let k=0;k<3;k++){const f=rand(170,320),n=randi(9,16);for(let i=0;i<n;i++)nz(d,{t:t+i*rand(.025,.045),dur:.05,a:.003,g:.35,f:f*(1-i*.012),q:14});t+=rand(.55,.9)}
+    tone(d,{f:44,f2:36,dur:t,a:.3,g:.25})},
+  // the jaw coming unhinged: a long creak, flesh stretching wet, and breath rolling out of it
+  gjaw(pos){if(!AU.ready)return;const d=dest(pos,{rev:.5,gain:1.6,ref:6,roll:.7});
+    for(let i=0;i<22;i++)nz(d,{t:i*.055,dur:.06,a:.003,g:.3,f:260-i*4,q:12});
+    nz(d,{t:.2,dur:1.3,a:.4,g:.35,f:900,f2:280,q:3});nz(d,{t:.6,dur:1.8,a:.6,g:.5,type:'lowpass',f:320});tone(d,{t:.6,f:48,f2:34,dur:1.8,a:.5,g:.4})},
+  // the bite: teeth the size of fence posts meeting, and the wet crunch of what was between them
+  gbite(pos){if(!AU.ready)return;const d=dest(pos,{rev:pos?.5:.25,gain:1.8,ref:6});impact(d,1);
+    for(let i=0;i<8;i++)nz(d,{t:.04+i*.035,dur:.07,a:.002,g:.5,f:rand(400,1400),q:2});nz(d,{t:.05,dur:.6,a:.02,g:.4,f:500,q:1.5});tone(d,{f:70,f2:28,dur:.8,a:.005,g:.7})},
   crunch(run){if(!AU.ready)return;const d=dest(null,{rev:.05,gain:run?.75:.55});nz(d,{dur:.16,a:.004,g:.35,f:rand(1300,1900),q:.8});nz(d,{t:.03,dur:.1,a:.002,g:.25,type:'lowpass',f:500})},
   roofStep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.25,gain:1.2,ref:2});tone(d,{f:90,f2:50,dur:.18,a:.002,g:.5});nz(d,{dur:.08,a:.002,g:.2,f:700,q:2})},
   hatch(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1});tone(d,{type:'sawtooth',f:180,f2:120,dur:.9,a:.2,g:.06})},
@@ -228,6 +249,9 @@ function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.create
   else if(kind==='lift'){const f=filt('lowpass',220);osc('sawtooth',62).connect(f);osc('sawtooth',63.5).connect(f);amp(f,.5);const n=filt('bandpass',500,2);ns().connect(n);amp(n,.2)}
   else if(kind==='gen'){const f=filt('lowpass',380);osc('sawtooth',30).connect(f);osc('square',60).connect(f);const a=amp(f,.4);lfoTo(a.gain,15,.12);const n=filt('lowpass',600);ns().connect(n);amp(n,.15)}
   else if(kind==='flare'){const f=filt('bandpass',3500,.8);ns().connect(f);const a=amp(f,.4);lfoTo(a.gain,9,.12)}
+  else if(kind==='gbreath'){ // the thing in the yard breathing: one breath every ten seconds, from somewhere far overhead
+    const f=filt('lowpass',240);ns().connect(f);const a=amp(f,.45);lfoTo(a.gain,.1,.45);const s=filt('lowpass',60);osc('sine',29).connect(s);const b=amp(s,.5);lfoTo(b.gain,.1,.5);
+    const w=filt('bandpass',520,4);ns().connect(w);const c=amp(w,.08);lfoTo(c.gain,.1,.08)}
   else if(kind==='wind'){ // a storm over a flat roof: a broad roar, a whistle that rises and falls, gusts
     const f=filt('lowpass',420);ns().connect(f);const a=amp(f,.55);lfoTo(a.gain,.11,.3);lfoTo(f.frequency,.07,220);
     const w=filt('bandpass',900,9);ns().connect(w);const b=amp(w,.18);lfoTo(w.frequency,.13,420);lfoTo(b.gain,.19,.16)}
