@@ -184,7 +184,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <p><b>Power outages.</b> From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel. And something that lives in the dark comes out: it can't see you, but it hears you, and it feels footsteps close by. Stand still.</p>
   <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items sit on the hotbar at the bottom of the screen: <kbd>scroll</kbd> (or a number key) to pick one, <kbd>right click</kbd> to use it. The red headlamp is on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold right click with the thermal scanner picked to use it. The <b>THIS WAY</b> board on the dock wall points to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
   <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>Scroll</kbd> pick item &middot; <kbd>Right click</kbd> use item &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause</p>
-  <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to four people can work a shift together. The quota grows with the crew. If you go down, you watch the others in third person until the night ends: move the mouse to look around, click or use the arrow keys to switch.</p>
+  <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to ten people can work a shift together. The quota grows with the crew. If you go down, you watch the others in third person until the night ends: move the mouse to look around, click or use the arrow keys to switch.</p>
   </div>
   <button id="bHowBack">Back</button>
 </div></div>
@@ -274,7 +274,9 @@ const inRoofRoom=p=>p.x>RROOM.x0&&p.x<RROOM.x1&&p.z>RROOM.z0&&p.z<RROOM.z1;
 const chilled=()=>!!(S&&S.chill&&S.chill.st==='cold'); // the warehouse has gone cold (see chillUpdate)
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
 const BOX_KINDS=[{w:.55,h:.42,d:.5,slow:.95},{w:.74,h:.56,d:.64,slow:.86},{w:.92,h:.72,d:.8,slow:.74}];
-const VEST=['#ff7a1a','#a4e33a','#38d4e8','#ff4fa8'];
+const MAX_CREW=10; // workers in one crew, host included
+const VEST=['#ff7a1a','#a4e33a','#38d4e8','#ff4fa8','#ffd23a','#9b6bff','#ff3b3b','#3bff9b','#3b7bff','#c08a5a'];
+const bigCrew=()=>Math.max(0,Object.keys(S.players).length-4); // crews past four get more work and more trucks
 
 // ===================================================================== renderer
 const canvas=$('c');
@@ -1431,8 +1433,8 @@ function newState(){return{night:1,diff:DIFFS[SET.diff]?SET.diff:1,t:0,phase:'pl
   players:{},boxes:[],trucks:BAYS.map(()=>({st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,stuck:0})),mons:[],over:null,bver:0,
   cash:0,adds:[],fixed:[],aidBonus:0,extra:0}}
 function addPlayer(id,name,col){S.players[id]={id,name,col,x:0,z:-16,yaw:0,pitch:0,light:true,hp:100,dead:false,carry:-1,lastHurt:-99,inv:{},up:{},stack:[],can:false}}
-function spawnPoint(i){return{x:-2.4+(i%4)*1.6,z:-15.5}}
-function calcQuota(){const n=Math.max(1,Object.keys(S.players).length);return Math.max(5,Math.round((10+S.night*5+addExtras().q)*(1+.45*(n-1))*DF().q))}
+function spawnPoint(i){return{x:-2.4+(i%5)*1.4,z:-15.5+Math.floor(i/5)*1.4}}
+function calcQuota(){const n=Math.max(1,Object.keys(S.players).length);return Math.max(5,Math.round((10+S.night*5+addExtras().q)*(1+.45*Math.min(3,n-1)+.3*Math.max(0,n-4))*DF().q))}
 
 function startNight(){
   // whatever was left on the floor (mimics included) is still there tonight; last night's shelves were emptied by the day shift
@@ -1527,7 +1529,7 @@ function simUpdate(dt){
 // ---------------------------------------------------------------- trucks
 function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&HOST.trucksTonight===0;
   Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0,due:0});
-  const n=Math.min(16,randi(6,9)+Math.min(5,S.night-1));
+  const n=Math.min(22,randi(6,9)+Math.min(5,S.night-1)+bigCrew());
   tr.lurk=!first&&Math.random()<Math.min(.85,Math.min(.55,.17+.09*(S.night-1))*diffEv());
   tr.crawl=!first&&!tr.lurk&&!S.mons.some(m=>m.ty===3)&&Math.random()<Math.min(.7,Math.min(.4,.14+.06*(S.night-1))*diffEv());
   tr.warn=tr.lurk||tr.crawl?Math.random()<.75:!first&&Math.random()<.1;tr.claw=tr.lurk&&Math.random()<.7;tr.n=n;tr.left=n;tr.kg=n*randi(18,30);tr.extra=randi(280,460);
@@ -1557,7 +1559,7 @@ const freeBays=()=>S.trucks.map((t,i)=>t.st===0&&!(t.stuck>0)&&t.door<=0&&bayOn(
 function trucksUpdate(dt){
   HOST.nextTruck-=dt;
   if(HOST.nextTruck<=0){if(S.t<SHIFT_END-60){const free=freeBays();
-      if(free.length){spawnTruck(HOST.trucksTonight===0&&free.includes(0)?0:pick(free));HOST.nextTruck=Math.max(24,rand(40,58)-S.night*3)}else HOST.nextTruck=5}else HOST.nextTruck=1e9}
+      if(free.length){spawnTruck(HOST.trucksTonight===0&&free.includes(0)?0:pick(free));HOST.nextTruck=Math.max(24,rand(40,58)-S.night*3)/(1+.1*bigCrew())}else HOST.nextTruck=5}else HOST.nextTruck=1e9}
   // the last truck of the night pulls in around 5:10 and is docked by about 5:25
   if(!HOST.lastTruck&&!S.ot&&S.t>=LAST_TRUCK_AT&&S.t<SHIFT_END-15){const free=freeBays();
     if(free.length){HOST.lastTruck=true;spawnTruck(pick(free),true)}}
@@ -2349,7 +2351,7 @@ function netHost(){return new Promise((res,rej)=>{if(!window.Peer)return rej('Th
     p.on('disconnected',()=>{if(!NET.closing)try{p.reconnect()}catch(e){}})};
   tryCode(3)})}
 function hostAccept(c){
-  c.on('open',()=>{if(NET.conns.size>=3){try{c.send({t:'full'})}catch(e){}setTimeout(()=>c.close(),400);return}NET.conns.set(c.peer,c)});
+  c.on('open',()=>{if(NET.conns.size>=MAX_CREW-1){try{c.send({t:'full'})}catch(e){}setTimeout(()=>c.close(),400);return}NET.conns.set(c.peer,c)});
   c.on('data',m=>hostMsg(c,m));
   const gone=()=>{if(!NET.conns.has(c.peer))return;NET.conns.delete(c.peer);NET.lobby=NET.lobby.filter(p=>p.id!==c.peer);
     if(S&&S.players[c.peer]){const p=S.players[c.peer];dropCarry(p);delete S.players[c.peer];emit({e:'msg',m:`${p.name} clocked out.`})}
@@ -2378,7 +2380,7 @@ function netJoin(code){return new Promise((res,rej)=>{if(!window.Peer)return rej
   p.on('disconnected',()=>{if(!NET.closing)try{p.reconnect()}catch(e){}})})}
 function clientMsg(m){if(!m)return;
   switch(m.t){
-  case 'full':NET.closing=true;netClose();showMenu('That crew is full (4 workers max).');break;
+  case 'full':NET.closing=true;netClose();showMenu(`That crew is full (${MAX_CREW} workers max).`);break;
   case 'lobby':NET.lobby=m.players||[];NET.diff=m.df;if(!GAME.on)renderLobby();break;
   case 'start':clientStart();break;
   case 'tp':ME.x=m.x;ME.z=m.z;ME.ready=true;break;
@@ -2719,7 +2721,7 @@ function animMonster(v,dt,time){const u=v.g.userData,t=time+v.ph;if(v.ty>=4){ani
   else{const mv=v.a===2;u.body.position.y=.35+(mv?Math.abs(Math.sin(t*30))*.04:.06);
     u.lids.forEach(l=>l.p.rotation.x=l.s*(v.a===1?1.3+Math.sin(t*35)*.3:.5+Math.sin(t*22)*.35));
     u.legs.forEach(l=>{l.hip.rotation.x=mv?Math.sin(t*26+l.ph)*.7:Math.sin(t*4+l.ph)*.1;l.hip.rotation.z=mv?Math.cos(t*26+l.ph)*.25:0})}}
-function syncAvatars(dt,time){const live=new Set();let si=0;
+function syncAvatars(dt,time){const live=new Set(),lit=[];let si=0;
   for(const p of Object.values(S.players)){if(p.id===NET.myId)continue;live.add(p.id);let v=AV.get(p.id);
     if(!v){const g=makeWorker(p.col||VEST[1],p.name||'Worker');ROOT.add(g);v={g,x:p.x,z:p.z,yaw:p.yaw,pitch:p.pitch,walk:0};AV.set(p.id,v)}
     const ox=v.x,oz=v.z;v.x=damp(v.x,p.x,11,dt);v.z=damp(v.z,p.z,11,dt);v.yaw=angLerp(v.yaw,p.yaw,1-Math.exp(-12*dt));v.pitch=damp(v.pitch,p.pitch,12,dt);
@@ -2730,7 +2732,10 @@ function syncAvatars(dt,time){const live=new Set();let si=0;
     const a=Math.min(1,sp/3);u.legs[0].rotation.x=Math.sin(v.walk)*.6*a;u.legs[1].rotation.x=-Math.sin(v.walk)*.6*a;
     if(p.carry>=0){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.25,10,dt))}else{u.arms[0].rotation.x=-Math.sin(v.walk)*.5*a;u.arms[1].rotation.x=-.9}
     u.torch.rotation.x=-v.pitch;u.head.rotation.x=-v.pitch*.6;u.beam.visible=!!p.light;
-    if(si<REMOTE_SPOTS.length){const s=REMOTE_SPOTS[si++];u.torch.getWorldPosition(s.position);const cp=Math.cos(v.pitch);s.target.position.set(s.position.x-Math.sin(v.yaw)*cp*8,s.position.y+Math.sin(v.pitch)*8,s.position.z-Math.cos(v.yaw)*cp*8);s.intensity=p.light&&!p.dead?24:0}}
+    if(p.light&&!p.dead)lit.push({v,u,d:Math.hypot(v.x-ME.x,v.z-ME.z)})}
+  // only a few real lights to go round: they go to the nearest crewmates' torches
+  lit.sort((a,b)=>a.d-b.d);
+  for(const {v,u} of lit){if(si>=REMOTE_SPOTS.length)break;const s=REMOTE_SPOTS[si++];u.torch.getWorldPosition(s.position);const cp=Math.cos(v.pitch);s.target.position.set(s.position.x-Math.sin(v.yaw)*cp*8,s.position.y+Math.sin(v.pitch)*8,s.position.z-Math.cos(v.yaw)*cp*8);s.intensity=24}
   for(;si<REMOTE_SPOTS.length;si++)REMOTE_SPOTS[si].intensity=0;
   for(const [id,v] of AV)if(!live.has(id)){ROOT.remove(v.g);AV.delete(id)}}
 const MENU_LAMPS=LAMPS.map(L=>({on:L.dead?0:1,t:L.dead?1e9:rand(2,8)}));

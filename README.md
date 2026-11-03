@@ -1,6 +1,6 @@
 # Stocking In The Dark
 
-A first-person, cel-shaded horror game for one to four players. You work the night shift at Dock 13: unload trucks, stack boxes on the shelves, and make quota before 6:00 AM. Something else works here too.
+A first-person, cel-shaded horror game for one to ten players. You work the night shift at Dock 13: unload trucks, stack boxes on the shelves, and make quota before 6:00 AM. Something else works here too.
 
 **Play:** https://jasonninja15.github.io/stocking-in-the-dark/ (or open `stocking-in-the-dark.html` in Chrome, Edge or Firefox). It needs an internet connection the first time, for Three.js, fonts and the multiplayer library.
 
@@ -127,7 +127,7 @@ After each night you survive, the crew's pay buys things. The money is shared, a
 ## Playing with a crew
 
 1. One player presses **Host a Crew** and shares the five-character code.
-2. Everyone else types the code and presses **Join Crew**. Up to four players.
+2. Everyone else types the code and presses **Join Crew**. Up to ten players. Crews of more than four get a bit less extra quota per worker than the first few, and trucks come more often (up to 60% more often with ten) and bring a box more each per extra worker.
 3. The host presses **Start the shift**. People can also join a shift already in progress.
 
 Players connect browser-to-browser over WebRTC, using the free public PeerJS server to find each other. The host's browser runs the world. If the host leaves, the room closes. It keeps running while the host's tab is in the background. If you go down, you watch your crew in third person until the night ends, then you're back on shift: move the mouse to orbit, and click, Space or the arrow keys to switch to another crewmate who is still standing.

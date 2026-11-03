@@ -285,7 +285,7 @@ function animMonster(v,dt,time){const u=v.g.userData,t=time+v.ph;if(v.ty>=4){ani
   else{const mv=v.a===2;u.body.position.y=.35+(mv?Math.abs(Math.sin(t*30))*.04:.06);
     u.lids.forEach(l=>l.p.rotation.x=l.s*(v.a===1?1.3+Math.sin(t*35)*.3:.5+Math.sin(t*22)*.35));
     u.legs.forEach(l=>{l.hip.rotation.x=mv?Math.sin(t*26+l.ph)*.7:Math.sin(t*4+l.ph)*.1;l.hip.rotation.z=mv?Math.cos(t*26+l.ph)*.25:0})}}
-function syncAvatars(dt,time){const live=new Set();let si=0;
+function syncAvatars(dt,time){const live=new Set(),lit=[];let si=0;
   for(const p of Object.values(S.players)){if(p.id===NET.myId)continue;live.add(p.id);let v=AV.get(p.id);
     if(!v){const g=makeWorker(p.col||VEST[1],p.name||'Worker');ROOT.add(g);v={g,x:p.x,z:p.z,yaw:p.yaw,pitch:p.pitch,walk:0};AV.set(p.id,v)}
     const ox=v.x,oz=v.z;v.x=damp(v.x,p.x,11,dt);v.z=damp(v.z,p.z,11,dt);v.yaw=angLerp(v.yaw,p.yaw,1-Math.exp(-12*dt));v.pitch=damp(v.pitch,p.pitch,12,dt);
@@ -296,7 +296,10 @@ function syncAvatars(dt,time){const live=new Set();let si=0;
     const a=Math.min(1,sp/3);u.legs[0].rotation.x=Math.sin(v.walk)*.6*a;u.legs[1].rotation.x=-Math.sin(v.walk)*.6*a;
     if(p.carry>=0){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.25,10,dt))}else{u.arms[0].rotation.x=-Math.sin(v.walk)*.5*a;u.arms[1].rotation.x=-.9}
     u.torch.rotation.x=-v.pitch;u.head.rotation.x=-v.pitch*.6;u.beam.visible=!!p.light;
-    if(si<REMOTE_SPOTS.length){const s=REMOTE_SPOTS[si++];u.torch.getWorldPosition(s.position);const cp=Math.cos(v.pitch);s.target.position.set(s.position.x-Math.sin(v.yaw)*cp*8,s.position.y+Math.sin(v.pitch)*8,s.position.z-Math.cos(v.yaw)*cp*8);s.intensity=p.light&&!p.dead?24:0}}
+    if(p.light&&!p.dead)lit.push({v,u,d:Math.hypot(v.x-ME.x,v.z-ME.z)})}
+  // only a few real lights to go round: they go to the nearest crewmates' torches
+  lit.sort((a,b)=>a.d-b.d);
+  for(const {v,u} of lit){if(si>=REMOTE_SPOTS.length)break;const s=REMOTE_SPOTS[si++];u.torch.getWorldPosition(s.position);const cp=Math.cos(v.pitch);s.target.position.set(s.position.x-Math.sin(v.yaw)*cp*8,s.position.y+Math.sin(v.pitch)*8,s.position.z-Math.cos(v.yaw)*cp*8);s.intensity=24}
   for(;si<REMOTE_SPOTS.length;si++)REMOTE_SPOTS[si].intensity=0;
   for(const [id,v] of AV)if(!live.has(id)){ROOT.remove(v.g);AV.delete(id)}}
 const MENU_LAMPS=LAMPS.map(L=>({on:L.dead?0:1,t:L.dead?1e9:rand(2,8)}));

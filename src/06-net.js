@@ -19,7 +19,7 @@ function netHost(){return new Promise((res,rej)=>{if(!window.Peer)return rej('Th
     p.on('disconnected',()=>{if(!NET.closing)try{p.reconnect()}catch(e){}})};
   tryCode(3)})}
 function hostAccept(c){
-  c.on('open',()=>{if(NET.conns.size>=3){try{c.send({t:'full'})}catch(e){}setTimeout(()=>c.close(),400);return}NET.conns.set(c.peer,c)});
+  c.on('open',()=>{if(NET.conns.size>=MAX_CREW-1){try{c.send({t:'full'})}catch(e){}setTimeout(()=>c.close(),400);return}NET.conns.set(c.peer,c)});
   c.on('data',m=>hostMsg(c,m));
   const gone=()=>{if(!NET.conns.has(c.peer))return;NET.conns.delete(c.peer);NET.lobby=NET.lobby.filter(p=>p.id!==c.peer);
     if(S&&S.players[c.peer]){const p=S.players[c.peer];dropCarry(p);delete S.players[c.peer];emit({e:'msg',m:`${p.name} clocked out.`})}
@@ -48,7 +48,7 @@ function netJoin(code){return new Promise((res,rej)=>{if(!window.Peer)return rej
   p.on('disconnected',()=>{if(!NET.closing)try{p.reconnect()}catch(e){}})})}
 function clientMsg(m){if(!m)return;
   switch(m.t){
-  case 'full':NET.closing=true;netClose();showMenu('That crew is full (4 workers max).');break;
+  case 'full':NET.closing=true;netClose();showMenu(`That crew is full (${MAX_CREW} workers max).`);break;
   case 'lobby':NET.lobby=m.players||[];NET.diff=m.df;if(!GAME.on)renderLobby();break;
   case 'start':clientStart();break;
   case 'tp':ME.x=m.x;ME.z=m.z;ME.ready=true;break;

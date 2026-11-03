@@ -46,7 +46,9 @@ const inRoofRoom=p=>p.x>RROOM.x0&&p.x<RROOM.x1&&p.z>RROOM.z0&&p.z<RROOM.z1;
 const chilled=()=>!!(S&&S.chill&&S.chill.st==='cold'); // the warehouse has gone cold (see chillUpdate)
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
 const BOX_KINDS=[{w:.55,h:.42,d:.5,slow:.95},{w:.74,h:.56,d:.64,slow:.86},{w:.92,h:.72,d:.8,slow:.74}];
-const VEST=['#ff7a1a','#a4e33a','#38d4e8','#ff4fa8'];
+const MAX_CREW=10; // workers in one crew, host included
+const VEST=['#ff7a1a','#a4e33a','#38d4e8','#ff4fa8','#ffd23a','#9b6bff','#ff3b3b','#3bff9b','#3b7bff','#c08a5a'];
+const bigCrew=()=>Math.max(0,Object.keys(S.players).length-4); // crews past four get more work and more trucks
 
 // ===================================================================== renderer
 const canvas=$('c');

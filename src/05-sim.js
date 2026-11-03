@@ -15,8 +15,8 @@ function newState(){return{night:1,diff:DIFFS[SET.diff]?SET.diff:1,t:0,phase:'pl
   players:{},boxes:[],trucks:BAYS.map(()=>({st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,stuck:0})),mons:[],over:null,bver:0,
   cash:0,adds:[],fixed:[],aidBonus:0,extra:0}}
 function addPlayer(id,name,col){S.players[id]={id,name,col,x:0,z:-16,yaw:0,pitch:0,light:true,hp:100,dead:false,carry:-1,lastHurt:-99,inv:{},up:{},stack:[],can:false}}
-function spawnPoint(i){return{x:-2.4+(i%4)*1.6,z:-15.5}}
-function calcQuota(){const n=Math.max(1,Object.keys(S.players).length);return Math.max(5,Math.round((10+S.night*5+addExtras().q)*(1+.45*(n-1))*DF().q))}
+function spawnPoint(i){return{x:-2.4+(i%5)*1.4,z:-15.5+Math.floor(i/5)*1.4}}
+function calcQuota(){const n=Math.max(1,Object.keys(S.players).length);return Math.max(5,Math.round((10+S.night*5+addExtras().q)*(1+.45*Math.min(3,n-1)+.3*Math.max(0,n-4))*DF().q))}
 
 function startNight(){
   // whatever was left on the floor (mimics included) is still there tonight; last night's shelves were emptied by the day shift
@@ -111,7 +111,7 @@ function simUpdate(dt){
 // ---------------------------------------------------------------- trucks
 function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&HOST.trucksTonight===0;
   Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0,due:0});
-  const n=Math.min(16,randi(6,9)+Math.min(5,S.night-1));
+  const n=Math.min(22,randi(6,9)+Math.min(5,S.night-1)+bigCrew());
   tr.lurk=!first&&Math.random()<Math.min(.85,Math.min(.55,.17+.09*(S.night-1))*diffEv());
   tr.crawl=!first&&!tr.lurk&&!S.mons.some(m=>m.ty===3)&&Math.random()<Math.min(.7,Math.min(.4,.14+.06*(S.night-1))*diffEv());
   tr.warn=tr.lurk||tr.crawl?Math.random()<.75:!first&&Math.random()<.1;tr.claw=tr.lurk&&Math.random()<.7;tr.n=n;tr.left=n;tr.kg=n*randi(18,30);tr.extra=randi(280,460);
@@ -141,7 +141,7 @@ const freeBays=()=>S.trucks.map((t,i)=>t.st===0&&!(t.stuck>0)&&t.door<=0&&bayOn(
 function trucksUpdate(dt){
   HOST.nextTruck-=dt;
   if(HOST.nextTruck<=0){if(S.t<SHIFT_END-60){const free=freeBays();
-      if(free.length){spawnTruck(HOST.trucksTonight===0&&free.includes(0)?0:pick(free));HOST.nextTruck=Math.max(24,rand(40,58)-S.night*3)}else HOST.nextTruck=5}else HOST.nextTruck=1e9}
+      if(free.length){spawnTruck(HOST.trucksTonight===0&&free.includes(0)?0:pick(free));HOST.nextTruck=Math.max(24,rand(40,58)-S.night*3)/(1+.1*bigCrew())}else HOST.nextTruck=5}else HOST.nextTruck=1e9}
   // the last truck of the night pulls in around 5:10 and is docked by about 5:25
   if(!HOST.lastTruck&&!S.ot&&S.t>=LAST_TRUCK_AT&&S.t<SHIFT_END-15){const free=freeBays();
     if(free.length){HOST.lastTruck=true;spawnTruck(pick(free),true)}}
