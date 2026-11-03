@@ -112,6 +112,7 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
     rg:x.rg?{st:RG_ST[x.rg[0]],x:x.rg[1],z:x.rg[2],ry:x.rg[3],k:x.rg[4],hx:x.rg[5],hz:x.rg[6],tg:x.rg[7],t:x.rg[8],b:x.rg[9]|0}:null,
     parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8],y:a[9]||0,amr:a[10]||0})),
     flares:(x.fl||[]).map(a=>({id:a[0],x:a[1],z:a[2],t:a[3]}))});
+  { const sig=S.pallets.map(p=>p.id+":"+p.st+":"+p.s).join(); if(sig!==NET.palSig){NET.palSig=sig;markSlots()} } // pallets come in every snapshot: keep shelf slots in step with them
   if(x.cold)S.cold={door:x.cold[0],open:!!x.cold[1]};if(x.conv)S.conv={sel:x.conv[0],jam:!!x.conv[1]};
   if(x.elev)S.elev={lvl:x.elev[0],st:x.elev[1],t:x.elev[2],gate:x.elev[3],hl:x.elev[4],ht:x.elev[5]};if(x.df!=null)S.diff=x.df;if(x.gen)S.gen={fuel:x.gen[0],out:!!x.gen[1]};
   if(x.fork){const f=x.fork,mine=f[4]===NET.myId&&S.fork&&S.fork.drv===NET.myId;S.fork=Object.assign(S.fork||{},mine?{lift:f[3],drv:f[4],pal:f[5],pass:!!f[6]}:{x:f[0],z:f[1],ry:f[2],lift:f[3],drv:f[4],pal:f[5],pass:!!f[6]})}

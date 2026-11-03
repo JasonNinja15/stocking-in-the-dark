@@ -180,7 +180,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 
 <div id="shop" class="screen dim hide"><div class="card">
   <h2>BETWEEN SHIFTS</h2><div class="lbl" id="shopNight"></div>
-  <div id="shopCash">$0</div><div class="lbl">crew pay, shared. Prices rise every night, and lost boxes are docked from pay. Every addition adds work, and the time to do it.</div>
+  <div id="shopCash">$0</div><div class="lbl">crew pay, shared. Prices start rising after night 3. Every addition adds work, and the time to do it.</div>
   <div id="shopCols"><div><h3>Warehouse additions</h3><div id="shopAdds"></div></div><div><h3>Equipment (yours)</h3><div id="shopItems"></div></div></div>
   <button id="bShopGo">Start the next night</button><div class="lbl" id="shopWait"></div>
 </div></div>
@@ -214,6 +214,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Field of view</span><input type="range" id="sFov" min="60" max="100" step="1"><span id="vFov" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Graphics</span><select id="sQual"><option value="2">High</option><option value="1">Medium</option><option value="0">Low (fast)</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Show FPS</span><input type="checkbox" id="sFps"><span style="width:40px"></span></div>
+  <div class="row"><span class="lbl" style="width:130px;text-align:right">Forklift steering</span><select id="sForkInv"><option value="0">Normal</option><option value="1">Inverted</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Crosshair</span><select id="sCross"><option value="dot">Dot</option><option value="plus">Cross</option><option value="circle">Circle</option><option value="dotring">Dot in a ring</option><option value="tee">Open cross</option><option value="none">None</option></select><span class="xprev"><i id="xPrev" class="xh x-dot"></i></span></div>
   <h3 style="margin:6px 0 0">Controls</h3><div class="lbl">Click a key, then press the new one (Esc cancels). Mouse: left click uses, right click uses the picked item, the wheel picks items.</div>
   <div id="binds"></div><button class="small" id="bKeysReset">Reset keys</button>

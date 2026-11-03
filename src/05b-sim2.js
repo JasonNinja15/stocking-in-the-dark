@@ -63,8 +63,8 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.bver++}
 
 // ---------------------------------------------------------------- the shop (between nights)
-// what something costs right now: 12% more for every night survived, and the shared additions scale with the crew
-function priceOf(k){const it=ADDS[k]||SHOP[k];if(!it)return 0;return Math.round(it.price*(1+.12*Math.max(0,(S?S.night:1)-1))*(ADDS[k]?crewMul():1)/5)*5}
+// what something costs right now: 12% more for every night survived past night 3, and the shared additions scale with the crew
+function priceOf(k){const it=ADDS[k]||SHOP[k];if(!it)return 0;return Math.round(it.price*(1+.12*Math.max(0,(S?S.night:1)-3))*(ADDS[k]?crewMul():1)/5)*5}
 const aidCap=()=>owned('medkit')?3:2;
 function shopAct(pid,a){const p=S.players[pid];if(!p)return;
   // everyone votes on being done shopping; more than half the crew and the next night starts

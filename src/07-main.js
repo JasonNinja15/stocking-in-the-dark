@@ -354,7 +354,7 @@ function onEvent(e){const me=NET.myId;
   case 'finalHour':SFX.pa();toast(e.need>0?`Loudspeaker: "Final hour. ${e.need} more box${e.need>1?'es':''} to make quota."`:'Loudspeaker: "Final hour."',5,'radio');break;
   case 'overtime':SFX.powerDown();big('OVERTIME',`${e.need} more box${e.need>1?'es':''} in 60 seconds. The lights are out.`,5);
     if(e.b>=0)setTimeout(()=>GAME.on&&toast(`One last truck is backing into Bay ${BAYS[e.b].name}.`,4,'radio'),2500);break;
-  case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost${e.fine?` ($${e.fine} docked)`:''}`:''}`,7);SFX.bell();break;
+  case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
   case 'hour':SFX.bell();toast(`${e.h||12}:00 AM`,2.5);break;
   case 'truck':if(e.last&&!S.ot){SFX.pa();toast(`Loudspeaker: "Last truck of the night, Bay ${BAYS[e.b].name}."`,5,'radio')}else if(!e.last)toast(`Truck inbound: Bay ${BAYS[e.b].name}`,3);break;
   case 'brake':SFX.brake({x:BAYS[e.b].x,y:1,z:TZ_DOCK-6});break;
@@ -525,6 +525,7 @@ function bindUI(){
   const sl=(id,key,fmt,apply)=>{const el=$(id),out=$('v'+id.slice(1));el.value=SET[key];out.textContent=fmt(SET[key]);el.oninput=()=>{SET[key]=+el.value;out.textContent=fmt(SET[key]);saveSet();apply&&apply()}};
   sl('sSens','sens',v=>(+v).toFixed(2));sl('sVol','vol',v=>Math.round(v*100)+'%',()=>auVol(SET.vol));sl('sFov','fov',v=>v+'°',applyQuality);
   $('sQual').value=SET.qual;$('sQual').onchange=()=>{SET.qual=+$('sQual').value;saveSet();applyQuality()};
+  $('sForkInv').value=SET.forkInv?'1':'0';$('sForkInv').onchange=()=>{SET.forkInv=$('sForkInv').value==='1';saveSet()};
   $('sCross').onchange=()=>{SET.cross=$('sCross').value;saveSet();renderBinds()};
   $('bKeysReset').onclick=()=>{SET.keys={};REBIND=null;saveSet();buildKeymap();renderBinds()};buildKeymap();
   $('sFps').checked=!!SET.fps;$('sFps').onchange=()=>{SET.fps=$('sFps').checked;saveSet();$('fps').classList.toggle('hide',!SET.fps)};$('fps').classList.toggle('hide',!SET.fps);

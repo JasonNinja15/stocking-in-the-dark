@@ -31,6 +31,7 @@ function startNight(){
   HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)/diffEv()*(i===0?1.8:i===3?.6:1));
   HOST.nextTruck=6;HOST.nextStalker=(rand(42,55)-Math.min(20,(S.night-1)*6))/diffEv();HOST.trucksTonight=0;HOST.lastTruck=false;S.ot=false;
   S.quota=calcQuota();nightSetup();
+  markSlots(); // again now last night's pallets are gone, or the slots they sat in stay marked full all night
   const pos={};Object.values(S.players).forEach((p,i)=>{const sp=spawnPoint(i);Object.assign(p,{x:sp.x,z:sp.z,yaw:0,pitch:0,hp:100,dead:false,carry:-1,lastHurt:-99,tpT:.8});pos[p.id]=[sp.x,sp.z]});
   emit({e:'night',n:S.night,q:S.quota,pos,ex:S.extra,df:S.diff});
 }
@@ -48,9 +49,7 @@ function endNight(){
     S.boxes=S.boxes.filter(b=>b.st===2||(b.st===3&&!b.fz));S.bver++;
     S.parcels=[];S.flares=[];S.yard=null;if(S.fork){S.fork.drv='';S.fork.pal=-1;S.fork.pass=null}
     for(const p of Object.values(S.players)){p.carry=-1;p.stack=[];p.can=false}
-    // the company docks the crew's pay for every box that went missing tonight
-    const fine=Math.min(Math.round(S.cash||0),S.lost*8);S.cash=(S.cash||0)-fine;
-    emit({e:'nightDone',n:S.night,sh:S.shelved,q:S.quota,lo:S.lost,ot:!!S.ot,fine});S.ot=false;saveRun()}
+    emit({e:'nightDone',n:S.night,sh:S.shelved,q:S.quota,lo:S.lost,ot:!!S.ot});S.ot=false;saveRun()}
   else gameOver('quota')}
 function gameOver(why){if(S.over)return;if(S.saved)dropSave();S.over={why,night:S.night,total:S.total+S.shelved,score:S.score,shelved:S.shelved,quota:S.quota,ot:!!S.ot};emit({e:'over'})}
 // how far behind the steady pace that meets quota exactly at 6:00 AM

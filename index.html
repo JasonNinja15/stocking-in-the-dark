@@ -180,7 +180,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 
 <div id="shop" class="screen dim hide"><div class="card">
   <h2>BETWEEN SHIFTS</h2><div class="lbl" id="shopNight"></div>
-  <div id="shopCash">$0</div><div class="lbl">crew pay, shared. Prices rise every night, and lost boxes are docked from pay. Every addition adds work, and the time to do it.</div>
+  <div id="shopCash">$0</div><div class="lbl">crew pay, shared. Prices start rising after night 3. Every addition adds work, and the time to do it.</div>
   <div id="shopCols"><div><h3>Warehouse additions</h3><div id="shopAdds"></div></div><div><h3>Equipment (yours)</h3><div id="shopItems"></div></div></div>
   <button id="bShopGo">Start the next night</button><div class="lbl" id="shopWait"></div>
 </div></div>
@@ -214,6 +214,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Field of view</span><input type="range" id="sFov" min="60" max="100" step="1"><span id="vFov" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Graphics</span><select id="sQual"><option value="2">High</option><option value="1">Medium</option><option value="0">Low (fast)</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Show FPS</span><input type="checkbox" id="sFps"><span style="width:40px"></span></div>
+  <div class="row"><span class="lbl" style="width:130px;text-align:right">Forklift steering</span><select id="sForkInv"><option value="0">Normal</option><option value="1">Inverted</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Crosshair</span><select id="sCross"><option value="dot">Dot</option><option value="plus">Cross</option><option value="circle">Circle</option><option value="dotring">Dot in a ring</option><option value="tee">Open cross</option><option value="none">None</option></select><span class="xprev"><i id="xPrev" class="xh x-dot"></i></span></div>
   <h3 style="margin:6px 0 0">Controls</h3><div class="lbl">Click a key, then press the new one (Esc cancels). Mouse: left click uses, right click uses the picked item, the wheel picks items.</div>
   <div id="binds"></div><button class="small" id="bKeysReset">Reset keys</button>
@@ -267,7 +268,7 @@ const angDiff=(a,b)=>{let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;r
 const damp=(a,b,k,dt)=>lerp(a,b,1-Math.exp(-k*dt));
 const easeOut=t=>1-Math.pow(1-t,3), easeIn=t=>t*t*t, easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 
-const SET=Object.assign({sens:1,vol:0.8,fov:75,qual:2,fps:false,name:'',keys:{},cross:'dot'},(()=>{try{return JSON.parse(localStorage.getItem('gs-settings'))||{}}catch(e){return{}}})());
+const SET=Object.assign({sens:1,vol:0.8,fov:75,qual:2,fps:false,name:'',keys:{},cross:'dot',forkInv:false},(()=>{try{return JSON.parse(localStorage.getItem('gs-settings'))||{}}catch(e){return{}}})());
 function saveSet(){try{localStorage.setItem('gs-settings',JSON.stringify(SET))}catch(e){}}
 
 // layout (metres). +x east, +z south, the loading dock is the north wall (z = -20).
@@ -1523,6 +1524,7 @@ function startNight(){
   HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)/diffEv()*(i===0?1.8:i===3?.6:1));
   HOST.nextTruck=6;HOST.nextStalker=(rand(42,55)-Math.min(20,(S.night-1)*6))/diffEv();HOST.trucksTonight=0;HOST.lastTruck=false;S.ot=false;
   S.quota=calcQuota();nightSetup();
+  markSlots(); // again now last night's pallets are gone, or the slots they sat in stay marked full all night
   const pos={};Object.values(S.players).forEach((p,i)=>{const sp=spawnPoint(i);Object.assign(p,{x:sp.x,z:sp.z,yaw:0,pitch:0,hp:100,dead:false,carry:-1,lastHurt:-99,tpT:.8});pos[p.id]=[sp.x,sp.z]});
   emit({e:'night',n:S.night,q:S.quota,pos,ex:S.extra,df:S.diff});
 }
@@ -1540,9 +1542,7 @@ function endNight(){
     S.boxes=S.boxes.filter(b=>b.st===2||(b.st===3&&!b.fz));S.bver++;
     S.parcels=[];S.flares=[];S.yard=null;if(S.fork){S.fork.drv='';S.fork.pal=-1;S.fork.pass=null}
     for(const p of Object.values(S.players)){p.carry=-1;p.stack=[];p.can=false}
-    // the company docks the crew's pay for every box that went missing tonight
-    const fine=Math.min(Math.round(S.cash||0),S.lost*8);S.cash=(S.cash||0)-fine;
-    emit({e:'nightDone',n:S.night,sh:S.shelved,q:S.quota,lo:S.lost,ot:!!S.ot,fine});S.ot=false;saveRun()}
+    emit({e:'nightDone',n:S.night,sh:S.shelved,q:S.quota,lo:S.lost,ot:!!S.ot});S.ot=false;saveRun()}
   else gameOver('quota')}
 function gameOver(why){if(S.over)return;if(S.saved)dropSave();S.over={why,night:S.night,total:S.total+S.shelved,score:S.score,shelved:S.shelved,quota:S.quota,ot:!!S.ot};emit({e:'over'})}
 // how far behind the steady pace that meets quota exactly at 6:00 AM
@@ -1937,8 +1937,8 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.bver++}
 
 // ---------------------------------------------------------------- the shop (between nights)
-// what something costs right now: 12% more for every night survived, and the shared additions scale with the crew
-function priceOf(k){const it=ADDS[k]||SHOP[k];if(!it)return 0;return Math.round(it.price*(1+.12*Math.max(0,(S?S.night:1)-1))*(ADDS[k]?crewMul():1)/5)*5}
+// what something costs right now: 12% more for every night survived past night 3, and the shared additions scale with the crew
+function priceOf(k){const it=ADDS[k]||SHOP[k];if(!it)return 0;return Math.round(it.price*(1+.12*Math.max(0,(S?S.night:1)-3))*(ADDS[k]?crewMul():1)/5)*5}
 const aidCap=()=>owned('medkit')?3:2;
 function shopAct(pid,a){const p=S.players[pid];if(!p)return;
   // everyone votes on being done shopping; more than half the crew and the next night starts
@@ -2588,6 +2588,7 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
     rg:x.rg?{st:RG_ST[x.rg[0]],x:x.rg[1],z:x.rg[2],ry:x.rg[3],k:x.rg[4],hx:x.rg[5],hz:x.rg[6],tg:x.rg[7],t:x.rg[8],b:x.rg[9]|0}:null,
     parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8],y:a[9]||0,amr:a[10]||0})),
     flares:(x.fl||[]).map(a=>({id:a[0],x:a[1],z:a[2],t:a[3]}))});
+  { const sig=S.pallets.map(p=>p.id+":"+p.st+":"+p.s).join(); if(sig!==NET.palSig){NET.palSig=sig;markSlots()} } // pallets come in every snapshot: keep shelf slots in step with them
   if(x.cold)S.cold={door:x.cold[0],open:!!x.cold[1]};if(x.conv)S.conv={sel:x.conv[0],jam:!!x.conv[1]};
   if(x.elev)S.elev={lvl:x.elev[0],st:x.elev[1],t:x.elev[2],gate:x.elev[3],hl:x.elev[4],ht:x.elev[5]};if(x.df!=null)S.diff=x.df;if(x.gen)S.gen={fuel:x.gen[0],out:!!x.gen[1]};
   if(x.fork){const f=x.fork,mine=f[4]===NET.myId&&S.fork&&S.fork.drv===NET.myId;S.fork=Object.assign(S.fork||{},mine?{lift:f[3],drv:f[4],pal:f[5],pass:!!f[6]}:{x:f[0],z:f[1],ry:f[2],lift:f[3],drv:f[4],pal:f[5],pass:!!f[6]})}
@@ -2956,7 +2957,7 @@ function onEvent(e){const me=NET.myId;
   case 'finalHour':SFX.pa();toast(e.need>0?`Loudspeaker: "Final hour. ${e.need} more box${e.need>1?'es':''} to make quota."`:'Loudspeaker: "Final hour."',5,'radio');break;
   case 'overtime':SFX.powerDown();big('OVERTIME',`${e.need} more box${e.need>1?'es':''} in 60 seconds. The lights are out.`,5);
     if(e.b>=0)setTimeout(()=>GAME.on&&toast(`One last truck is backing into Bay ${BAYS[e.b].name}.`,4,'radio'),2500);break;
-  case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost${e.fine?` ($${e.fine} docked)`:''}`:''}`,7);SFX.bell();break;
+  case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
   case 'hour':SFX.bell();toast(`${e.h||12}:00 AM`,2.5);break;
   case 'truck':if(e.last&&!S.ot){SFX.pa();toast(`Loudspeaker: "Last truck of the night, Bay ${BAYS[e.b].name}."`,5,'radio')}else if(!e.last)toast(`Truck inbound: Bay ${BAYS[e.b].name}`,3);break;
   case 'brake':SFX.brake({x:BAYS[e.b].x,y:1,z:TZ_DOCK-6});break;
@@ -3127,6 +3128,7 @@ function bindUI(){
   const sl=(id,key,fmt,apply)=>{const el=$(id),out=$('v'+id.slice(1));el.value=SET[key];out.textContent=fmt(SET[key]);el.oninput=()=>{SET[key]=+el.value;out.textContent=fmt(SET[key]);saveSet();apply&&apply()}};
   sl('sSens','sens',v=>(+v).toFixed(2));sl('sVol','vol',v=>Math.round(v*100)+'%',()=>auVol(SET.vol));sl('sFov','fov',v=>v+'°',applyQuality);
   $('sQual').value=SET.qual;$('sQual').onchange=()=>{SET.qual=+$('sQual').value;saveSet();applyQuality()};
+  $('sForkInv').value=SET.forkInv?'1':'0';$('sForkInv').onchange=()=>{SET.forkInv=$('sForkInv').value==='1';saveSet()};
   $('sCross').onchange=()=>{SET.cross=$('sCross').value;saveSet();renderBinds()};
   $('bKeysReset').onclick=()=>{SET.keys={};REBIND=null;saveSet();buildKeymap();renderBinds()};buildKeymap();
   $('sFps').checked=!!SET.fps;$('sFps').onchange=()=>{SET.fps=$('sFps').checked;saveSet();$('fps').classList.toggle('hide',!SET.fps)};$('fps').classList.toggle('hide',!SET.fps);
@@ -3358,7 +3360,8 @@ function rgHeld(dt,me){const h=rgHeldAt(NET.myId);if(!h){ME.eatFade=0;return fal
 function driveUpdate(dt,me){const f=S.fork,busy=!!ME.scare||S.phase!=='play';
   const th=busy?0:(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),st=busy?0:(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0);
   ME.fv=damp(ME.fv||0,th>0?4.4:th<0?-2:0,th?2:3.5,dt);
-  f.ry+=st*dt*1.5*clamp(Math.abs(ME.fv)/1.2,0,1)*(ME.fv<0?-1:1);
+  // D steers right, A left (turning right means the heading angle goes down); Settings can invert it
+  f.ry-=st*dt*1.5*clamp(Math.abs(ME.fv)/1.2,0,1)*(ME.fv<0?-1:1)*(SET.forkInv?-1:1);
   const p={x:f.x+Math.sin(f.ry)*ME.fv*dt,z:f.z+Math.cos(f.ry)*ME.fv*dt};collideCircle(p,.85);
   if(p.z<WH.z0-.3){let bi=-1;for(let i=0;i<BAYS.length;i++)if(Math.abs(p.x-BAYS[i].x)<TRAIL_HW+.4)bi=i;const tr=bi>=0?S.trucks[bi]:null;if(!tr||tr.st!==2){p.x=f.x;p.z=Math.max(f.z,WH.z0+.9)}}
   p.x=clamp(p.x,WH.x0+.9,WH.x1-.9);p.z=clamp(p.z,TZ_DOCK-TRAIL_LEN+1,WH.z1-.9);

@@ -68,7 +68,7 @@ The **Warehouse Heater** (shop) adds a night between cold spells: nights 4, 7, 1
 
 ## Between nights: the shop
 
-After each night you survive, the crew's pay buys things. **Prices rise 12% for every night survived**, and the shared warehouse additions also cost more for bigger crews (whose pay is bigger too). The prices below are night-1 prices for one worker. Every box lost in a night (left on a truck, spoiled, shredded by mistake, cut open) docks $8 from the crew's pay at 6 AM. The money is shared, and anyone can spend it. When you're finished, press **Done**. Once more than half the crew is done, the next night starts (or it starts by itself after 150 seconds). Press it again to take your vote back.
+After each night you survive, the crew's pay buys things. **From night 4, prices rise 12% for every night survived**, and the shared warehouse additions also cost more for bigger crews (whose pay is bigger too). The prices below are the prices for one worker up to night 3. Every box lost in a night (left on a truck, spoiled, shredded by mistake, cut open) docks $8 from the crew's pay at 6 AM. The money is shared, and anyone can spend it. When you're finished, press **Done**. Once more than half the crew is done, the next night starts (or it starts by itself after 150 seconds). Press it again to take your vote back.
 
 **Saving.** The run saves after every night you survive, and again after every purchase. **Continue** on the main menu picks it up in the shop, before the next night. In a crew, the host's browser keeps the save: the host presses **Continue the saved run** in the crew room, and everyone gets their own gear back by name. When the run ends (the crew dies, or misses quota), the save is deleted. Starting a new run leaves an older save alone until the new run gets through a night, then replaces it.
 
@@ -143,7 +143,7 @@ Players connect browser-to-browser over WebRTC, using the free public PeerJS ser
 
 Mouse sensitivity, volume, field of view, graphics quality (Low turns off shadows and lowers render resolution for older laptops and Chromebooks), and an FPS counter.
 
-**Controls** can be rebound: click an action, then press the new key (Esc cancels). Binding a key that's already in use swaps the two. Prompts, messages and the key hint bar show your keys. **Crosshair**: dot, cross, open cross, circle, dot in a ring, or none.
+**Controls** can be rebound: click an action, then press the new key (Esc cancels). Binding a key that's already in use swaps the two. Prompts, messages and the key hint bar show your keys. **Crosshair**: dot, cross, open cross, circle, dot in a ring, or none. **Forklift steering**: Normal (D turns right, A turns left) or Inverted.
 
 ## Files
 

@@ -167,7 +167,8 @@ function rgHeld(dt,me){const h=rgHeldAt(NET.myId);if(!h){ME.eatFade=0;return fal
 function driveUpdate(dt,me){const f=S.fork,busy=!!ME.scare||S.phase!=='play';
   const th=busy?0:(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),st=busy?0:(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0);
   ME.fv=damp(ME.fv||0,th>0?4.4:th<0?-2:0,th?2:3.5,dt);
-  f.ry+=st*dt*1.5*clamp(Math.abs(ME.fv)/1.2,0,1)*(ME.fv<0?-1:1);
+  // D steers right, A left (turning right means the heading angle goes down); Settings can invert it
+  f.ry-=st*dt*1.5*clamp(Math.abs(ME.fv)/1.2,0,1)*(ME.fv<0?-1:1)*(SET.forkInv?-1:1);
   const p={x:f.x+Math.sin(f.ry)*ME.fv*dt,z:f.z+Math.cos(f.ry)*ME.fv*dt};collideCircle(p,.85);
   if(p.z<WH.z0-.3){let bi=-1;for(let i=0;i<BAYS.length;i++)if(Math.abs(p.x-BAYS[i].x)<TRAIL_HW+.4)bi=i;const tr=bi>=0?S.trucks[bi]:null;if(!tr||tr.st!==2){p.x=f.x;p.z=Math.max(f.z,WH.z0+.9)}}
   p.x=clamp(p.x,WH.x0+.9,WH.x1-.9);p.z=clamp(p.z,TZ_DOCK-TRAIL_LEN+1,WH.z1-.9);

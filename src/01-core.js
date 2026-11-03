@@ -10,7 +10,7 @@ const angDiff=(a,b)=>{let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;r
 const damp=(a,b,k,dt)=>lerp(a,b,1-Math.exp(-k*dt));
 const easeOut=t=>1-Math.pow(1-t,3), easeIn=t=>t*t*t, easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 
-const SET=Object.assign({sens:1,vol:0.8,fov:75,qual:2,fps:false,name:'',keys:{},cross:'dot'},(()=>{try{return JSON.parse(localStorage.getItem('gs-settings'))||{}}catch(e){return{}}})());
+const SET=Object.assign({sens:1,vol:0.8,fov:75,qual:2,fps:false,name:'',keys:{},cross:'dot',forkInv:false},(()=>{try{return JSON.parse(localStorage.getItem('gs-settings'))||{}}catch(e){return{}}})());
 function saveSet(){try{localStorage.setItem('gs-settings',JSON.stringify(SET))}catch(e){}}
 
 // layout (metres). +x east, +z south, the loading dock is the north wall (z = -20).
