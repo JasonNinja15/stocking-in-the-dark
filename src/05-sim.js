@@ -25,7 +25,7 @@ function calcQuota(){const nq=S.night<=5?10+S.night*5:35+(S.night-5)*2.5; // fiv
 
 function startNight(){
   // whatever was left on the floor (mimics included) is still there tonight; last night's shelves were emptied by the day shift
-  S.t=0;S.phase='play';S.votes=[];S.shelved=0;S.lost=0;S.aidLeft=2;S.boxes=S.boxes.filter(b=>b.st===3);S.mons=[];S.bver++;
+  S.t=0;S.phase='play';S.votes=[];S.tvotes={};S.shelved=0;S.lost=0;S.aidLeft=2;S.boxes=S.boxes.filter(b=>b.st===3);S.mons=[];S.bver++;
   markSlots();
   S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0}));
   HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)/diffEv()*(i===0?1.8:i===3?.6:1));
@@ -77,7 +77,9 @@ function nearestPlayer(x,z,maxD=1e9,filter){let best=null,bd=maxD;for(const p of
 function applyColliders(){if(!S)return;S.trucks.forEach((tr,i)=>{const v=BAYV[i];v.doorCol.on=tr.door<.75;const on=tr.st===2||(tr.st===3&&tr.door>0);for(const c of v.trailCol)c.on=on});
   ADDV.coldCol.on=owned('cold')&&!(S.cold&&S.cold.door>.5);
   ADDV.carUp.gcol.on=owned('base')&&!carGateOpen(0);ADDV.carDn.gcol.on=owned('base')&&!carGateOpen(1);
-  if(S.fork){const f=S.fork;Object.assign(FORKCOL,{x0:f.x-.75,x1:f.x+.75,z0:f.z-.75,z1:f.z+.75,on:!(f.drv&&f.drv===NET.myId)})}}
+  // (on a client the forklift you bump into is the smoothed one you see: the raw snapshot position jumps 20 times a
+  // second, and a collider that jumps shoves you, and your camera, along with it)
+  if(S.fork){const f=S.fork,P=NET.mode==='client'&&FORK3D?FORK3D.position:f;Object.assign(FORKCOL,{x0:P.x-.75,x1:P.x+.75,z0:P.z-.75,z1:P.z+.75,on:!(f.drv&&f.drv===NET.myId)})}}
 // is (x,y,z) inside someone's flashlight beam with nothing solid in the way?
 // (anything up near the ceiling is above the racks, so only floor-level targets can be hidden behind them)
 function litByP(p,x,y,z){if(p.dead||!p.light)return false;const up=p.up&&p.up.fl2,dx=x-p.x,dy=y-1.6,dz=z-p.z,d=Math.hypot(dx,dy,dz);if(d>(up?20:17)||d<.05)return false;

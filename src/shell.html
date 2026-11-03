@@ -131,6 +131,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 .sc button{min-width:0;padding:5px 14px;font-size:14px}
 .sc button:disabled{opacity:.35;cursor:default;background:rgba(20,20,22,.9);border-color:var(--line);color:var(--ink)}
 #shopCash{font-size:30px;color:#8fd48a;letter-spacing:.06em}
+#shopCash small{font-size:18px;color:#d6cdb6;margin:0 .6em}.sc button.votes{color:#ffd68a;border-color:#ffd68a}.sc button.voted{color:#6aff9a;border-color:#6aff9a}
 @media (max-width:760px){#shopCols{grid-template-columns:1fr}}
 .stat{font-size:18px;line-height:1.7}
 .stat b{color:var(--amber);font-weight:400}
@@ -180,8 +181,8 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 
 <div id="shop" class="screen dim hide"><div class="card">
   <h2>BETWEEN SHIFTS</h2><div class="lbl" id="shopNight"></div>
-  <div id="shopCash">$0</div><div class="lbl">crew pay, shared. Prices start rising after night 3. Every addition adds work, and the time to do it.</div>
-  <div id="shopCols"><div><h3>Warehouse additions</h3><div id="shopAdds"></div></div><div><h3>Equipment (yours)</h3><div id="shopItems"></div></div></div>
+  <div id="shopCash">$0</div><div class="lbl">Pay goes 60% to the team fund and 40% split evenly into everyone's own fund. Team equipment is bought by vote (more than half the crew). Prices start rising after night 3. Every addition adds work, and the time to do it.</div>
+  <div id="shopCols"><div><h3>Team Equipment <span class="lbl">(team fund, by vote)</span></h3><div id="shopAdds"></div></div><div><h3>Personal Equipment <span class="lbl">(your own fund)</span></h3><div id="shopItems"></div></div></div>
   <button id="bShopGo">Start the next night</button><div class="lbl" id="shopWait"></div>
 </div></div>
 

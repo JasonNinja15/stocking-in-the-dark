@@ -310,7 +310,7 @@ function updScare2(s,k,lunge){const g=s.g,u=g.userData;
 // ---------------------------------------------------------------- events
 function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   switch(e.e){
-  case 'bought':SFX.buy();if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);if(ADDS[e.k])renderShop(true);break;
+  case 'bought':SFX.buy();if(e.team)toast(`The crew voted to buy ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);else if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);renderShop(true);break;
   case 'stuck':toast(`Bay ${BAYS[e.b].name}'s door motor jammed. The door is stuck open.`,4.5);break;
   case 'slam':SFX.slam(P(e.x,e.z,2));break;
   case 'shake':if(e.p!==me)SFX.shake({x:e.x,y:1.2,z:e.z});break;
@@ -451,13 +451,18 @@ function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const f
 // ---------------------------------------------------------------- the shop screen
 let shopShown=false,shopSig='';
 function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)return;
-  const sig=JSON.stringify([S.cash,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
-  $('shopCash').textContent=`$${Math.round(S.cash||0)}`;$('shopNight').textContent=`Night ${S.night} done. Night ${S.night+1} is next.`;
-  const card=(k,it,ownedNow,extra='')=>{const pr=priceOf(k),locked=it.night&&S.night+1<it.night,can=!ownedNow&&!locked&&S.cash>=pr;
+  const sig=JSON.stringify([S.cash,me.cash,S.tvotes,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
+  const team=Math.round(S.cash||0),mine$=Math.round(me.cash||0),crew=Object.keys(S.players).length,tneed=Math.floor(crew/2)+1;
+  $('shopCash').innerHTML=crew>1?`Team fund $${team}<small>·</small>Your fund $${mine$}`:`$${team+mine$}`;$('shopNight').textContent=`Night ${S.night} done. Night ${S.night+1} is next.`;
+  // team things show their votes on the button: amber once anyone has voted, green when you have
+  const card=(k,it,ownedNow,extra='')=>{const pr=priceOf(k),locked=it.night&&S.night+1<it.night,tm=isTeam(k),fund=tm?team:(crew>1?mine$:team+mine$),
+      tv=tm?((S.tvotes||{})[k]||[]):[],voted=tv.includes(NET.myId),can=!ownedNow&&!locked&&(fund>=pr||voted);
     if(locked)extra+=`<div class="tag" style="color:#ff9f70">on sale from night ${it.night}</div>`;
-    return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+pr}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" ${can?'':'disabled'}>Buy</button>`}</div>`};
-  $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)).join('');
-  $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.needs||me.up[it.needs]).map(([k,it])=>{const have=it.once?!!me.up[k]:k==='aid'?(S.aidBonus||0):(me.inv[k]||0);
+    const label=!tm||crew<2?'Buy':tv.length?`${voted?'Voted':'Vote'} · ${tv.length} of ${crew} (${tneed} needed)`:'Vote to buy',cls=tm&&crew>1?(voted?'voted':tv.length?'votes':''):'';
+    return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+pr}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" class="${cls}" ${can?'':'disabled'}>${label}</button>`}</div>`};
+  const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)).join('');
+  $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)).join('')+teamShop;
+  $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.team&&(!it.needs||me.up[it.needs])).map(([k,it])=>{const have=it.once?!!me.up[k]:(me.inv[k]||0);
     const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
     return card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${where?` · ${where}`:''}</div>`:where?`<div class="tag">${where}</div>`:'')}).join('');
   // the crew votes: more than half ready and the next night starts

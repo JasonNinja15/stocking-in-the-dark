@@ -131,6 +131,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 .sc button{min-width:0;padding:5px 14px;font-size:14px}
 .sc button:disabled{opacity:.35;cursor:default;background:rgba(20,20,22,.9);border-color:var(--line);color:var(--ink)}
 #shopCash{font-size:30px;color:#8fd48a;letter-spacing:.06em}
+#shopCash small{font-size:18px;color:#d6cdb6;margin:0 .6em}.sc button.votes{color:#ffd68a;border-color:#ffd68a}.sc button.voted{color:#6aff9a;border-color:#6aff9a}
 @media (max-width:760px){#shopCols{grid-template-columns:1fr}}
 .stat{font-size:18px;line-height:1.7}
 .stat b{color:var(--amber);font-weight:400}
@@ -180,8 +181,8 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 
 <div id="shop" class="screen dim hide"><div class="card">
   <h2>BETWEEN SHIFTS</h2><div class="lbl" id="shopNight"></div>
-  <div id="shopCash">$0</div><div class="lbl">crew pay, shared. Prices start rising after night 3. Every addition adds work, and the time to do it.</div>
-  <div id="shopCols"><div><h3>Warehouse additions</h3><div id="shopAdds"></div></div><div><h3>Equipment (yours)</h3><div id="shopItems"></div></div></div>
+  <div id="shopCash">$0</div><div class="lbl">Pay goes 60% to the team fund and 40% split evenly into everyone's own fund. Team equipment is bought by vote (more than half the crew). Prices start rising after night 3. Every addition adds work, and the time to do it.</div>
+  <div id="shopCols"><div><h3>Team Equipment <span class="lbl">(team fund, by vote)</span></h3><div id="shopAdds"></div></div><div><h3>Personal Equipment <span class="lbl">(your own fund)</span></h3><div id="shopItems"></div></div></div>
   <button id="bShopGo">Start the next night</button><div class="lbl" id="shopWait"></div>
 </div></div>
 
@@ -1518,7 +1519,7 @@ function calcQuota(){const nq=S.night<=5?10+S.night*5:35+(S.night-5)*2.5; // fiv
 
 function startNight(){
   // whatever was left on the floor (mimics included) is still there tonight; last night's shelves were emptied by the day shift
-  S.t=0;S.phase='play';S.votes=[];S.shelved=0;S.lost=0;S.aidLeft=2;S.boxes=S.boxes.filter(b=>b.st===3);S.mons=[];S.bver++;
+  S.t=0;S.phase='play';S.votes=[];S.tvotes={};S.shelved=0;S.lost=0;S.aidLeft=2;S.boxes=S.boxes.filter(b=>b.st===3);S.mons=[];S.bver++;
   markSlots();
   S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0}));
   HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)/diffEv()*(i===0?1.8:i===3?.6:1));
@@ -1570,7 +1571,9 @@ function nearestPlayer(x,z,maxD=1e9,filter){let best=null,bd=maxD;for(const p of
 function applyColliders(){if(!S)return;S.trucks.forEach((tr,i)=>{const v=BAYV[i];v.doorCol.on=tr.door<.75;const on=tr.st===2||(tr.st===3&&tr.door>0);for(const c of v.trailCol)c.on=on});
   ADDV.coldCol.on=owned('cold')&&!(S.cold&&S.cold.door>.5);
   ADDV.carUp.gcol.on=owned('base')&&!carGateOpen(0);ADDV.carDn.gcol.on=owned('base')&&!carGateOpen(1);
-  if(S.fork){const f=S.fork;Object.assign(FORKCOL,{x0:f.x-.75,x1:f.x+.75,z0:f.z-.75,z1:f.z+.75,on:!(f.drv&&f.drv===NET.myId)})}}
+  // (on a client the forklift you bump into is the smoothed one you see: the raw snapshot position jumps 20 times a
+  // second, and a collider that jumps shoves you, and your camera, along with it)
+  if(S.fork){const f=S.fork,P=NET.mode==='client'&&FORK3D?FORK3D.position:f;Object.assign(FORKCOL,{x0:P.x-.75,x1:P.x+.75,z0:P.z-.75,z1:P.z+.75,on:!(f.drv&&f.drv===NET.myId)})}}
 // is (x,y,z) inside someone's flashlight beam with nothing solid in the way?
 // (anything up near the ceiling is above the racks, so only floor-level targets can be hidden behind them)
 function litByP(p,x,y,z){if(p.dead||!p.light)return false;const up=p.up&&p.up.fl2,dx=x-p.x,dy=y-1.6,dz=z-p.z,d=Math.hypot(dx,dy,dz);if(d>(up?20:17)||d<.05)return false;
@@ -1905,11 +1908,16 @@ const SHOP={
   bulb:{name:'Lamp bulb',price:50,give:1,key:9,desc:'Use it under a dead light fixture to fix it for the rest of the run.'},
   hand:{name:'Carry Upgrade',price:110,once:true,desc:'Carry up to three boxes at once. Slower, and noisier.'},
   red:{name:'Red headlamp',price:80,once:true,key:'H',desc:'A dim red light (H) that monsters don\'t notice.'},
-  aid:{name:'First-aid refill',price:30,desc:'One more use of the first-aid cabinet next night (two at most, three with the Medkit Upgrade).'}};
+  aid:{name:'First-aid refill',price:30,team:true,desc:'One more use of the first-aid cabinet next night (two at most, three with the Medkit Upgrade).'}};
 const PA_SPOTS=[{n:'by the roof ladder',x:-22.4,z:12.2},{n:'at the west end of aisle two',x:-28.4,z:1.5},{n:'behind the east racks',x:28.6,z:2.5},
   {n:'by the barrels',x:26.4,z:16.4},{n:'between the middle racks',x:0,z:1.5},{n:'at the west end of aisle four',x:-28.4,z:11.5},{n:'by the dock columns',x:5.5,z:-11.2}];
 let parSeq=1,palSeq=1,flSeq=1;
-const pay=x=>{S.score+=x;S.cash=(S.cash||0)+x*1.25};
+// Pay splits two ways: 60% to the team fund (S.cash), which buys team equipment (the warehouse additions and
+// first-aid refills) by vote, and 40% shared evenly into everyone's personal fund (p.cash) for their own gear.
+const TEAM_SHARE=.6;
+const pay=x=>{S.score+=x;const v=x*1.25,ps=Object.values(S.players);if(ps.length<2){S.cash=(S.cash||0)+v;return} // working alone, it's all one pot
+  S.cash=(S.cash||0)+v*TEAM_SHARE;for(const p of ps)p.cash=(p.cash||0)+v*(1-TEAM_SHARE)/ps.length};
+const isTeam=k=>!!ADDS[k]||!!(SHOP[k]&&SHOP[k].team);
 const nearPos=(p,x,z,r)=>Math.hypot(p.x-x,p.z-z)<=r;
 const inCold=p=>p.x>COLD.x0&&p.x<COLD.x1&&p.z>COLD.z0&&p.z<COLD.z1;
 const inCar=(p,C)=>p.x>C.x0&&p.x<C.x1&&p.z>C.z0&&p.z<C.z1;
@@ -1945,18 +1953,27 @@ function shopAct(pid,a){const p=S.players[pid];if(!p)return;
   if(a.a==='start'){if(S.phase!=='shop')return;const v=S.votes||(S.votes=[]);if(v.includes(pid))S.votes=v.filter(x=>x!==pid);else v.push(pid);shopVoteCheck();return}
   if(a.a!=='buy'||S.phase!=='shop')return;const k=a.k;
   const no=m=>emit({e:'msg',m,p:pid});
-  if(ADDS[k]){const it=ADDS[k];if(owned(k))return no('Already built.');const pr=priceOf(k);if(S.cash<pr)return no('Not enough money.');
-    S.cash-=pr;S.adds.push(k);applyAdds();emit({e:'bought',k,p:pid,n:p.name});saveRun();return}
-  const it=SHOP[k];if(!it)return;const pr=priceOf(k);if(S.cash<pr)return no('Not enough money.');
+  if(isTeam(k)){const it=ADDS[k]||SHOP[k];if(ADDS[k]&&owned(k))return no('Already built.');
+    if(k==='aid'&&(S.aidBonus||0)>=aidCap())return no('The cabinet is already stocked for tomorrow.');
+    const tv=S.tvotes||(S.tvotes={}),v=tv[k]||(tv[k]=[]);if(v.includes(pid)){tv[k]=v.filter(x=>x!==pid);return}
+    if((S.cash||0)<priceOf(k))return no('Not enough in the team fund.');v.push(pid);teamVoteCheck();return}
+  const it=SHOP[k];if(!it)return;const pr=priceOf(k);const solo=Object.keys(S.players).length<2,avail=(p.cash||0)+(solo?S.cash||0:0);if(avail<pr)return no(solo?'Not enough money.':'Not enough in your own fund.');
   if(it.once&&p.up[k])return no('You already have one.');
   if(it.needs&&!p.up[it.needs])return no(`Buy the ${SHOP[it.needs].name} first.`);
   if(it.night&&S.night+1<it.night)return no(`Not sold until night ${it.night}.`);
   if(k==='aid'&&(S.aidBonus||0)>=aidCap())return no('The cabinet is already stocked for tomorrow.');
   if(k==='bulb'){const held=Object.values(S.players).reduce((a,q)=>a+(q.inv.bulb||0),0);if(S.fixed.length+held>=MAX_BULBS)return no('There are no more fixtures worth fixing.')}
-  S.cash-=pr;if(it.once)p.up[k]=true;else if(k==='aid')S.aidBonus=(S.aidBonus||0)+1;else p.inv[k]=(p.inv[k]||0)+it.give;
+  {const own=Math.min(p.cash||0,pr);p.cash=(p.cash||0)-own;S.cash-=pr-own} // (alone, the rest comes out of the one pot)
+  if(it.once)p.up[k]=true;else p.inv[k]=(p.inv[k]||0)+it.give;
   emit({e:'bought',k,p:pid,n:p.name});saveRun()}
 
-function shopVoteCheck(){const ids=Object.keys(S.players),v=(S.votes||[]).filter(id=>ids.includes(id));S.votes=v;
+// a team purchase goes through once more than half the crew has voted for it (and the team fund covers it)
+function teamVoteCheck(){const ids=Object.keys(S.players),tv=S.tvotes||(S.tvotes={});
+  for(const k in tv){tv[k]=tv[k].filter(id=>ids.includes(id));const pr=priceOf(k);if(!tv[k].length){delete tv[k];continue}
+    if(tv[k].length*2>ids.length&&(S.cash||0)>=pr&&!(ADDS[k]&&owned(k))){S.cash-=pr;delete tv[k];
+      if(ADDS[k]){S.adds.push(k);applyAdds()}else if(k==='aid')S.aidBonus=(S.aidBonus||0)+1;
+      emit({e:'bought',k,team:1});saveRun()}}}
+function shopVoteCheck(){const ids=Object.keys(S.players),v=(S.votes||[]).filter(id=>ids.includes(id));S.votes=v;teamVoteCheck();
   if(S.phase==='shop'&&v.length*2>ids.length){S.night++;startNight()}}
 
 // ---------------------------------------------------------------- every tick during a shift
@@ -1969,7 +1986,10 @@ function extrasUpdate(dt){
     p.wuCD=Math.max(0,(p.wuCD||0)-dt);p.tpT=Math.max(0,(p.tpT||0)-dt)}
   S.flares=S.flares.filter(f=>(f.t-=dt)>0);
   // a power outage, once it happens, lasts until morning
-  if(!S.outage&&!S.ot&&S.t>=HOST.outageAt){S.outage=true;if(!genPowered())S.lamps=S.lamps.map(()=>0);emit({e:'outage',gen:genPowered()});spawnBlind()}
+  if(!S.outage&&!S.ot&&S.t>=HOST.outageAt){S.outage=true;if(!genPowered())S.lamps=S.lamps.map(()=>0);emit({e:'outage',gen:genPowered()})}
+  // the blind one only walks while the building is actually dark: a running generator sends it away, and it comes
+  // back if the generator runs dry
+  if(S.outage&&!S.ot){if(genPowered()){for(const m of S.mons)if(m.ty===13&&!m.dead){m.dead=true;emit({e:'fade',id:m.id})}}else if(!S.mons.some(m=>m.ty===13&&!m.dead))spawnBlind()}
   coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);amrUpdate(dt);
   if(!HOST.mgr&&S.night>=3&&S.t>=-S.extra+50){HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:MGR_SPOT.x,z:MGR_SPOT.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0})}
   if(owned('gen')){HOST.nextMoth-=dt;if(HOST.nextMoth<=0){HOST.nextMoth=rand(40,70);spawnMoth()}}}
@@ -2281,7 +2301,7 @@ function managerUpdate(m,dt){m.t+=dt;
   for(const p of alivePlayers()){if(!inWH(p)||inTrailer(p)>=0||p.wuCD>0)continue;const dx=p.x-m.x,dz=p.z-m.z,d=Math.hypot(dx,dz);
     const seen=d<12&&(dx*fx+dz*fz)/Math.max(d,.01)>.8&&!segBlocked(m.x,m.z,p.x,p.z);
     const idle=p.spd<.3&&p.carry<0&&!p.can&&S.fork.drv!==p.id;
-    if(seen&&idle){p.idleT+=dt;if(p.idleT>=3){p.idleT=0;p.wuCD=15;p.wu=(p.wu||0)+1;S.cash=Math.max(0,(S.cash||0)-10);
+    if(seen&&idle){p.idleT+=dt;if(p.idleT>=3){p.idleT=0;p.wuCD=15;p.wu=(p.wu||0)+1;if(Object.keys(S.players).length>1)p.cash=Math.max(0,(p.cash||0)-10);else S.cash=Math.max(0,(S.cash||0)-10); /* the write-up comes out of your own pay */
       emit({e:'writeup',p:p.id,n:p.wu,id:m.id});m.ry=Math.atan2(dx,dz);
       if(p.wu>=3){m.st='final';m.tg=p.id;m.t=0;emit({e:'mgrFinal',p:p.id})}else{m.st='write';m.t=0}return}}
     else p.idleT=Math.max(0,p.idleT-dt*.5)}
@@ -2458,7 +2478,7 @@ MON_UPD[13]=blindUpdate;MON_UPD[14]=hunchUpdate;
 // ends (the crew dies, or misses quota) the save goes with it. A new run leaves an
 // older save alone until it has a night of its own to save over it.
 const SAVE_KEY='sitd-run';
-function saveRun(){if(!S||S.over)return;const pl={};for(const p of Object.values(S.players))pl[p.name]={inv:p.inv,up:p.up};
+function saveRun(){if(!S||S.over)return;const pl={};for(const p of Object.values(S.players))pl[p.name]={inv:p.inv,up:p.up,cash:Math.round(p.cash||0)};
   const sv={v:1,night:S.night,diff:S.diff,total:S.total,score:S.score,cash:S.cash,adds:S.adds,fixed:S.fixed,aidBonus:S.aidBonus||0,sel:S.conv?S.conv.sel:0,pl,
     boxes:S.boxes.filter(b=>b.st===3).map(b=>({x:b.x,y:b.y,z:b.z,ry:b.ry,k:b.k,f:b.f,v:b.v,s:b.s,m:b.m,roam:b.roam,ret:b.ret,pri:b.pri})),crew:Object.keys(S.players).length,at:Date.now()};
   S.saved=true;try{localStorage.setItem(SAVE_KEY,JSON.stringify(sv))}catch(e){}}
@@ -2467,7 +2487,7 @@ function dropSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}}
 // players get their own gear back by name; anyone new to the crew picks up gear nobody claimed, or starts empty
 function restoreRun(sv){Object.assign(S,{night:sv.night,diff:DIFFS[sv.diff]?sv.diff:1,total:sv.total|0,score:sv.score||0,cash:sv.cash||0,adds:(sv.adds||[]).filter(k=>ADDS[k]),fixed:sv.fixed||[],aidBonus:sv.aidBonus|0,
     conv:{sel:sv.sel|0,next:12,jam:false},phase:'shop',shopT:150,votes:[],saved:true});
-  const left=Object.assign({},sv.pl||{}),ps=Object.values(S.players),give=(p,g)=>{p.inv=Object.assign({},g.inv||{});p.up=Object.assign({},g.up||{})};
+  const left=Object.assign({},sv.pl||{}),ps=Object.values(S.players),give=(p,g)=>{p.inv=Object.assign({},g.inv||{});p.up=Object.assign({},g.up||{});p.cash=g.cash||0};
   for(const p of ps)if(left[p.name]){give(p,left[p.name]);delete left[p.name];p.got=1}
   const rest=Object.values(left);for(const p of ps)if(!p.got&&rest.length)give(p,rest.shift());
   for(const p of ps){delete p.got;Object.assign(p,{hp:100,dead:false,carry:-1,stack:[],can:false})}
@@ -2566,11 +2586,11 @@ function netClose(){NET.closing=true;pubClose();NET.pub=false;NET.fast.clear();N
 // ---- snapshots
 const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
 function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S.inter),q:S.quota,sh:S.shelved,lo:S.lost,sc:S.score,to:S.total,ai:S.aidLeft,la:S.lamps,bv:S.bver,ov:S.over,
-  pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry,p.inv||{},p.up||{},p.stack||[],p.can?1:0,p.wu|0]),
+  pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry,p.inv||{},p.up||{},p.stack||[],p.can?1:0,p.wu|0,Math.round(p.cash||0)]),
   tr:S.trucks.map(t=>[t.st,r2(t.z),r2(t.door),Math.round(t.t),t.warn?1:0,t.claw?1:0,t.left,t.n,t.reject?1:0,t.kg||0,t.extra||0,r2(t.stuck||0)]),
   mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0,m.tg||'']),
   // the additions' moving parts
-  x:{cash:Math.round(S.cash||0),adds:S.adds,fixed:S.fixed,ab:S.aidBonus|0,ex:S.extra|0,shopT:Math.round(S.shopT||0),vo:S.votes||[],
+  x:{cash:Math.round(S.cash||0),tv:S.tvotes||{},adds:S.adds,fixed:S.fixed,ab:S.aidBonus|0,ex:S.extra|0,shopT:Math.round(S.shopT||0),vo:S.votes||[],
     par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1,r2(p.y||0),p.amr|0]),
     fl:(S.flares||[]).map(f=>[f.id,r2(f.x),r2(f.z),Math.round(f.t)]),cold:S.cold&&[r2(S.cold.door),S.cold.open?1:0],conv:S.conv&&[S.conv.sel,S.conv.jam?1:0],
     elev:S.elev&&[S.elev.lvl,S.elev.st,r2(S.elev.t),r2(S.elev.gate),r2(S.elev.hl||0),r2(S.elev.ht||0)],df:S.diff,gen:S.gen&&[Math.round(S.gen.fuel),S.gen.out?1:0],
@@ -2587,13 +2607,13 @@ function markSlots(){for(const s of SLOTS){s.box=-1;s.box2=-1}
   for(const p of S.pallets||[])if(p.st===2&&p.s>=0&&SLOTS[p.s])SLOTS[p.s].box=-(1000+p.id)}
 function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,inter:m.it,quota:m.q,shelved:m.sh,lost:m.lo,score:m.sc,total:m.to,aidLeft:m.ai,lamps:m.la,over:m.ov});
   const seen=new Set();
-  for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry,inv,up,stack,can,wu]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry,inv,up,stack,can:!!can,wu});
+  for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry,inv,up,stack,can,wu,cash]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry,inv,up,stack,can:!!can,wu,cash:cash|0});
     if(id!==NET.myId)Object.assign(p,{x,z,yaw,pitch,light:!!light});else if(!p.init){p.init=1;p.x=x;p.z=z}}
   for(const id in S.players)if(!seen.has(id))delete S.players[id];
   m.tr.forEach((a,i)=>{const tr=S.trucks[i];if(tr.z===undefined||Math.abs(tr.z-a[1])>6)tr.z=a[1];Object.assign(tr,{st:a[0],tz:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]})});
   S.mons=m.mo.map(a=>({id:a[0],ty:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],a:a[6],k:a[7],v:a[8],f:!!a[9],tg:a[10]||''}));
   const x=m.x||{};const addsChanged=JSON.stringify(x.adds||[])!==JSON.stringify(S.adds||[]);
-  Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1],hit:x.yard[2]||'',ht:x.yard[3]||0}:null,amr:(x.am||[]).map(a=>({k:a[0],x:a[1],z:a[2],ry:a[3],st:AMR_ST[a[4]],load:a[5],slot:a[6],t:a[7]})),stash:!!x.st,chill:x.ch?{st:x.ch[0]?'cold':'warn',t:x.ch[1]}:null,
+  Object.assign(S,{outage:!!x.out,cash:x.cash,tvotes:x.tv||{},adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1],hit:x.yard[2]||'',ht:x.yard[3]||0}:null,amr:(x.am||[]).map(a=>({k:a[0],x:a[1],z:a[2],ry:a[3],st:AMR_ST[a[4]],load:a[5],slot:a[6],t:a[7]})),stash:!!x.st,chill:x.ch?{st:x.ch[0]?'cold':'warn',t:x.ch[1]}:null,
     rg:x.rg?{st:RG_ST[x.rg[0]],x:x.rg[1],z:x.rg[2],ry:x.rg[3],k:x.rg[4],hx:x.rg[5],hz:x.rg[6],tg:x.rg[7],t:x.rg[8],b:x.rg[9]|0}:null,
     parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8],y:a[9]||0,amr:a[10]||0})),
     flares:(x.fl||[]).map(a=>({id:a[0],x:a[1],z:a[2],t:a[3]}))});
@@ -2700,7 +2720,14 @@ addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;co
   if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(code))e.preventDefault()});
 addEventListener('keyup',e=>{const code=mapKey(e.code);if(code)K[code]=false});
 addEventListener('blur',()=>{for(const k in K)K[k]=false});
-document.addEventListener('mousemove',e=>{if(!GAME.on||!locked()||GAME.paused)return;const s=.0021*SET.sens;ME.yaw-=e.movementX*s;ME.pitch=clamp(ME.pitch-e.movementY*s,-1.45,1.45)});
+// Chrome sometimes reports one wildly wrong mouse movement while the pointer is locked (most often just after it locks,
+// or when the window gets focus back), which snaps the camera round. Skip the first few events after locking, and any
+// single event that moves further than a hand plausibly could in one go.
+let lookSkip=0;
+document.addEventListener('mousemove',e=>{if(!GAME.on||!locked()||GAME.paused)return;if(lookSkip>0){lookSkip--;return}
+  const mx=e.movementX,my=e.movementY;if(Math.abs(mx)>Math.max(250,innerWidth*.3)||Math.abs(my)>Math.max(200,innerHeight*.3))return;
+  const s=.0021*SET.sens;ME.yaw-=mx*s;ME.pitch=clamp(ME.pitch-my*s,-1.45,1.45)});
+addEventListener('focus',()=>{lookSkip=3});
 canvas.addEventListener('mousedown',e=>{auInit();if(!GAME.on)return;if(!locked()){reqLock();return}
   const me=S&&S.players[NET.myId];if(me&&me.dead){specCycle(e.button===2?-1:1);return}
   if(e.button===0)onKey('KeyE');else if(e.button===2){K.Mouse2=true;onKey('UseItem')}});
@@ -2708,7 +2735,7 @@ addEventListener('mouseup',e=>{if(e.button===2)K.Mouse2=false});
 // the scroll wheel walks the item hotbar
 canvas.addEventListener('wheel',e=>{if(!GAME.on||!locked()||GAME.paused)return;e.preventDefault();if(e.deltaY)scrollItem(Math.sign(e.deltaY))},{passive:false});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-document.addEventListener('pointerlockchange',()=>{if(locked()){GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
+document.addEventListener('pointerlockchange',()=>{if(locked()){lookSkip=3;GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
   else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')){showPause()}});
 
 function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||S.phase!=='play')return;
@@ -3038,7 +3065,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
       h+=`<div class="bay live">BAY ${n} &middot; ${s}</div>`;
       if(tr.st!==3)h+=`<div class="bay small">manifest ${tr.n} pcs, ${tr.kg} kg${tr.warn?` &middot; <span class="warn">scale reads ${tr.kg+tr.extra} kg</span>`:''}</div>`}});
   h+=`<div class="bay small" style="margin-top:.4em">first aid: ${S.aidLeft} left</div>`+statusLines(me);
-  $('cash').textContent=`$${Math.round(S.cash||0)}`;const hb=hotbarHTML(me);if(hb!==GAME.lastHb){$('hotbar').innerHTML=hb;GAME.lastHb=hb}
+  {const n=Object.keys(S.players).length;$('cash').textContent=n>1&&me?`Team $${Math.round(S.cash||0)} · You $${Math.round(me.cash||0)}`:`$${Math.round((S.cash||0)+(me&&me.cash||0))}`}const hb=hotbarHTML(me);if(hb!==GAME.lastHb){$('hotbar').innerHTML=hb;GAME.lastHb=hb}
   $('tr').innerHTML=h;
   const ps=Object.values(S.players);
   $('plist').innerHTML=ps.length>1?ps.map(p=>`<div style="color:${p.dead?'#666':p.col}">${p.dead?'&#10013; ':''}${esc(p.name)} ${p.dead?'':'&middot; '+Math.ceil(p.hp)}</div>`).join(''):'';
@@ -3513,7 +3540,7 @@ function updScare2(s,k,lunge){const g=s.g,u=g.userData;
 // ---------------------------------------------------------------- events
 function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   switch(e.e){
-  case 'bought':SFX.buy();if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);if(ADDS[e.k])renderShop(true);break;
+  case 'bought':SFX.buy();if(e.team)toast(`The crew voted to buy ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);else if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);renderShop(true);break;
   case 'stuck':toast(`Bay ${BAYS[e.b].name}'s door motor jammed. The door is stuck open.`,4.5);break;
   case 'slam':SFX.slam(P(e.x,e.z,2));break;
   case 'shake':if(e.p!==me)SFX.shake({x:e.x,y:1.2,z:e.z});break;
@@ -3654,13 +3681,18 @@ function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const f
 // ---------------------------------------------------------------- the shop screen
 let shopShown=false,shopSig='';
 function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)return;
-  const sig=JSON.stringify([S.cash,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
-  $('shopCash').textContent=`$${Math.round(S.cash||0)}`;$('shopNight').textContent=`Night ${S.night} done. Night ${S.night+1} is next.`;
-  const card=(k,it,ownedNow,extra='')=>{const pr=priceOf(k),locked=it.night&&S.night+1<it.night,can=!ownedNow&&!locked&&S.cash>=pr;
+  const sig=JSON.stringify([S.cash,me.cash,S.tvotes,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
+  const team=Math.round(S.cash||0),mine$=Math.round(me.cash||0),crew=Object.keys(S.players).length,tneed=Math.floor(crew/2)+1;
+  $('shopCash').innerHTML=crew>1?`Team fund $${team}<small>·</small>Your fund $${mine$}`:`$${team+mine$}`;$('shopNight').textContent=`Night ${S.night} done. Night ${S.night+1} is next.`;
+  // team things show their votes on the button: amber once anyone has voted, green when you have
+  const card=(k,it,ownedNow,extra='')=>{const pr=priceOf(k),locked=it.night&&S.night+1<it.night,tm=isTeam(k),fund=tm?team:(crew>1?mine$:team+mine$),
+      tv=tm?((S.tvotes||{})[k]||[]):[],voted=tv.includes(NET.myId),can=!ownedNow&&!locked&&(fund>=pr||voted);
     if(locked)extra+=`<div class="tag" style="color:#ff9f70">on sale from night ${it.night}</div>`;
-    return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+pr}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" ${can?'':'disabled'}>Buy</button>`}</div>`};
-  $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)).join('');
-  $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.needs||me.up[it.needs]).map(([k,it])=>{const have=it.once?!!me.up[k]:k==='aid'?(S.aidBonus||0):(me.inv[k]||0);
+    const label=!tm||crew<2?'Buy':tv.length?`${voted?'Voted':'Vote'} · ${tv.length} of ${crew} (${tneed} needed)`:'Vote to buy',cls=tm&&crew>1?(voted?'voted':tv.length?'votes':''):'';
+    return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+pr}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" class="${cls}" ${can?'':'disabled'}>${label}</button>`}</div>`};
+  const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)).join('');
+  $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)).join('')+teamShop;
+  $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.team&&(!it.needs||me.up[it.needs])).map(([k,it])=>{const have=it.once?!!me.up[k]:(me.inv[k]||0);
     const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
     return card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${where?` · ${where}`:''}</div>`:where?`<div class="tag">${where}</div>`:'')}).join('');
   // the crew votes: more than half ready and the next night starts

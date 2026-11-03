@@ -87,7 +87,14 @@ addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;co
   if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(code))e.preventDefault()});
 addEventListener('keyup',e=>{const code=mapKey(e.code);if(code)K[code]=false});
 addEventListener('blur',()=>{for(const k in K)K[k]=false});
-document.addEventListener('mousemove',e=>{if(!GAME.on||!locked()||GAME.paused)return;const s=.0021*SET.sens;ME.yaw-=e.movementX*s;ME.pitch=clamp(ME.pitch-e.movementY*s,-1.45,1.45)});
+// Chrome sometimes reports one wildly wrong mouse movement while the pointer is locked (most often just after it locks,
+// or when the window gets focus back), which snaps the camera round. Skip the first few events after locking, and any
+// single event that moves further than a hand plausibly could in one go.
+let lookSkip=0;
+document.addEventListener('mousemove',e=>{if(!GAME.on||!locked()||GAME.paused)return;if(lookSkip>0){lookSkip--;return}
+  const mx=e.movementX,my=e.movementY;if(Math.abs(mx)>Math.max(250,innerWidth*.3)||Math.abs(my)>Math.max(200,innerHeight*.3))return;
+  const s=.0021*SET.sens;ME.yaw-=mx*s;ME.pitch=clamp(ME.pitch-my*s,-1.45,1.45)});
+addEventListener('focus',()=>{lookSkip=3});
 canvas.addEventListener('mousedown',e=>{auInit();if(!GAME.on)return;if(!locked()){reqLock();return}
   const me=S&&S.players[NET.myId];if(me&&me.dead){specCycle(e.button===2?-1:1);return}
   if(e.button===0)onKey('KeyE');else if(e.button===2){K.Mouse2=true;onKey('UseItem')}});
@@ -95,7 +102,7 @@ addEventListener('mouseup',e=>{if(e.button===2)K.Mouse2=false});
 // the scroll wheel walks the item hotbar
 canvas.addEventListener('wheel',e=>{if(!GAME.on||!locked()||GAME.paused)return;e.preventDefault();if(e.deltaY)scrollItem(Math.sign(e.deltaY))},{passive:false});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-document.addEventListener('pointerlockchange',()=>{if(locked()){GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
+document.addEventListener('pointerlockchange',()=>{if(locked()){lookSkip=3;GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
   else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')){showPause()}});
 
 function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||S.phase!=='play')return;
@@ -425,7 +432,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
       h+=`<div class="bay live">BAY ${n} &middot; ${s}</div>`;
       if(tr.st!==3)h+=`<div class="bay small">manifest ${tr.n} pcs, ${tr.kg} kg${tr.warn?` &middot; <span class="warn">scale reads ${tr.kg+tr.extra} kg</span>`:''}</div>`}});
   h+=`<div class="bay small" style="margin-top:.4em">first aid: ${S.aidLeft} left</div>`+statusLines(me);
-  $('cash').textContent=`$${Math.round(S.cash||0)}`;const hb=hotbarHTML(me);if(hb!==GAME.lastHb){$('hotbar').innerHTML=hb;GAME.lastHb=hb}
+  {const n=Object.keys(S.players).length;$('cash').textContent=n>1&&me?`Team $${Math.round(S.cash||0)} · You $${Math.round(me.cash||0)}`:`$${Math.round((S.cash||0)+(me&&me.cash||0))}`}const hb=hotbarHTML(me);if(hb!==GAME.lastHb){$('hotbar').innerHTML=hb;GAME.lastHb=hb}
   $('tr').innerHTML=h;
   const ps=Object.values(S.players);
   $('plist').innerHTML=ps.length>1?ps.map(p=>`<div style="color:${p.dead?'#666':p.col}">${p.dead?'&#10013; ':''}${esc(p.name)} ${p.dead?'':'&middot; '+Math.ceil(p.hp)}</div>`).join(''):'';
