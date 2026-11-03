@@ -197,7 +197,7 @@ const MAT={
   frost:toon(0xffffff,{map:TEX.frostSkin}),frostCold:toon(0x6f9ab8),coldSkin:toon(0xb9d2e2,{map:TEX.lskin}),ice:toon(0xd8ecf6),
   suit:toon(0x26282e),shirt:toon(0xd4d2c8),clip:toon(0x7a5a32),paper2:toon(0xe6e1d2),tie:toon(0x5a1414),
   wrap:toon(0xffffff,{map:TEX.wrap}),wing:toon(0xffffff,{map:TEX.wing,side:THREE.DoubleSide,alphaTest:.5,transparent:false}),mothBody:toon(0x8a8070),
-  giant:toon(0xd9d5ca,{map:TEX.lskin}),giantDark:basic(0x070606),giantShade:toon(0x8e897e),giantTooth:toon(0xe6e0c8),
+  giant:toon(0xf2efe8),giantDark:basic(0x070606),giantTooth:toon(0xe6e0c8),
   snow:toon(0xc5ced8),snowDim:toon(0x8f99a6),hvac:toon(0x5a6066),
   parcel:[toon(0xc8352a),toon(0x2e5fb8),toon(0xd8b22a)],chute:toon(0x15161a),belt:toon(0x222326),
   reefer:toon(0xd9dbd8,{map:TEX.ribs}),genY:toon(0x6a6a2a),can:toon(0xa8261c),flare:basic(0xff4a2a),cage:toon(0x55585c),board:toon(0x8b6a43,{map:TEX.pallet}),

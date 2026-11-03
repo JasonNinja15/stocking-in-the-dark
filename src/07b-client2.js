@@ -113,7 +113,8 @@ function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.m
   // braced, it steps right up to the wall
   ROOFG.position.set(v.x+Math.sin(g.ry)*v.br*1.6,ROOF.gy,v.z+Math.cos(g.ry)*v.br*1.6);ROOFG.rotation.y=angLerp(ROOFG.rotation.y,g.ry,1-Math.exp(-3*dt));
   const tg=S.players[g.tg],eat=g.st==='eat',reach=eat||g.st==='reach'||g.st==='retract';
-  const look=tg&&onRoof(tg)?(g.tg===NET.myId?camera.position:_rv.set(tg.x,1.5,tg.z)):camera.position;
+  // (while eating, its head holds still on its neck: the camera is placed by its face, so it mustn't chase the camera)
+  const look=eat?null:tg&&onRoof(tg)?(g.tg===NET.myId?camera.position:_rv.set(tg.x,1.5,tg.z)):camera.position;
   let hand=null,curl=0,jaw=0;
   if(reach){_rh.set(v.hx,.4,v.hz);ROOFG.updateMatrixWorld(true);const loc=ROOFG.worldToLocal(_rm.copy(_rh));if(!eat)v.hi=loc.x>=0?1:0;
     const e=_rm.set(clamp(v.x,ROOF.x0+.3,ROOF.x1-.3),2.6,clamp(v.z,ROOF.z0+.3,ROOF.z1-.3)),k=v.k;
@@ -143,8 +144,8 @@ function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.m
 function rgHeldAt(id){const g=S.rg;if(!g||g.st!=='eat'||g.tg!==id||!ROOFG||!ROOFG.userData.v)return null;return giantHand(ROOFG,ROOFG.userData.v.hi,_rm)}
 // being lifted: the camera rides in its hand, turned to face what it's lifting you to
 // (sat out past the fingers, so nothing of the hand is between you and its face), and in the end into its mouth
-function rgHeld(dt,me){const h=rgHeldAt(NET.myId);if(!h){ME.eatFade=0;return false}ME.vx=ME.vz=0;ME.fear=1;ME.shake=Math.max(ME.shake,.25);
-  const mouth=ROOFG.userData.head.localToWorld(_yv.set(0,-.15,.3));camera.position.copy(h).lerp(mouth,.45);camera.position.y+=.2;camera.lookAt(mouth);camera.rotation.z+=Math.sin(performance.now()*.006)*.06;
+function rgHeld(dt,me){const h=rgHeldAt(NET.myId);if(!h){ME.eatFade=0;return false}ME.vx=ME.vz=0;ME.fear=1;ME.shake=0;
+  const mouth=ROOFG.userData.head.localToWorld(_yv.set(0,-.15,.3));camera.position.copy(h).lerp(mouth,.45);camera.position.y+=.2;camera.lookAt(mouth);
   // the jaw shuts and everything goes black
   if(S.rg.t>RG_BITE-.05&&!ME.eatFade){ME.eatFade=1;const f=$('fade');f.style.transition='opacity .12s';f.style.opacity=1;setTimeout(()=>{f.style.transition='opacity 1.4s';f.style.opacity=0},2200)}
   return true}

@@ -53,11 +53,10 @@ function makeGiant(){const g=new THREE.Group(),M=MAT.giant.clone(),D=MAT.giantDa
   part(GEO.sph,M,1.0,.55,.5,0,GI.HIP+.2,0,body,o);
   const torso=pivot(0,GI.HIP+.4,0,body);
   part(GEO.cyl,M,.42,5,.42,0,2.5,-.05,torso,o);part(GEO.sph,M,.92,1.7,.6,0,3.45,.05,torso,o);part(GEO.sph,M,.62,1.3,.44,0,1.35,.04,torso,o);
-  for(let i=0;i<6;i++)for(const s of[-1,1])part(GEO.box,MAT.giantShade,.42-Math.abs(i-2.5)*.04,.05,.05,s*.3,2.45+i*.38,.57-Math.abs(i-2.5)*.01,torso,{rz:s*(.25+i*.03),cast:false});                     // the gaps between its ribs
   for(let i=0;i<7;i++)part(GEO.sph,M,.13,.13,.13,0,.9+i*.62,-.4,torso,o);                                           // spine knuckles
   part(GEO.sph,M,.75,.45,.42,0,5,-.12,torso,o);for(const s of[-1,1])part(GEO.cyl,M,.17,1.6,.17,s*.76,5.1,0,torso,{rz:s*(Math.PI/2-.2),cast:false}); // hunched shoulders, sloping collarbones
   const neck=pivot(0,5.15,.15,torso);part(GEO.cyl,M,.16,2,.16,0,1,0,neck,o);
-  const head=pivot(0,2,0,neck);part(GEO.sph,M,.46,.8,.52,0,.38,0,head,o);
+  const head=pivot(0,2,0,neck);head.rotation.order='YXZ';part(GEO.sph,M,.46,.8,.52,0,.38,0,head,o);
   for(const s of[-1,1]){part(GEO.sph,D,.13,.1,.06,s*.18,.5,.46,head,o);part(GEO.sph,T,.016,.016,.016,s*.18,.5,.515,head,o)} // deep sockets, a pinprick in each
   part(GEO.sph,D,.4,.26,.34,0,-.02,.24,head,o);                           // the inside of its mouth
   for(let i=0;i<12;i++)part(GEO.fang,T,.022,.1,.022,-.27+i*.049,.0,.52,head,{rx:Math.PI,cast:false});
@@ -79,7 +78,10 @@ function poseGiant(g,{walk=0,stride=0,crouch=0,lean=0,jaw=0,look=null,hands=[nul
   u.body.position.y=H-GI.HIP;
   u.torso.rotation.set(.16+lean*1.2+crouch*.35,0,Math.sin(t*.23)*.04);u.neck.rotation.set(.5-lean*.55-crouch*.2,0,0);u.jaw.rotation.x=.25+jaw*1.1;
   g.updateMatrixWorld(true);
-  if(look){u.head.lookAt(look);u.head.rotateZ(.32+Math.sin(t*.37)*.07)}else u.head.rotation.set(.25,0,.3);
+  // the head turns towards what it's looking at, but only as far as a neck can turn it: never round or upside down
+  if(look){const lp=u.neck.worldToLocal(_gv.copy(look)).sub(u.head.position);
+    u.head.rotation.set(clamp(Math.atan2(-lp.y,Math.hypot(lp.x,lp.z)),-.9,1.1),clamp(Math.atan2(lp.x,lp.z),-1.1,1.1),.32+Math.sin(t*.37)*.07)}
+  else u.head.rotation.set(.25,0,.3);
   for(let i=0;i<2;i++){const A=u.arms[i];A.sh.getWorldPosition(_gs);
     if(hands[i])_gv.copy(hands[i]);else{_gv.set(A.s*2.1,.9+Math.sin(t*.5+i*2)*.25,1.6+lean*3+Math.sin(t*.31+i)*.2);g.localToWorld(_gv)}
     _gup.set(A.s*(.3+out[i]*1.2),1-out[i]*1.3,-.45+out[i]*.5).transformDirection(g.matrixWorld);A.sh.up.copy(_gup);
