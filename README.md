@@ -128,6 +128,7 @@ After each night you survive, the crew's pay buys things. The money is shared, a
 
 1. One player presses **Host a Crew** and shares the five-character code.
 2. Everyone else types the code and presses **Join Crew**. Up to ten players. Crews of more than four get a bit less extra quota per worker than the first few, and trucks come more often (up to 60% more often with ten) and bring a box more each per extra worker.
+3. **Public crews.** In the crew room the host can switch the crew from *Private* to *Public*. A public crew shows up under **Join Public** on the title screen (below Join Crew), with the host's name, how many workers it has, the night it's on and its cash, and anyone can join it at any time, even mid-shift. It stays listed until the host leaves. The game has no server of its own: a public host also takes one of 24 shared listing ids on the PeerJS matchmaking server, so at most 24 crews can be public at once.
 3. The host presses **Start the shift**. People can also join a shift already in progress.
 
 Players connect browser-to-browser over WebRTC, using the free public PeerJS server to find each other. The host's browser runs the world. If the host leaves, the room closes. It keeps running while the host's tab is in the background. If you go down, you watch your crew in third person until the night ends, then you're back on shift: move the mouse to orbit, and click, Space or the arrow keys to switch to another crewmate who is still standing.

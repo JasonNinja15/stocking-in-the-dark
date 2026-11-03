@@ -427,7 +427,7 @@ function updFear(dt){const me=S.players[NET.myId];let f=0,near=99;
   return near}
 
 // ===================================================================== screens
-const SCREENS=['menu','how','settings','lobby','pause','over','shop'];
+const SCREENS=['menu','how','settings','lobby','pause','over','shop','pubs'];
 function hideScreens(){for(const s of SCREENS)$(s).classList.add('hide')}
 function show(id){hideScreens();$(id).classList.remove('hide')}
 let settingsBack='menu';
@@ -437,7 +437,23 @@ function renderLobby(){show('lobby');$('code').textContent=NET.code||'-----';
   $('lobbyList').innerHTML=NET.lobby.map(p=>`<li><span class="dot" style="background:${p.col}"></span>${esc(p.name)}${p.id===NET.myId?' <span class="lbl">(you)</span>':''}</li>`).join('');
   $('lobbyStatus').textContent=NET.mode==='host'?(NET.lobby.length>1?`${NET.lobby.length} workers. Start when everyone is in.`:'Share the code. Waiting for your crew…'):'Waiting for the host to start the shift…';
   const d=NET.mode==='host'?SET.diff:NET.diff;if(DIFFS[d])$('lobbyStatus').textContent+=` Difficulty: ${DIFFS[d].name}.`;
-  $('bStart').classList.toggle('hide',NET.mode!=='host');$('bCont2').classList.toggle('hide',NET.mode!=='host'||!loadSave())}
+  $('bStart').classList.toggle('hide',NET.mode!=='host');$('bCont2').classList.toggle('hide',NET.mode!=='host'||!loadSave());
+  // the host can list the crew publicly (it stays listed, joinable, all the way through the run)
+  const host=NET.mode==='host'&&!!NET.code;$('bPublic').classList.toggle('hide',!host);$('pubNote').classList.toggle('hide',!host||!NET.pub);
+  $('bPublic').classList.toggle('on',!!NET.pub);$('bPublic').textContent=NET.pub?'Public: listed in Join Public':'Private: join by code only';
+  $('pubNote').textContent=NET.beacon?'Anyone can find this crew under Join Public and join at any time, even mid-shift.':'Getting listed…'}
+// ---- the public crew list
+let pubSeq=0;
+async function showPubs(){show('pubs');const seq=++pubSeq,found=new Map(),tb=$('pubList').tBodies[0];tb.innerHTML='';$('pubStatus').textContent='Looking for crews…';
+  const draw=()=>{if(seq!==pubSeq)return;const rows=[...found.values()].sort((a,b)=>b.n-a.n);
+    tb.innerHTML=rows.map(r=>`<tr><td>${esc(String(r.name).slice(0,14))}</td><td>${r.n} / ${r.max}</td><td>${r.ph==='lobby'?'crew room':r.ph==='shop'?`shop after ${r.night}`:r.night}</td><td>$${r.cash|0}</td><td><button data-code="${r.code}" ${r.n>=r.max?'disabled':''}>${r.n>=r.max?'Full':'Join'}</button></td></tr>`).join('');
+    tb.querySelectorAll('button[data-code]').forEach(b=>b.onclick=()=>{pubSeq++;joinCode(b.dataset.code)})};
+  try{await pubScan(info=>{if(seq!==pubSeq)return;found.set(info.code,info);draw();$('pubStatus').textContent=`${found.size} public crew${found.size>1?'s':''} found. Still looking…`})}
+  catch(e){if(seq===pubSeq)$('pubStatus').textContent=String(e);return}
+  if(seq!==pubSeq)return;$('pubStatus').textContent=found.size?`${found.size} public crew${found.size>1?'s':''}. Join one, or refresh.`:'No public crews right now. Host one and make it public, or refresh in a bit.'}
+// join a crew by its code (from the code box or the public list)
+async function joinCode(code){auInit();NET.code=code;NET.lobby=[];NET.mode='client';renderLobby();$('lobbyStatus').textContent='Finding the crew…';
+  try{await netJoin(code);renderLobby()}catch(e){netClose();showMenu(e)}}
 // the Continue button on the menu says what it would pick up
 function saveNote(){const sv=loadSave();$('bCont').classList.toggle('hide',!sv);$('contNote').classList.toggle('hide',!sv);if(!sv)return;
   $('bCont').textContent=`Continue: night ${sv.night+1}`;
@@ -470,10 +486,10 @@ function bindUI(){
   $('name').value=SET.name||'';$('name').addEventListener('input',()=>{SET.name=$('name').value;saveSet()});
   $('bSolo').onclick=()=>{auInit();startSolo()};
   $('bHost').onclick=async()=>{auInit();NET.code='';NET.lobby=[];NET.mode='host';renderLobby();$('lobbyStatus').textContent='Opening a crew room…';$('bStart').classList.add('hide');
-    try{await netHost();renderLobby()}catch(e){netClose();showMenu(e)}};
-  const join=async()=>{const code=$('joinCode').value.trim().toUpperCase();if(!/^[A-Z0-9]{5}$/.test(code)){$('menuErr').textContent='Room codes are five letters or numbers.';return}
-    auInit();NET.code=code;NET.lobby=[];NET.mode='client';renderLobby();$('lobbyStatus').textContent='Finding the crew…';
-    try{await netJoin(code);renderLobby()}catch(e){netClose();showMenu(e)}};
+    try{await netHost();NET.pub=!!SET.pub;pubOpen();renderLobby()}catch(e){netClose();showMenu(e)}};
+  const join=()=>{const code=$('joinCode').value.trim().toUpperCase();if(!/^[A-Z0-9]{5}$/.test(code)){$('menuErr').textContent='Room codes are five letters or numbers.';return}joinCode(code)};
+  $('bPub').onclick=()=>showPubs();$('bPubRefresh').onclick=()=>showPubs();$('bPubBack').onclick=()=>{pubSeq++;showMenu()};
+  $('bPublic').onclick=()=>{if(NET.mode!=='host')return;NET.pub=!NET.pub;SET.pub=NET.pub;saveSet();if(NET.pub)pubOpen();else pubClose();renderLobby()};
   $('bJoin').onclick=join;$('joinCode').addEventListener('keydown',e=>{if(e.key==='Enter')join()});
   $('bStart').onclick=()=>{if(NET.mode==='host')hostStartGame()};
   $('bCont').onclick=()=>{const sv=loadSave();if(!sv)return saveNote();auInit();startSolo(sv)};

@@ -55,9 +55,28 @@ function clientMsg(m){if(!m)return;
   case 'b':if(S)applyBoxes(m.b);break;
   case 's':if(S)applySnap(m);break;
   }}
+// ---- public crews. There is no server of our own, so a public host also holds one of a few well-known "listing"
+// peer ids, and answers anyone who connects to it with what its crew is up to (and its code). The Join Public screen
+// connects to every listing id at once and shows whoever answers; joining is then the ordinary join by code.
+const PUB_SLOTS=24,pubId=k=>PFX+'pub-'+k;
+function pubInfo(){const on=NET.started&&S;return{t:'info',code:NET.code,name:(NET.lobby[0]&&NET.lobby[0].name)||myName(),n:on?Object.keys(S.players).length:NET.lobby.length,
+  max:MAX_CREW,night:on?S.night:0,cash:on?Math.round(S.cash||0):0,ph:on?S.phase:'lobby',df:DIFFS[SET.diff]?SET.diff:1}}
+function pubOpen(){if(NET.beacon||NET.mode!=='host'||!NET.pub||!window.Peer)return;const order=[...Array(PUB_SLOTS).keys()].sort(()=>Math.random()-.5);
+  const tryK=i=>{if(i>=order.length||NET.mode!=='host'||!NET.pub)return;const b=new Peer(pubId(order[i]),{debug:0});let ok=false;
+    b.on('open',()=>{ok=true;if(!NET.pub||NET.mode!=='host'||NET.beacon){try{b.destroy()}catch(e){}return}NET.beacon=b;if(!NET.started)renderLobby()});
+    b.on('connection',c=>{c.on('open',()=>{try{c.send(pubInfo())}catch(e){}setTimeout(()=>{try{c.close()}catch(e){}},1500)})});
+    b.on('error',e=>{if(!ok&&e&&e.type==='unavailable-id'){try{b.destroy()}catch(x){}tryK(i+1)}});
+    b.on('disconnected',()=>{if(NET.beacon===b&&!NET.closing)try{b.reconnect()}catch(e){}})};
+  tryK(0)}
+function pubClose(){if(NET.beacon){try{NET.beacon.destroy()}catch(e){}NET.beacon=null}}
+// knock on every listing id; onFound(info) for each crew that answers; resolves when the search is over
+function pubScan(onFound){return new Promise((res,rej)=>{if(!window.Peer)return rej('The multiplayer library did not load. Are you offline?');
+  const p=new Peer({debug:0});let done=false;const end=err=>{if(done)return;done=true;clearTimeout(to);try{p.destroy()}catch(e){}err?rej(err):res()};const to=setTimeout(()=>end(),6000);
+  p.on('open',()=>{for(let k=0;k<PUB_SLOTS;k++){const c=p.connect(pubId(k),{reliable:true,serialization:'json'});c.on('data',m=>{if(m&&m.t==='info'&&/^[A-Z0-9]{5}$/.test(m.code))onFound(m);try{c.close()}catch(e){}});c.on('error',()=>{})}});
+  p.on('error',e=>{if(e&&e.type!=='peer-unavailable')end(errText(e))})})}
 function hostLost(){if(NET.closing||NET.mode!=='client')return;NET.closing=true;netClose();
   if(GAME.on){GAME.on=false;document.exitPointerLock&&document.exitPointerLock();showOver({why:'host',night:S?S.night:1,total:S?S.total+S.shelved:0,score:S?S.score:0})}else showMenu('The host closed the crew room.')}
-function netClose(){NET.closing=true;try{NET.peer&&NET.peer.destroy()}catch(e){}NET.peer=null;NET.conns.clear();NET.hostConn=null;NET.mode='solo';NET.host=false;NET.started=false;NET.lobby=[];setTimeout(()=>NET.closing=false,50)}
+function netClose(){NET.closing=true;pubClose();NET.pub=false;try{NET.peer&&NET.peer.destroy()}catch(e){}NET.peer=null;NET.conns.clear();NET.hostConn=null;NET.mode='solo';NET.host=false;NET.started=false;NET.lobby=[];setTimeout(()=>NET.closing=false,50)}
 
 // ---- snapshots
 const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
