@@ -190,7 +190,7 @@ function segBlocked(ax,az,bx,bz){const dx=bx-ax,dz=bz-az;
 const GRID={x0:WH.x0,z0:WH.z0,nx:60,nz:40,blk:null};
 function buildGrid(){GRID.blk=new Uint8Array(GRID.nx*GRID.nz);
   for(let j=0;j<GRID.nz;j++)for(let i=0;i<GRID.nx;i++){const x=GRID.x0+i+.5,z=GRID.z0+j+.5;let b=0;
-    for(const c of COL){if(c.dyn&&!(c.add&&owned(c.add)))continue;if(x>c.x0-.42&&x<c.x1+.42&&z>c.z0-.42&&z<c.z1+.42){b=1;break}}GRID.blk[j*GRID.nx+i]=b}}
+    for(const c of COL){if(c.door||c.dyn&&!(c.add&&owned(c.add)))continue; /* doorways stay walkable */if(x>c.x0-.42&&x<c.x1+.42&&z>c.z0-.42&&z<c.z1+.42){b=1;break}}GRID.blk[j*GRID.nx+i]=b}}
 const cellOf=(x,z)=>[clamp(Math.floor(x-GRID.x0),0,GRID.nx-1),clamp(Math.floor(z-GRID.z0),0,GRID.nz-1)];
 function astar(sx,sz,tx,tz,avoid){ // avoid(x,z)->true to treat a cell as blocked (lit lamps)
   const nx=GRID.nx,nz=GRID.nz,N=nx*nz;const [si,sj]=cellOf(sx,sz);let [ti,tj]=cellOf(tx,tz);

@@ -174,8 +174,8 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   &bull; <b>Trailers that breathe.</b> Check the manifest (top right) for a weight mismatch, and listen before you go in. Something sleeps behind the blankets at the back. Get too close and it sits up. Keep your light off it, or it growls and then comes for you. In the dark it only moves while you aren't looking at it. Use the panel beside the bay door to send a bad truck away.<br>
   &bull; <b>Something on the ceiling.</b> Some trailers hold a thing that bolts out and climbs the walls. Listen for tapping overhead, and shine your light up at it. If the tapping stops right above you, move.<br>
   &bull; <b>The dark.</b> Something walks the aisles where the lights are out. It only moves when no light is on it. Turn around often. Working lamps keep it back&hellip; while they work.</p>
-  <p><b>Later nights bring more.</b> A night manager who writes up anyone standing around empty-handed (three write-ups and he comes for you). A shrink-wrapped figure that hunts by sound: walk, don't run. A truck driver who passes for a crewmate but makes no footsteps. A loudspeaker voice that isn't quite the supervisor's, with a wrong chime. And something out in the yard you shouldn't look at when a bay door jams open.</p>
-  <p><b>The roof.</b> A ladder in the south-west corner climbs to the roof, where it is snowing hard and only your flashlight shows anything. A supply crate up there gives one free item a night. Don't stay near the edges: the thing in the yard walks up to the building and reaches over the parapet, slowly. Keep moving, keep to the middle, or go back down the hatch.</p>
+  <p><b>Later nights bring more.</b> A night manager who writes up anyone standing around empty-handed (three write-ups and he comes for you). A shrink-wrapped figure that hunts by sound: walk, don't run. A truck driver who passes for a crewmate but makes no footsteps. A loudspeaker voice that isn't quite the supervisor's, with a wrong chime.</p>
+  <p><b>The roof.</b> A ladder in the south-west corner climbs to the roof, where it is snowing hard and only your flashlight shows anything. A supply crate up there gives one free item a night. The ventilation plant is in the room in the middle of the roof (its door faces the hatch). From night 3, every couple of nights the warehouse starts getting cold: you get two minutes to get up there and hold <kbd>E</kbd> on the plant before the cold sets in and starts hurting everyone. A heater from the shop buys an extra night between cold spells.</p>
   <p><b>Difficulty</b> is picked on the title screen: Easy has smaller quotas, softer monsters and rarer bad luck; Hard has bigger quotas, harder hits and much more bad luck. A crew plays on the host's setting.</p>
   <p><b>Power outages.</b> From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel. And something that lives in the dark comes out: it can't see you, but it hears you, and it feels footsteps close by. Stand still.</p>
   <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items sit on the hotbar at the bottom of the screen: <kbd>scroll</kbd> (or a number key) to pick one, <kbd>right click</kbd> to use it. The red headlamp is on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold right click with the thermal scanner picked to use it. The <b>THIS WAY</b> board on the dock wall points to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
@@ -263,6 +263,11 @@ const GEN={x:-28.6,z:11.9}, FUELR={x:-25.2,z:13.2}, FORK_HOME={x:7.6,z:-15.2,ry:
 // The ladder in the south-west corner comes up through the hatch; the stash is a supply crate someone left at the far end.
 const ROOF={ox:-200,x0:-230,x1:-170,z0:-20,z1:20,gy:-7.3}, LADDER={x:-29.5,z:19.1}, HATCH={x:-229.1,z:18.9}, STASH={x:-172.4,z:-18.2};
 const onRoof=p=>p.x<-100;
+// the room in the middle of the roof (it also fills the one stretch of roof the thing in the yard could not reach),
+// its doorway on the west side facing the hatch, and the ventilation plant inside
+const RROOM={x0:-208,x1:-192,z0:-5,z1:5,h:3.2,door:{z0:1.6,z1:3.2}}, VENT={x:-194.2,z:-2.6};
+const inRoofRoom=p=>p.x>RROOM.x0&&p.x<RROOM.x1&&p.z>RROOM.z0&&p.z<RROOM.z1;
+const chilled=()=>!!(S&&S.chill&&S.chill.st==='cold'); // the warehouse has gone cold (see chillUpdate)
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
 const BOX_KINDS=[{w:.55,h:.42,d:.5,slow:.95},{w:.74,h:.56,d:.64,slow:.86},{w:.92,h:.72,d:.8,slow:.74}];
 const VEST=['#ff7a1a','#a4e33a','#38d4e8','#ff4fa8'];
@@ -415,7 +420,7 @@ const MAT={
   frost:toon(0xffffff,{map:TEX.frostSkin}),frostCold:toon(0x6f9ab8),coldSkin:toon(0xb9d2e2,{map:TEX.lskin}),ice:toon(0xd8ecf6),
   suit:toon(0x26282e),shirt:toon(0xd4d2c8),clip:toon(0x7a5a32),paper2:toon(0xe6e1d2),tie:toon(0x5a1414),
   wrap:toon(0xffffff,{map:TEX.wrap}),wing:toon(0xffffff,{map:TEX.wing,side:THREE.DoubleSide,alphaTest:.5,transparent:false}),mothBody:toon(0x8a8070),
-  giant:toon(0xd9d5ca,{map:TEX.lskin,fog:false,emissive:0x262421}),giantDark:basic(0x070606,{fog:false}),giantShade:toon(0x8e897e,{fog:false,emissive:0x121110}),giantTooth:toon(0xe6e0c8,{fog:false,emissive:0x1a1914}),
+  giant:toon(0xd9d5ca,{map:TEX.lskin}),giantDark:basic(0x070606),giantShade:toon(0x8e897e),giantTooth:toon(0xe6e0c8),
   snow:toon(0xc5ced8),snowDim:toon(0x8f99a6),hvac:toon(0x5a6066),
   parcel:[toon(0xc8352a),toon(0x2e5fb8),toon(0xd8b22a)],chute:toon(0x15161a),belt:toon(0x222326),
   reefer:toon(0xd9dbd8,{map:TEX.ribs}),genY:toon(0x6a6a2a),can:toon(0xa8261c),flare:basic(0xff4a2a),cage:toon(0x55585c),board:toon(0x8b6a43,{map:TEX.pallet}),
@@ -613,7 +618,7 @@ function segBlocked(ax,az,bx,bz){const dx=bx-ax,dz=bz-az;
 const GRID={x0:WH.x0,z0:WH.z0,nx:60,nz:40,blk:null};
 function buildGrid(){GRID.blk=new Uint8Array(GRID.nx*GRID.nz);
   for(let j=0;j<GRID.nz;j++)for(let i=0;i<GRID.nx;i++){const x=GRID.x0+i+.5,z=GRID.z0+j+.5;let b=0;
-    for(const c of COL){if(c.dyn&&!(c.add&&owned(c.add)))continue;if(x>c.x0-.42&&x<c.x1+.42&&z>c.z0-.42&&z<c.z1+.42){b=1;break}}GRID.blk[j*GRID.nx+i]=b}}
+    for(const c of COL){if(c.door||c.dyn&&!(c.add&&owned(c.add)))continue; /* doorways stay walkable */if(x>c.x0-.42&&x<c.x1+.42&&z>c.z0-.42&&z<c.z1+.42){b=1;break}}GRID.blk[j*GRID.nx+i]=b}}
 const cellOf=(x,z)=>[clamp(Math.floor(x-GRID.x0),0,GRID.nx-1),clamp(Math.floor(z-GRID.z0),0,GRID.nz-1)];
 function astar(sx,sz,tx,tz,avoid){ // avoid(x,z)->true to treat a cell as blocked (lit lamps)
   const nx=GRID.nx,nz=GRID.nz,N=nx*nz;const [si,sj]=cellOf(sx,sz);let [ti,tj]=cellOf(tx,tz);
@@ -755,6 +760,13 @@ function buildAdditions(){
     acol('gen',FUELR.x-.5,FUELR.z-.25,FUELR.x+.5,FUELR.z+.25);
     addSign([{t:'GENERATOR',size:64,bold:true},{t:'KEEP FUELLED',size:38}],WH.x0+.03,2.2,GEN.z+1.3,Math.PI/2,1.4,.55,g);
     flushStatics(g)}
+  // ---------------------------------------------------------------- warehouse heater (high on the east wall)
+  {const g=addGroup('heat'),x=WH.x1-.45,y=4.2,z=1.5;
+    sbox(MAT.hvac,.8,1,1.6,x,y,z);sbox(MAT.dark,.04,.8,1.4,x-.41,y,z,{cast:false});
+    const coil=new THREE.Mesh(GEO.box,basic(0xff6a20));coil.scale.set(.03,.08,1.2);for(let i=0;i<4;i++){const c=coil.clone();c.position.set(x-.43,y-.3+i*.2,z);g.add(c)}
+    scyl(MAT.steel,.15,.15,WH.h-y-.5,x,y+.5+(WH.h-y-.5)/2,z,{seg:10});
+    addSign([{t:'HEATER',size:70,bold:true}],WH.x1-.03,2.6,z,-Math.PI/2,1.1,.4,g);
+    flushStatics(g)}
 }
 
 // ---------------------------------------------------------------- the "THIS WAY" board
@@ -780,7 +792,7 @@ const bayOn=i=>!BAYS[i].add||owned(BAYS[i].add);
 // ===================================================================== the roof
 // Its own space far off to the west, like the basement: a flat roof the size of the warehouse under a foot of snow,
 // a waist-high parapet, the lot seven metres below, and the storm. Nothing up here is lit.
-const ROOFV={lid:null,beacon:null};
+const ROOFV={lid:null,beacon:null,lamp:null,ventLamp:null};
 function buildRoof(){const R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,W=R.x1-R.x0,D=R.z1-R.z0,gy=R.gy;
   // the building under you, and the lot all around it
   {const g=new THREE.BoxGeometry(W+.4,-gy,D+.4);uvs(g,W/2.2,-gy/2.2);g.translate(cx,gy/2-.1,cz);sg(MAT.wall,g,false)}
@@ -795,9 +807,9 @@ function buildRoof(){const R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,W=R.x1-R.x0,
     sbox(MAT.dark,w*.86,h*.45,.02,x,h*.42,z+d/2+.01,{cast:false});sbox(MAT.dark,w*.86,h*.45,.02,x,h*.42,z-d/2-.01,{cast:false});col(x-w/2,z-d/2,x+w/2,z+d/2)};
   hvac(-213,-8,4.4,2.2);hvac(-187,5,5.8,2.4,1.9);hvac(-201,-15.5,2.9,2);hvac(-177.5,12,2.9,2.2);hvac(-221,9,3,2.4,1.5);
   const vent=(x,z)=>{scyl(MAT.steel,.16,.16,1.1,x,.55,z);scyl(MAT.steel,.32,.32,.08,x,1.14,z);scyl(MAT.snow,.32,.32,.06,x,1.2,z,{cast:false});col(x-.22,z-.22,x+.22,z+.22)};
-  for(const [x,z] of[[-224,-2],[-196,-6],[-182,-12],[-206,12],[-193,15],[-174,-4],[-216,17]])vent(x,z);
+  for(const [x,z] of[[-224,-2],[-196,-9],[-182,-12],[-206,12],[-193,15],[-174,-4],[-216,17]])vent(x,z);
   const glow=basic(0x4a3216);
-  for(const L of LAMPS.slice(0,4)){const x=L.x+R.ox,z=L.z;sbox(MAT.steel,2.3,.36,1.5,x,.18,z);const m=new THREE.Mesh(new THREE.BoxGeometry(2.05,.04,1.25),glow);m.position.set(x,.38,z);ROOT.add(m);col(x-1.15,z-.75,x+1.15,z+.75)}
+  for(const L of LAMPS.slice(0,4)){const x=L.x+R.ox,z=L.z;if(x>RROOM.x0-3&&x<RROOM.x1+3&&z>RROOM.z0-3&&z<RROOM.z1+3)continue;sbox(MAT.steel,2.3,.36,1.5,x,.18,z);const m=new THREE.Mesh(new THREE.BoxGeometry(2.05,.04,1.25),glow);m.position.set(x,.38,z);ROOT.add(m);col(x-1.15,z-.75,x+1.15,z+.75)}
   // drifts piled against the parapet
   for(let i=0;i<34;i++){const side=i%4,t=Math.random();let x,z;
     if(side===0){x=lerp(R.x0+1,R.x1-1,t);z=R.z0+.5}else if(side===1){x=lerp(R.x0+1,R.x1-1,t);z=R.z1-.5}else if(side===2){x=R.x0+.5;z=lerp(R.z0+1,R.z1-1,t)}else{x=R.x1-.5;z=lerp(R.z0+1,R.z1-1,t)}
@@ -809,6 +821,31 @@ function buildRoof(){const R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,W=R.x1-R.x0,
   {const {x,z}=HATCH;sbox(MAT.hvac,1.4,.55,1.4,x,.275,z);sbox(MAT.dark,1.1,.02,1.1,x,.56,z,{cast:false});sbox(MAT.hvac,1.4,1.4,.07,x,1.25,z+.72,{cast:false});
     for(const s of[-1,1]){sbox(MAT.steel,.06,1.1,.06,x+s*.35,1.1,z-.45);sbox(MAT.steel,.06,.06,.3,x+s*.35,1.65,z-.6)}
     const hit=new THREE.Mesh(GEO.box,MAT.steel);hit.scale.set(1.5,1.6,1.5);hit.position.set(x,.8,z);hit.userData={kind:'hatch'};hit.visible=false;ROOT.add(hit);INTER.push(hit);col(x-.7,z-.7,x+.7,z+.7)}
+  // the room in the middle: block walls, a flat roof under the snow, the doorway on the side facing the hatch, one
+  // bulb hanging from the ceiling, and the ventilation plant that keeps the warehouse below warm
+  {const Q=RROOM,t=.25,h=Q.h,mx=(Q.x0+Q.x1)/2,mz=(Q.z0+Q.z1)/2,W=Q.x1-Q.x0,D=Q.z1-Q.z0,dh=2.25;
+    const wall=(x0,z0,x1,z1,y0=0,y1=h)=>{sbox(MAT.wall,x1-x0,y1-y0,z1-z0,(x0+x1)/2,(y0+y1)/2,(z0+z1)/2,{uv:[Math.max(x1-x0,z1-z0)/2.2,(y1-y0)/2.2]});if(!y0)col(x0,z0,x1,z1)};
+    wall(Q.x0-t,Q.z0-t,Q.x1+t,Q.z0);wall(Q.x0-t,Q.z1,Q.x1+t,Q.z1+t);wall(Q.x1,Q.z0,Q.x1+t,Q.z1);
+    wall(Q.x0-t,Q.z0,Q.x0,Q.door.z0);wall(Q.x0-t,Q.door.z1,Q.x0,Q.z1);wall(Q.x0-t,Q.door.z0,Q.x0,Q.door.z1,dh,h);
+    sbox(MAT.hvac,W+.7,.22,D+.7,mx,h+.11,mz);sbox(MAT.snow,W+.75,.14,D+.75,mx,h+.29,mz,{cast:false});sbox(MAT.dark,W-.1,.04,D-.1,mx,h-.02,mz,{cast:false});
+    // the door, swung open against the outside wall, and a sign over it
+    sbox(MAT.door,.06,dh-.05,Q.door.z1-Q.door.z0,Q.x0-t-.05,dh/2,Q.door.z1+(Q.door.z1-Q.door.z0)/2+.05);
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.38),toon(0xffffff,{map:signTex([{t:'PLANT ROOM',size:62,bold:true},{t:'VENTILATION',size:30}],{w:300,h:90})}));
+    s.position.set(Q.x0-t-.01,dh+.4,(Q.door.z0+Q.door.z1)/2);s.rotation.y=-Math.PI/2;ROOT.add(s);
+    // the lamp: a cord, a tin shade, a bare bulb
+    scyl(MAT.dark,.01,.01,.7,mx,h-.35,mz,{cast:false});const sh=new THREE.ConeGeometry(.32,.24,12,1,true);sh.translate(mx,h-.78,mz);sg(MAT.shade,sh,false);
+    const b=new THREE.Mesh(GEO.sph,MAT.bulbOn.clone());b.scale.setScalar(.09);b.position.set(mx,h-.88,mz);ROOT.add(b);
+    ROOFV.lamp=new THREE.PointLight(0xffc27a,0,11,1.6);ROOFV.lamp.position.set(mx,h-.95,mz);ROOT.add(ROOFV.lamp);
+    // the ventilation plant: an air handler with ducts up through the roof, a fan, and its control panel
+    const {x,z}=VENT;sbox(MAT.hvac,2.6,2,1.5,x,1,z-.6);sbox(MAT.dark,2.2,1.5,.02,x,1.05,z+.16,{cast:false});
+    for(let i=0;i<5;i++)sbox(MAT.steel,2.1,.04,.03,x,.45+i*.3,z+.18,{cast:false});
+    for(const dx of[-.75,.75]){scyl(MAT.steel,.32,.32,h-2,x+dx,2+(h-2)/2,z-.7,{seg:14});scyl(MAT.steel,.36,.36,.1,x+dx,2.02,z-.7,{seg:14})}
+    sbox(MAT.steel,.7,.9,.12,x+1.75,1.35,z-.1);const lamp=new THREE.Mesh(GEO.sph,basic(0x2aff6a));lamp.scale.setScalar(.06);lamp.position.set(x+1.62,1.65,z-.03);ROOT.add(lamp);ROOFV.ventLamp=lamp;
+    const vs=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.32),toon(0xffffff,{map:signTex([{t:'WAREHOUSE AIR',size:54,bold:true},{t:'KEEP RUNNING',size:30}],{w:300,h:80})}));vs.position.set(x,2.2,z+.16);ROOT.add(vs);
+    col(x-1.3,z-1.35,x+2.1,z+.2);
+    const hit=new THREE.Mesh(GEO.box,MAT.steel);hit.scale.set(3.4,2.2,1.8);hit.position.set(x+.35,1.1,z-.5);hit.userData={kind:'vent'};hit.visible=false;ROOT.add(hit);INTER.push(hit);
+    // a bench and a toolbox, so it reads as somewhere people actually come
+    sbox(MAT.wood,2,.08,.7,Q.x0+1.6,.85,Q.z0+.6);for(const dx of[-.9,.9])sbox(MAT.dark,.06,.85,.6,Q.x0+1.6+dx,.42,Q.z0+.6);sbox(MAT.can,.5,.22,.22,Q.x0+1.2,1,Q.z0+.6);col(Q.x0,Q.z0,Q.x0+2.7,Q.z0+1)}
   // someone's stash at the far end: a crate under a tarp, restocked every night
   {const {x,z}=STASH;sbox(MAT.wood,1.1,.7,.8,x,.35,z,{uv:[1,1]});sbox(MAT.tarp,1.2,.05,.9,x,.73,z-.02,{cast:false});sbox(MAT.snow,1.1,.06,.7,x,.77,z,{cast:false});
     ROOFV.lid=new THREE.Mesh(new THREE.BoxGeometry(1.12,.05,.82).translate(0,0,.41),MAT.wood);ROOFV.lid.position.set(x,.7,z-.41);ROOFV.lid.visible=false;ROOT.add(ROOFV.lid);
@@ -1011,7 +1048,7 @@ function makeGiant(){const g=new THREE.Group(),M=MAT.giant.clone(),D=MAT.giantDa
   part(GEO.sph,M,.75,.45,.42,0,5,-.12,torso,o);for(const s of[-1,1])part(GEO.cyl,M,.17,1.6,.17,s*.76,5.1,0,torso,{rz:s*(Math.PI/2-.2),cast:false}); // hunched shoulders, sloping collarbones
   const neck=pivot(0,5.15,.15,torso);part(GEO.cyl,M,.16,2,.16,0,1,0,neck,o);
   const head=pivot(0,2,0,neck);part(GEO.sph,M,.46,.8,.52,0,.38,0,head,o);
-  for(const s of[-1,1]){part(GEO.sph,D,.13,.1,.06,s*.18,.5,.46,head,o);part(GEO.sph,MAT.flare,.013,.013,.013,s*.18,.5,.515,head,o)} // deep sockets, a pinprick in each
+  for(const s of[-1,1]){part(GEO.sph,D,.13,.1,.06,s*.18,.5,.46,head,o);part(GEO.sph,T,.016,.016,.016,s*.18,.5,.515,head,o)} // deep sockets, a pinprick in each
   part(GEO.sph,D,.4,.26,.34,0,-.02,.24,head,o);                           // the inside of its mouth
   for(let i=0;i<12;i++)part(GEO.fang,T,.022,.1,.022,-.27+i*.049,.0,.52,head,{rx:Math.PI,cast:false});
   const jaw=pivot(0,.04,.1,head);part(GEO.sph,M,.42,.24,.46,0,-.14,.08,jaw,o);for(let i=0;i<11;i++)part(GEO.fang,T,.02,.09,.02,-.24+i*.048,-.02,.46,jaw,o);
@@ -1041,8 +1078,6 @@ function poseGiant(g,{walk=0,stride=0,crouch=0,lean=0,jaw=0,look=null,hands=[nul
     for(const f of A.fingers){f.fp.rotation.x=.2+curl[i]*1.1;f.tip.rotation.x=.25+curl[i]*1.3}}}
 // world position of a hand's palm
 function giantHand(g,i,out){return g.userData.arms[i].wr.localToWorld(out.set(0,0,.9))}
-// faint at a distance (like something seen through weather), bone-white up close
-function giantFade(g,d){const u=g.userData,k=clamp((d-8)/60,0,1);u.mats[0].emissive.setScalar(lerp(.2,.075,k));u.mats[0].color.setScalar(lerp(.9,.5,k));u.mats[1].emissive.setScalar(lerp(.15,.05,k))}
 
 // ---- what rides on the elevator roof (only ever seen through the hatch)
 function makeRoofThing(){const g=new THREE.Group(),head=pivot(0,0,0,g);
@@ -1740,7 +1775,8 @@ const ADDS={
   fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks bring pallets of eight boxes. Drive one onto a top shelf to shelve all eight at once. Or carry three loose boxes on the forks.'},
   base:{name:'Basement Returns',price:400,q:6,time:60,desc:'Ten damaged returns in a cage downstairs, reached by the freight elevator. They can\'t be shelved: each one fed to the shredder counts toward quota.'},
   gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power for outages (from night 3). Keep it fuelled with jerry cans from the rack by the roof ladder.'},
-  bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'}};
+  bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'},
+  heat:{name:'Warehouse Heater',price:250,q:0,time:0,desc:'A gas heater high on the east wall. The warehouse holds its warmth an extra night between cold spells.'}};
 const SHOP={
   fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam. The battery lasts twice as long.'},
   shake:{name:'Shake flashlight',price:100,once:true,key:'R',desc:'Hold R to shake your flashlight and charge it anywhere. Anything listening hears it.'},
@@ -1775,7 +1811,7 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.aidLeft=2+(S.aidBonus||0);S.aidBonus=0;
   S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);
   S.parcels=[];S.pallets=[];S.flares=[];S.cold={door:0,open:false,t:0};S.conv={sel:S.conv?S.conv.sel:0,next:12,jam:false};
-  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.rg=null;S.stash=true;HOST.rgT=0;S.paN=0;S.outage=false;
+  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.rg=null;S.stash=true;HOST.rgT=0;S.chill=null;HOST.frzT=0;HOST.chillAt=coldNight(S.night)?(SHIFT_END-S.extra)/2:Infinity;S.paN=0;S.outage=false;
   HOST.outageAt=S.night>=3&&Math.random()<Math.min(.6,.22+.07*S.night)*diffEv()?rand(SHIFT_END*.12,SHIFT_END*.8):1e9;
   S.fork={x:FORK_HOME.x,z:FORK_HOME.z,ry:FORK_HOME.ry,lift:0,drv:'',pal:-1,pass:null};
   Object.assign(HOST,{nextPA:rand(70,120),nextMoth:rand(30,50),palDue:owned('fork')?3:0,mgr:false,noise:[]});
@@ -1818,7 +1854,7 @@ function extrasUpdate(dt){
   S.flares=S.flares.filter(f=>(f.t-=dt)>0);
   // a power outage, once it happens, lasts until morning
   if(!S.outage&&!S.ot&&S.t>=HOST.outageAt){S.outage=true;if(!genPowered())S.lamps=S.lamps.map(()=>0);emit({e:'outage',gen:genPowered()});spawnBlind()}
-  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);
+  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);
   if(!HOST.mgr&&S.night>=3&&S.t>=-S.extra+50){HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:MGR_SPOT.x,z:MGR_SPOT.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0})}
   if(owned('gen')){HOST.nextMoth-=dt;if(HOST.nextMoth<=0){HOST.nextMoth=rand(40,70);spawnMoth()}}}
 
@@ -1828,12 +1864,26 @@ function coldUpdate(dt){if(!owned('cold'))return;const c=S.cold;
   const propped=S.boxes.some(b=>b.st===3&&b.x>COLD.dx0-.3&&b.x<COLD.dx1+.3&&Math.abs(b.z-COLD.z1)<.7);
   // a push bar on the inside: walk up to the shut door from inside and it opens
   if(!c.open&&alivePlayers().some(p=>inCold(p)&&Math.hypot(p.x-(COLD.dx0+COLD.dx1)/2,p.z-COLD.z1)<1.3)){c.open=true;c.t=4;emit({e:'coldDoor',o:1})}
+  if(chilled()&&!c.open){c.open=true;c.t=2;emit({e:'coldDoor',o:1})}if(chilled())c.t=Math.max(c.t,1); // what's in there wants out
   if(c.open){c.t-=dt;if(c.t<=0&&!propped){c.open=false;emit({e:'coldDoor',o:0})}}
   c.door=clamp(c.door+(c.open?dt*2.2:-dt*3),0,1);
-  for(const b of S.boxes){if(!b.fz||(b.st!==1&&b.st!==3))continue;b.th-=dt;
+  for(const b of S.boxes){if(!b.fz||(b.st!==1&&b.st!==3)||chilled())continue;b.th-=dt; /* nothing thaws while the warehouse is cold */
     if(b.th<=0){const h=b.st===1?S.players[b.h]:null;if(h){if(h.carry===b.id)h.carry=h.stack.length?h.stack.pop():-1;else h.stack=h.stack.filter(x=>x!==b.id)}
       b.st=4;S.lost++;S.bver++;emit({e:'msg',m:'A frozen crate thawed and spoiled.'})}}}
-function frostUpdate(m,dt){m.cd-=dt;const shut=S.cold.door<.3;
+// in and out of the freezer room by its door (the floor grid can't see a way through the shelving in there)
+function frostGo(m,tx,tz,home,sp,dt){const dc=(COLD.dx0+COLD.dx1)/2,inM=inCold(m);
+  if(home===inM)return inM?walkStraight(m,tx,tz,sp,dt):monWalk(m,tx,tz,sp,dt);
+  if(inM){if(walkStraight(m,dc,COLD.z1-.7,sp,dt)<.3){m.z=COLD.z1+.9;m.path=null}return 99}
+  if(monWalk(m,dc,COLD.z1+.9,sp,dt)<.4){m.z=COLD.z1-.7;m.x=dc}return 99}
+function walkStraight(m,tx,tz,sp,dt){const dx=tx-m.x,dz=tz-m.z,d=Math.hypot(dx,dz);if(d>.02){const s=Math.min(d,sp*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=Math.atan2(dx,dz)}return Math.hypot(tx-m.x,tz-m.z)}
+function frostUpdate(m,dt){m.cd-=dt;if(!isFinite(m.x)||!isFinite(m.z)){m.x=m.hx;m.z=m.hz;m.path=null}const shut=S.cold.door<.3;
+  // while the warehouse is cold they can leave the freezer room and come after anyone in the building; when it warms
+  // up again they run back to their corners
+  if(chilled()){m.out=true;if(litBy(m.x,1.4,m.z)){m.a=1;return}
+    const tgt=nearestPlayer(m.x,m.z,45,p=>inWH(p)&&inTrailer(p)<0);if(!tgt){m.a=0;return}
+    if(Math.hypot(tgt.x-m.x,tgt.z-m.z)<.95&&m.cd<=0){emit({e:'scare',p:tgt.id,ty:6,id:m.id});damage(tgt,30);m.cd=7;return}
+    m.a=2;frostGo(m,tgt.x,tgt.z,false,1.5,dt);return}
+  if(m.out){m.a=2;if(frostGo(m,m.hx,m.hz,true,4.2,dt)<.3){m.out=false;m.st='still';m.path=null}return}
   if(m.st==='back'){m.a=2;const dx=m.hx-m.x,dz=m.hz-m.z,d=Math.hypot(dx,dz);if(d<.1||m.cd<=0&&!shut){m.st='still'}else{const s=Math.min(d,1.2*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=Math.atan2(dx,dz)}return}
   // they can only move while the door is shut, and never while light is on them
   if(!shut||litBy(m.x,1.4,m.z)){m.a=shut?1:0;return}
@@ -1841,8 +1891,13 @@ function frostUpdate(m,dt){m.cd-=dt;const shut=S.cold.door<.3;
   const dx=tgt.x-m.x,dz=tgt.z-m.z,d=Math.hypot(dx,dz);
   // one grab and they all shrink back to their corners for a while
   if(d<.95&&m.cd<=0){emit({e:'scare',p:tgt.id,ty:6,id:m.id});damage(tgt,30);for(const o of S.mons)if(o.ty===6){o.st='back';o.cd=8}return}
+  if(d<1e-3)return;
   const s=Math.min(d,1.5*dt);m.x=clamp(m.x+dx/d*s,COLD.x0+.4,COLD.x1-.4);m.z=clamp(m.z+dz/d*s,COLD.z0+1.3,COLD.z1-.4);m.ry=Math.atan2(dx,dz);m.a=2}
 
+// follow the floor grid towards a spot (the same walking the night manager does)
+function monWalk(m,tx,tz,sp,dt){m.rep=(m.rep||0)-dt;if(m.rep<=0||!m.path){m.rep=.6;m.path=astar(m.x,m.z,tx,tz)}let px=tx,pz=tz;
+  if(m.path){while(m.path.length&&Math.hypot(m.path[0].x-m.x,m.path[0].z-m.z)<.4)m.path.shift();if(m.path.length){px=m.path[0].x;pz=m.path[0].z}}
+  const dx=px-m.x,dz=pz-m.z,d=Math.hypot(dx,dz);if(d>.02){const s=Math.min(d,sp*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*6)}return Math.hypot(tx-m.x,tz-m.z)}
 // ---------------------------------------------------------------- sorting conveyor
 function convUpdate(dt){if(!owned('conv'))return;const c=S.conv;
   c.next-=dt;if(c.next<=0&&S.parcels.length<6&&!c.jam){c.next=rand(13,19);
@@ -1957,10 +2012,12 @@ function yardUpdate(dt){const y=S.yard;if(!y)return;const tr=S.trucks[y.bay];if(
     return}}
 
 // ---------------------------------------------------------------- the thing in the yard, when someone is up on the roof
-// It comes in out of the storm and walks round the building to whoever is nearest an edge. Then it leans over the
-// parapet and reaches, slowly: its hand follows you at a walk, so you can step out from under it, and the middle of the
-// roof is beyond it. If the hand closes on you it lifts you up to its mouth. It gives up after a while and wanders off.
-const RG_O=2.8,RG_REACH=13.6,RG_SPD=2.1,RG_ST=['walk','reach','retract','eat','leave','wait'];
+// It comes in out of the storm from wherever nobody up there is looking, and walks round the outside of the building
+// only as far as the nearest spot it can reach someone from. Then it leans over the parapet and reaches, slowly: its
+// hand follows you at a walk, so you can step out from under it. If you're further in than its arm goes, it plants its
+// other hand on the roof and leans right over the building. Nobody in the room in the middle of the roof can be
+// reached. If the hand closes on you it lifts you up to its mouth. It gives up after a while and wanders off.
+const RG_O=2.8,RG_REACH=13.6,RG_REACH2=23.5,RG_SPD=2.1,RG_ST=['walk','reach','retract','eat','leave','wait'];
 const rgRect=()=>({x0:ROOF.x0-RG_O,z0:ROOF.z0-RG_O,x1:ROOF.x1+RG_O,z1:ROOF.z1+RG_O});
 const rgP=()=>{const r=rgRect();return 2*(r.x1-r.x0+r.z1-r.z0)};
 function perimAt(s){const r=rgRect(),W=r.x1-r.x0,H=r.z1-r.z0,P=2*(W+H);s=((s%P)+P)%P;
@@ -1968,43 +2025,77 @@ function perimAt(s){const r=rgRect(),W=r.x1-r.x0,H=r.z1-r.z0,P=2*(W+H);s=((s%P)+
 function perimS(x,z){const r=rgRect(),W=r.x1-r.x0,H=r.z1-r.z0;x=clamp(x,r.x0,r.x1);z=clamp(z,r.z0,r.z1);
   const d=[z-r.z0,r.x1-x,r.z1-z,x-r.x0],m=Math.min(...d);
   return m===d[0]?x-r.x0:m===d[1]?W+(z-r.z0):m===d[2]?W+H+(r.x1-x):2*W+H+(r.z1-z)}
+const arcD=(a,b)=>{const P=rgP();let d=Math.abs(a-b)%P;return Math.min(d,P-d)};
 // does the straight walk from a to b cross the building?
 function rgCrosses(ax,az,bx,bz){const R=ROOF,dx=bx-ax,dz=bz-az;let t0=0,t1=1;
   for(const [a,d,lo,hi] of[[ax,dx,R.x0,R.x1],[az,dz,R.z0,R.z1]]){if(Math.abs(d)<1e-9){if(a<lo||a>hi)return false;continue}
     let u=(lo-a)/d,v=(hi-a)/d;if(u>v)[u,v]=[v,u];t0=Math.max(t0,u);t1=Math.min(t1,v);if(t0>t1)return false}return t1>.01&&t0<.99}
+const rgCanTake=p=>!!p&&!p.dead&&onRoof(p)&&!inRoofRoom(p);
+// the spot round the building it can get to soonest from which p is in reach (an ordinary reach if anywhere allows
+// it, otherwise one where it has to brace itself on the roof)
+function rgSpot(g,p){const P=rgP(),gs=perimS(g.x,g.z),gp=perimAt(gs),off=Math.hypot(gp.x-g.x,gp.z-g.z);
+  for(const R of[RG_REACH*.92,RG_REACH2*.95]){let best=null,bd=1e9;
+    for(let s=0;s<P;s+=1){const q=perimAt(s);if(Math.hypot(q.x-p.x,q.z-p.z)>R)continue;
+      const c=off<.5?arcD(s,gs):rgCrosses(g.x,g.z,q.x,q.z)?off+arcD(s,gs):Math.hypot(q.x-g.x,q.z-g.z);
+      if(c<bd){bd=c;best={s,x:q.x,z:q.z,brace:R>RG_REACH,cost:c}}}
+    if(best)return best}
+  return null}
+// out in the storm, in the direction furthest from where anyone up there is facing
+function rgSpawnAt(ups,cx,cz){let best=null,bs=-9;
+  for(let i=0;i<24;i++){const a=i/24*Math.PI*2,x=cx+Math.cos(a)*64,z=cz+Math.sin(a)*54;let sc=9;
+    for(const p of ups){const dx=x-p.x,dz=z-p.z,d=Math.hypot(dx,dz)||1;sc=Math.min(sc,(dx*Math.sin(p.yaw)+dz*Math.cos(p.yaw))/d)}
+    if(sc>bs){bs=sc;best={x,z}}}return best}
 function roofUpdate(dt){const ups=alivePlayers().filter(onRoof),R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2;let g=S.rg;
   if(!g){HOST.rgT=ups.length?HOST.rgT+dt:Math.min(0,HOST.rgT+dt);
     if(HOST.rgT<9/diffEv())return;
-    const a=rand(0,Math.PI*2);g=S.rg={st:'walk',x:cx+Math.cos(a)*62,z:cz+Math.sin(a)*52,ry:0,k:0,hx:cx,hz:cz,tg:'',t:0,pt:0,far:0,stepD:0};emit({e:'gnear'})}
+    const sp=rgSpawnAt(ups,cx,cz);g=S.rg={st:'walk',x:sp.x,z:sp.z,ry:Math.atan2(cx-sp.x,cz-sp.z),k:0,hx:cx,hz:cz,tg:'',t:0,pt:0,far:0,stepD:0,b:0,re:0,goal:null};emit({e:'gnear'})}
   const P=rgP(),ease=v=>Math.max(0,v);
   const stepTo=(x,z,spd)=>{const dx=x-g.x,dz=z-g.z,d=Math.hypot(dx,dz);if(d<1e-3)return 0;const s=Math.min(d,spd*dt);g.x+=dx/d*s;g.z+=dz/d*s;g.ry=angLerp(g.ry,Math.atan2(dx,dz),dt*1.5);
     g.stepD+=s;if(g.stepD>3.4){g.stepD=0;emit({e:'gstep',x:r2(g.x),z:r2(g.z)})}return d-s};
   const face=(x,z)=>{g.ry=angLerp(g.ry,Math.atan2(x-g.x,z-g.z),dt*1.2)};
-  let tg=S.players[g.tg];if(!tg||tg.dead||!onRoof(tg))tg=null;
-  // whoever on the roof stands nearest an edge is the one it goes for
-  if(g.st==='walk'||g.st==='wait'){let best=null,bd=1e9;for(const p of ups){const e=perimAt(perimS(p.x,p.z)),d=Math.hypot(e.x-p.x,e.z-p.z);if(d<bd){bd=d;best=p}}
-    if(best){tg=best;g.tg=best.id}else{g.st='leave'}}
+  let tg=S.players[g.tg];if(!rgCanTake(tg))tg=null;
+  const prey=ups.filter(rgCanTake);
+  if(g.st==='walk'||g.st==='wait'){
+    if(!ups.length)g.st='leave';
+    else{g.re-=dt;if(g.re<=0||!tg){g.re=.6;let best=null;for(const p of prey){const sp=rgSpot(g,p);if(sp&&(!best||sp.cost<best.sp.cost))best={p,sp}}
+      if(best){tg=best.p;g.tg=tg.id;g.goal=best.sp}else{tg=null;g.goal=null}}}}
   if(g.st!=='leave'&&g.st!=='eat'){g.pt+=dt;if(g.pt>48&&g.st!=='reach')g.st=g.k>0?'retract':'leave'}
-  const dTg=tg?Math.hypot(tg.x-g.x,tg.z-g.z):1e9;
+  const dTg=tg?Math.hypot(tg.x-g.x,tg.z-g.z):1e9,lim=g.b?RG_REACH2:RG_REACH;
   switch(g.st){
-  case 'walk':case 'wait':{const gs=perimS(g.x,g.z),gp=perimAt(gs),on=Math.hypot(gp.x-g.x,gp.z-g.z)<.4,ts=perimS(tg.x,tg.z),tp=perimAt(ts);
-    if(!on){ // still coming in out of the storm: straight to the wall nearest them if nothing's in the way
-      const go=rgCrosses(g.x,g.z,tp.x,tp.z)?gp:tp;stepTo(go.x,go.z,RG_SPD);g.st='walk';break}
-    let ds=ts-gs;if(ds>P/2)ds-=P;if(ds<-P/2)ds+=P;
+  case 'walk':case 'wait':{if(!tg||!g.goal){g.st='wait';break} // everyone up there is in the room: it waits outside
+    const gs=perimS(g.x,g.z),gp=perimAt(gs),on=Math.hypot(gp.x-g.x,gp.z-g.z)<.4,go=g.goal;
+    if(!on){stepTo(...(rgCrosses(g.x,g.z,go.x,go.z)?[gp.x,gp.z]:[go.x,go.z]),RG_SPD);g.st='walk';break} // still coming in out of the storm
+    let ds=go.s-gs;if(ds>P/2)ds-=P;if(ds<-P/2)ds+=P;
     if(Math.abs(ds)>.35){const n=perimAt(gs+Math.sign(ds)*Math.min(Math.abs(ds),RG_SPD*dt));stepTo(n.x,n.z,RG_SPD*2);g.st='walk';break}
-    face(tg.x,tg.z);g.st='wait';if(dTg<=RG_REACH){g.st='reach';const e={x:clamp(g.x,R.x0,R.x1),z:clamp(g.z,R.z0,R.z1)};g.hx=e.x;g.hz=e.z;g.far=0;emit({e:'greach'})}break}
-  case 'reach':{if(!tg){g.st='retract';break}face(tg.x,tg.z);g.k=Math.min(1,g.k+dt/4.2);
+    face(tg.x,tg.z);g.st='wait';
+    if(dTg<=(go.brace?RG_REACH2:RG_REACH)){g.st='reach';g.b=go.brace?1:0;g.hx=clamp(g.x,R.x0,R.x1);g.hz=clamp(g.z,R.z0,R.z1);g.far=0;emit({e:'greach'})}else g.re=0;break}
+  case 'reach':{if(!tg){g.st='retract';break}face(tg.x,tg.z);g.k=Math.min(1,g.k+dt/(g.b?5.5:4.2));
     // the hand drifts after you at a walking pace, never further than its arm goes
     const dx=tg.x-g.hx,dz=tg.z-g.hz,d=Math.hypot(dx,dz),s=Math.min(d,(g.k<1?1.2:2.1)*dt);if(d>1e-3){g.hx+=dx/d*s;g.hz+=dz/d*s}
-    const ox=g.hx-g.x,oz=g.hz-g.z,od=Math.hypot(ox,oz);if(od>RG_REACH){g.hx=g.x+ox/od*RG_REACH;g.hz=g.z+oz/od*RG_REACH}
-    g.far=dTg>RG_REACH+1.2?g.far+dt:0;if(g.far>1.4){g.st='retract';break}
+    const ox=g.hx-g.x,oz=g.hz-g.z,od=Math.hypot(ox,oz);if(od>lim){g.hx=g.x+ox/od*lim;g.hz=g.z+oz/od*lim}
+    g.far=dTg>lim+1.2?g.far+dt:0;if(g.far>1.4){g.st='retract';break}
     if(g.k>=1&&Math.hypot(tg.x-g.hx,tg.z-g.hz)<1.15){g.st='eat';g.t=0;g.tg=tg.id;emit({e:'ggrab',p:tg.id})}break}
-  case 'retract':g.k=Math.max(0,g.k-dt/2.6);if(g.k<=0)g.st=g.pt>48||!ups.length?'leave':'walk';break;
+  case 'retract':g.k=Math.max(0,g.k-dt/2.6);if(g.k<=0){g.b=0;g.re=0;g.st=g.pt>48||!ups.length?'leave':'walk'}break;
   case 'eat':{const v=S.players[g.tg];if(!v||v.dead){g.st='leave';break}g.t+=dt;v.x=g.hx;v.z=g.hz;v.tpT=.5;
     if(g.t>=3.6){emit({e:'scare',p:v.id,ty:9});emit({e:'chomp',x:r2(g.x),z:r2(g.z)});damage(v,999);g.st='leave'}break}
-  case 'leave':{g.k=ease(g.k-dt/2);const dx=g.x-cx,dz=g.z-cz,d=Math.hypot(dx,dz)||1;stepTo(g.x+dx/d*5,g.z+dz/d*5,RG_SPD*1.15);
+  case 'leave':{g.k=ease(g.k-dt/2);if(g.k<=0)g.b=0;const dx=g.x-cx,dz=g.z-cz,d=Math.hypot(dx,dz)||1;stepTo(g.x+dx/d*5,g.z+dz/d*5,RG_SPD*1.15);
     if(d>78){S.rg=null;HOST.rgT=-rand(25,40)}break}}}
 
+
+// ---------------------------------------------------------------- the warehouse getting cold
+// From night 3, every second night (every third with the heater), halfway through the shift the ventilation plant in
+// the room on the roof starts failing. The crew gets two minutes to restart it there. After that the warehouse goes
+// cold: everyone loses a point of health a second until someone restarts it, frozen crates stop thawing, and the
+// frost figures can leave the freezer room. Once it is running again they run back.
+const CHILL_WARN=120;
+function coldNight(n){const N=owned('heat')?3:2;return n>1&&(n-1)%N===0}
+function chillUpdate(dt){
+  if(!S.chill&&S.t>=HOST.chillAt){HOST.chillAt=Infinity;S.chill={st:'warn',t:CHILL_WARN};emit({e:'chill'})}
+  const c=S.chill;if(!c)return;
+  if(c.st==='warn'){c.t-=dt;if(c.t<=0){c.st='cold';c.t=0;HOST.frzT=0;emit({e:'frozen'})}return}
+  HOST.frzT+=dt;if(HOST.frzT<1)return;HOST.frzT-=1;
+  for(const p of alivePlayers()){p.hp-=1;if(p.hp<=0){p.hp=1;damage(p,999)}}}
+function fixVent(p){if(!S.chill||!nearPos(p,VENT.x,VENT.z,3.4))return;const was=S.chill.st;S.chill=null;emit({e:'warm',p:p.id,n:p.name,was})}
 // ---------------------------------------------------------------- the night manager
 function managerUpdate(m,dt){m.t+=dt;
   const walkTo=(tx,tz,sp)=>{m.rep-=dt;if(m.rep<=0||!m.path){m.rep=.6;m.path=astar(m.x,m.z,tx,tz)}let px=tx,pz=tz;
@@ -2112,6 +2203,7 @@ function act2(pid,p,a){
     if(down&&S.rg&&S.rg.st==='eat'&&S.rg.tg===pid)return true;
     const x=up?HATCH.x+1.15:LADDER.x+1.1,z=up?HATCH.z-1.1:LADDER.z-.9;p.x=x;p.z=z;p.tpT=.8;
     emit({e:'tp',p:pid,x:r2(x),z:r2(z),climb:up?1:-1});return true}
+  case 'vent':fixVent(p);return true;
   case 'stash':{if(!nearPos(p,STASH.x,STASH.z,2.4))return true;if(!S.stash)return toP(p,'Empty. Someone already went through it tonight.'),true;
     S.stash=false;const k=['batt','flare','drink','horn','strobe'][randi(0,4)];p.inv[k]=(p.inv[k]||0)+1;emit({e:'stash',p:pid,k});return true}
   case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>m.ty===14&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
@@ -2283,8 +2375,8 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S
     par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1]),
     fl:(S.flares||[]).map(f=>[f.id,r2(f.x),r2(f.z),Math.round(f.t)]),cold:S.cold&&[r2(S.cold.door),S.cold.open?1:0],conv:S.conv&&[S.conv.sel,S.conv.jam?1:0],
     elev:S.elev&&[S.elev.lvl,S.elev.st,r2(S.elev.t),r2(S.elev.gate),r2(S.elev.hl||0),r2(S.elev.ht||0)],df:S.diff,gen:S.gen&&[Math.round(S.gen.fuel),S.gen.out?1:0],
-    out:S.outage?1:0,fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage],st:S.stash?1:0,
-    rg:S.rg&&[RG_ST.indexOf(S.rg.st),r2(S.rg.x),r2(S.rg.z),r3(S.rg.ry),r2(S.rg.k),r2(S.rg.hx),r2(S.rg.hz),S.rg.tg||'',r2(S.rg.t)]},
+    out:S.outage?1:0,fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage],st:S.stash?1:0,ch:S.chill&&[S.chill.st==='cold'?1:0,Math.ceil(S.chill.t)],
+    rg:S.rg&&[RG_ST.indexOf(S.rg.st),r2(S.rg.x),r2(S.rg.z),r3(S.rg.ry),r2(S.rg.k),r2(S.rg.hx),r2(S.rg.hz),S.rg.tg||'',r2(S.rg.t),S.rg.b|0]},
   ev:NETEV.splice(0)}}
 function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1,b.fz?1:0,Math.round(b.th||0),b.ret?1:0,b.pri?1:0,b.m?1:0])}
 function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11],fz:!!a[12],th:a[13],ret:!!a[14],pri:!!a[15],m:!!a[16]}));
@@ -2299,8 +2391,8 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
   m.tr.forEach((a,i)=>Object.assign(S.trucks[i],{st:a[0],z:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]}));
   S.mons=m.mo.map(a=>({id:a[0],ty:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],a:a[6],k:a[7],v:a[8],f:!!a[9],tg:a[10]||''}));
   const x=m.x||{};const addsChanged=JSON.stringify(x.adds||[])!==JSON.stringify(S.adds||[]);
-  Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1]}:null,stash:!!x.st,
-    rg:x.rg?{st:RG_ST[x.rg[0]],x:x.rg[1],z:x.rg[2],ry:x.rg[3],k:x.rg[4],hx:x.rg[5],hz:x.rg[6],tg:x.rg[7],t:x.rg[8]}:null,
+  Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1]}:null,stash:!!x.st,chill:x.ch?{st:x.ch[0]?'cold':'warn',t:x.ch[1]}:null,
+    rg:x.rg?{st:RG_ST[x.rg[0]],x:x.rg[1],z:x.rg[2],ry:x.rg[3],k:x.rg[4],hx:x.rg[5],hz:x.rg[6],tg:x.rg[7],t:x.rg[8],b:x.rg[9]|0}:null,
     parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8]})),
     flares:(x.fl||[]).map(a=>({id:a[0],x:a[1],z:a[2],t:a[3]}))});
   if(x.cold)S.cold={door:x.cold[0],open:!!x.cold[1]};if(x.conv)S.conv={sel:x.conv[0],jam:!!x.conv[1]};
@@ -2432,7 +2524,7 @@ function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.s
     if(findTarget2(me,h))break;if(ud.kind)ME.target={kind:ud.kind,bay:ud.bay};break}}
 
 function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
-  if(me.hp<ME.lastHp-.5){ME.hurt=Math.min(1,ME.hurt+.9);if(!ME.scare)SFX.hurt()}ME.lastHp=me.hp;
+  if(me.hp<ME.lastHp-(chilled()?1.5:.5)){ME.hurt=Math.min(1,ME.hurt+.9);if(!ME.scare)SFX.hurt()}ME.lastHp=me.hp;
   ME.hurt=Math.max(0,ME.hurt-dt*.7);ME.flash=Math.max(0,ME.flash-dt*2.2);ME.kickCD-=dt;ME.kickA=Math.max(0,ME.kickA-dt);
   if(ME.scare)updScare(dt);else ME.shake=Math.max(0,ME.shake-dt*1.4);
   if(me.dead){ME.deathT+=dt;spectate(dt);findTarget(null);return}
@@ -2609,7 +2701,7 @@ function syncAvatars(dt,time){const live=new Set();let si=0;
     const sp=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3);const w0=v.walk;v.walk+=dt*sp*2.3;
     if(sp>.4&&Math.floor(w0/Math.PI)!==Math.floor(v.walk/Math.PI)&&Math.hypot(v.x-ME.x,v.z-ME.z)<16)SFX.step(v.z<WH.z0,sp>4,{x:v.x,y:.1,z:v.z});
     const g=v.g,u=g.userData,drv=S.fork&&S.fork.drv===p.id;g.visible=!p.dead;g.position.set(v.x,drv?.75:0,v.z);
-    const held=rgHeldAt(p.id);if(held)g.position.set(held.x,held.y-1.1,held.z); // in the giant's fistg.rotation.y=drv?S.fork.ry:v.yaw+Math.PI;if(drv){u.legs.forEach(l=>l.rotation.x=-1.4)}
+    const held=rgHeldAt(p.id);if(held)g.position.set(held.x,held.y-1.1,held.z); /* in the giant's fist */g.rotation.y=drv?S.fork.ry:v.yaw+Math.PI;if(drv){u.legs.forEach(l=>l.rotation.x=-1.4)}
     const a=Math.min(1,sp/3);u.legs[0].rotation.x=Math.sin(v.walk)*.6*a;u.legs[1].rotation.x=-Math.sin(v.walk)*.6*a;
     if(p.carry>=0){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.25,10,dt))}else{u.arms[0].rotation.x=-Math.sin(v.walk)*.5*a;u.arms[1].rotation.x=-.9}
     u.torch.rotation.x=-v.pitch;u.head.rotation.x=-v.pitch*.6;u.beam.visible=!!p.light;
@@ -2928,9 +3020,10 @@ function syncExtras(dt,time){if(!S)return;const t=time;
     if(!GIANT.position.z){GIANT.position.z=z}const oz=GIANT.position.z;GIANT.position.set(bx,-1.25,damp(oz,z,1.2,dt));const sp=Math.abs(GIANT.position.z-oz)/Math.max(dt,1e-3);
     v.walk+=sp*dt*.55;v.st=damp(v.st,Math.min(1,sp/1.2),3,dt);v.cr=damp(v.cr||0,[0,.15,.4,1][y.stage],1.5,dt);v.ln=damp(v.ln||0,[0,.1,.35,1.25][y.stage],1.5,dt);GIANT.rotation.y=0;
     const grip=y.stage===3?_yv.set(bx+DOOR_HW-.25,DOOR_H+.15,WH.z0-.35):null;
-    poseGiant(GIANT,{walk:v.walk,stride:v.st,crouch:v.cr,lean:v.ln,look:camera.position,hands:[null,grip],curl:[0,grip?.75:0],t});giantFade(GIANT,Math.hypot(bx-ME.x,GIANT.position.z-ME.z))}
+    poseGiant(GIANT,{walk:v.walk,stride:v.st,crouch:v.cr,lean:v.ln,look:camera.position,hands:[null,grip],curl:[0,grip?.75:0],t})}
   else{GIANT.visible=false;GIANT.position.z=0}
   syncRoof(dt,t)}
+const reach0=g=>g.st==='reach'||g.st==='retract'||g.st==='eat',_pv=new THREE.Vector3(),_pw=new THREE.Vector3();
 const _yv=new THREE.Vector3(),_rv=new THREE.Vector3(),_rm=new THREE.Vector3(),_rh=new THREE.Vector3();
 
 // ---------------------------------------------------------------- up on the roof: the storm, and what comes out of it
@@ -2951,18 +3044,22 @@ const FOG0={c:new THREE.Color(0x030305),d:.052},FOG_ROOF={c:new THREE.Color(0x07
 function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.myId];
   // the storm: a lighter, bluer murk, snow in the air, wind, frost creeping in at the edges of your sight
   scene.fog.color.lerp(up?FOG_ROOF.c:FOG0.c,1-Math.exp(-6*dt));scene.fog.density=damp(scene.fog.density,up?FOG_ROOF.d:FOG0.d,6,dt);AMB.intensity=damp(AMB.intensity,up?.07:.32,6,dt);
-  if(SNOW){SNOW.visible=up;if(up){const u=SNOW.material.uniforms;u.t.value=t;u.cam.value.copy(camera.position);camera.getWorldDirection(u.fw.value);u.lit.value=ME.lightOn()?1:.15}}
-  if(AU.ready){if(!WIND)WIND=loop('wind',null,1);if(WIND){WIND.P.panningModel='equalpower';WIND.P.refDistance=1e4;WIND.set(up?.55:0,up?.4:.25)}}
-  const fr=$('frost');if(fr){ME.cold=damp(ME.cold||0,up?1:0,up?.25:1.5,dt);fr.style.opacity=(ME.cold*.85).toFixed(3)}
+  const inRm=up&&inRoofRoom(ME); // indoors up there: out of the snow and most of the wind
+  if(SNOW){SNOW.visible=up&&!inRm;if(up){const u=SNOW.material.uniforms;u.t.value=t;u.cam.value.copy(camera.position);camera.getWorldDirection(u.fw.value);u.lit.value=ME.lightOn()?1:.15}}
+  if(AU.ready){if(!WIND)WIND=loop('wind',null,1);if(WIND){WIND.P.panningModel='equalpower';WIND.P.refDistance=1e4;WIND.set(up?(inRm?.18:.55):0,up?.4:.25)}}
+  const fr=$('frost');if(fr){ME.cold=damp(ME.cold||0,(up&&!inRm)||chilled()?1:0,up||chilled()?.25:1.5,dt);fr.style.opacity=(ME.cold*.85).toFixed(3)}
   if(ROOFV.beacon)ROOFV.beacon.material.color.set(Math.sin(t*2.2)>.6?0xff2a1a:0x2a0503);
+  if(ROOFV.lamp)ROOFV.lamp.intensity=up?(Math.random()<.02?6:30):0;
+  if(ROOFV.ventLamp)ROOFV.ventLamp.material.color.set(!S.chill?0x2aff6a:Math.sin(t*(S.chill.st==='cold'?12:5))>0?0x5ab8ff:0x0a1a30);
   if(ROOFV.lid){ROOFV.lid.visible=!S.stash;ROOFV.lid.rotation.x=-1.9}
   // the thing itself
-  // (it ignores fog so it shows through the storm, so it is only drawn for someone up there, or watching someone up there)
+  // (only drawn for someone up there, or watching someone up there)
   const g=S.rg;ROOFG.visible=!!g&&camera.position.x<-100;if(!g){ROOFG.userData.v=null;return}
   const u=ROOFG.userData;let v=u.v;if(!v)v=u.v={x:g.x,z:g.z,walk:0,st:0,k:0,hx:g.hx,hz:g.hz,hi:1};
   const ox=v.x,oz=v.z;v.x=damp(v.x,g.x,4,dt);v.z=damp(v.z,g.z,4,dt);const sp=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3);
-  v.walk+=sp*dt*.5;v.st=damp(v.st,Math.min(1,sp/1.4),3,dt);v.k=damp(v.k,g.k,5,dt);v.hx=damp(v.hx,g.hx,6,dt);v.hz=damp(v.hz,g.hz,6,dt);
-  ROOFG.position.set(v.x,ROOF.gy,v.z);ROOFG.rotation.y=angLerp(ROOFG.rotation.y,g.ry,1-Math.exp(-3*dt));
+  v.walk+=sp*dt*.5;v.st=damp(v.st,Math.min(1,sp/1.4),3,dt);v.k=damp(v.k,g.k,5,dt);v.br=damp(v.br||0,g.b&&reach0(g)?1:0,1.4,dt);v.hx=damp(v.hx,g.hx,6,dt);v.hz=damp(v.hz,g.hz,6,dt);
+  // braced, it steps right up to the wall
+  ROOFG.position.set(v.x+Math.sin(g.ry)*v.br*1.6,ROOF.gy,v.z+Math.cos(g.ry)*v.br*1.6);ROOFG.rotation.y=angLerp(ROOFG.rotation.y,g.ry,1-Math.exp(-3*dt));
   const tg=S.players[g.tg],eat=g.st==='eat',reach=eat||g.st==='reach'||g.st==='retract';
   const look=tg&&onRoof(tg)?(g.tg===NET.myId?camera.position:_rv.set(tg.x,1.5,tg.z)):camera.position;
   let hand=null,curl=0,jaw=0;
@@ -2974,8 +3071,11 @@ function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.m
     if(eat){const lift=clamp(g.t/2.6,0,1),m=ROOFG.userData.head.localToWorld(_yv.set(0,-.1,1.4));hand=_rh.lerp(m,lift*lift*(3-2*lift));curl=Math.min(1,g.t*1.6);jaw=clamp((g.t-1.7)/1.2,0,1)}
     _rh.copy(hand);hand=_rh}
   const hands=[null,null];if(hand)hands[v.hi]=hand;const cl=[0,0];cl[v.hi]=curl;
-  poseGiant(ROOFG,{walk:v.walk,stride:v.st,lean:Math.min(1,v.k*1.25)+(g.st==='wait'?.15:0),crouch:v.k*.35,jaw,look,hands,curl:cl,t});
-  giantFade(ROOFG,Math.hypot(v.x-camera.position.x,v.z-camera.position.z))}
+  // reaching far: the other hand comes down flat on the roof beside it and takes its weight, and it leans right over
+  if(v.br>.01){const o=1-v.hi,A=ROOFG.userData.arms[o],sx=Math.cos(ROOFG.rotation.y),sz=-Math.sin(ROOFG.rotation.y),fx=Math.sin(ROOFG.rotation.y),fz=Math.cos(ROOFG.rotation.y);
+    const px=clamp(v.x+fx*(RG_O+2.2)+sx*A.s*3.2,ROOF.x0+.6,ROOF.x1-.6),pz=clamp(v.z+fz*(RG_O+2.2)+sz*A.s*3.2,ROOF.z0+.6,ROOF.z1-.6);
+    const rest=ROOFG.localToWorld(_pv.set(A.s*2.1,.9,1.6));hands[o]=rest.lerp(_pw.set(px,.12,pz),v.br);cl[o]=.35*v.br}
+  poseGiant(ROOFG,{walk:v.walk,stride:v.st,lean:Math.min(1,v.k*1.25)+(g.st==='wait'?.15:0)+v.br*.12,crouch:v.k*.35-v.br*.15,jaw,look,hands,curl:cl,t})}
 // where a held player is: in its fist
 function rgHeldAt(id){const g=S.rg;if(!g||g.st!=='eat'||g.tg!==id||!ROOFG||!ROOFG.userData.v)return null;return giantHand(ROOFG,ROOFG.userData.v.hi,_rm)}
 // being lifted: the camera rides in its hand, turned to face what it's lifting you to
@@ -3050,6 +3150,7 @@ function looseMimic(){let best=null,bd=2.9;const fx=-Math.sin(ME.yaw),fz=-Math.c
   for(const m of S.mons){if(m.ty!==0)continue;const dx=m.x-ME.x,dz=m.z-ME.z,d=Math.hypot(dx,dz);if(d<bd&&(d<1||(dx*fx+dz*fz)/d>.5)){bd=d;best=m}}return best}
 // held E on the jam button for a moment clears it
 function localUpdate2(dt,me){const t=ME.target;
+  if(t&&t.kind==='vent'&&K.KeyE&&S.chill&&!ME.scare){ME.ventT=(ME.ventT||0)+dt;if(ME.ventT>2){ME.ventT=-99;doAct({a:'vent'})}}else if(!K.KeyE||!S.chill)ME.ventT=0;
   if(t&&t.kind==='jam'&&K.KeyE&&S.conv&&S.conv.jam&&!ME.scare){ME.holdT=(ME.holdT||0)+dt;if(ME.holdT>1.2){ME.holdT=-99;doAct({a:'jam'})}}else if(!K.KeyE)ME.holdT=0;
   ME.drinkT=Math.max(0,(ME.drinkT||0)-dt);ME.scan=!!(K.Mouse2&&curSel(me)==='scanner'&&!ME.scare)}
 function findTarget2(me,hit){const ud=hit.object.userData;
@@ -3114,7 +3215,7 @@ function updScare2(s,k,lunge){const g=s.g,u=g.userData;
   else if(s.ty===6){g.position.set(rand(-.02,.02),-1.84,lerp(-1.5,-.62,lunge(.16)));u.arms.forEach((a,i)=>{a.rotation.x=-1.9;a.rotation.z=(i?-1:1)*.3});u.head.rotation.set(-.25,0,0)}
   else if(s.ty===7){g.position.set(rand(-.02,.02),-1.66,lerp(-1.4,-.58,lunge(.16)));g.rotation.y=Math.PI;u.head.rotation.set(-.2,0,.85+Math.sin(k*30)*.15);u.arms.forEach(a=>a.rotation.x=-1.7);u.beam.visible=false;u.tag.visible=false}
   else if(s.ty===9){ // its face, stooped right down to yours, and the grin opening
-    g.position.set(0,0,0);poseGiant(g,{crouch:.55,lean:.85,jaw:clamp(k*1.6-.15,0,1),t:k*3});giantFade(g,0);g.updateMatrixWorld(true);
+    g.position.set(0,0,0);poseGiant(g,{crouch:.55,lean:.85,jaw:clamp(k*1.6-.15,0,1),t:k*3});g.updateMatrixWorld(true);
     const hl=g.worldToLocal(u.head.getWorldPosition(_yv));g.position.set(-hl.x+rand(-.02,.02),-hl.y-.35,-hl.z-lerp(3.2,1.25,lunge(.45)));
     g.updateMatrixWorld(true);u.head.lookAt(camera.getWorldPosition(_rv));u.head.rotateZ(.35+Math.sin(k*20)*.05)}
   else if(s.ty===10){g.position.set(rand(-.01,.01),lerp(1.2,.12,lunge(.14)),-.5);g.rotation.set(0,0,Math.PI);u.arms.forEach((a,i)=>a.rotation.z=(i?-1:1)*.8)}
@@ -3126,7 +3227,7 @@ function updScare2(s,k,lunge){const g=s.g,u=g.userData;
 function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   switch(e.e){
   case 'bought':SFX.buy();if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);if(ADDS[e.k])renderShop(true);break;
-  case 'stuck':toast(`Bay ${BAYS[e.b].name}'s door jammed open. Don't look out at the yard.`,4.5);break;
+  case 'stuck':toast(`Bay ${BAYS[e.b].name}'s door motor jammed. The door is stuck open.`,4.5);break;
   case 'slam':SFX.slam(P(e.x,e.z,2));break;
   case 'shake':if(e.p!==me)SFX.shake({x:e.x,y:1.2,z:e.z});break;
   case 'blindHear':SFX.clicks(P(e.x,e.z,2.2));break;
@@ -3159,11 +3260,14 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
         for(let i=0;i<5;i++)setTimeout(()=>SFX.step(true,false),i*120);ME.yaw=e.climb>0?Math.PI*.75:Math.PI*.25;ME.pitch=0;
         if(e.climb>0&&!GAME.hints.roof){GAME.hints.roof=1;toast('The roof. It\'s snowing hard and nothing up here is lit. Someone keeps a supply crate at the far end.',6)}}}break;
   case 'stash':if(e.p===me){SFX.ok();toast(`Someone stashed supplies up here: +1 ${SHOP[e.k].name.toLowerCase()}.`,3.5)}break;
-  case 'gnear':if(onRoof(ME)){SFX.boom(P(ME.x+40,ME.z,ROOF.gy));toast('Something very big is walking around out in the storm.',4)}break;
+  case 'gnear':if(onRoof(ME))SFX.boom(P(ME.x+40,ME.z,ROOF.gy));break;
   case 'gstep':{const d=Math.hypot(e.x-ME.x,e.z-ME.z);if(onRoof(ME)){SFX.boom(P(e.x,e.z,ROOF.gy));ME.shake=Math.max(ME.shake,clamp(1-d/45,0,1)*.45)}break}
-  case 'greach':if(onRoof(ME)){SFX.creak(P(S.rg?S.rg.x:ME.x,S.rg?S.rg.z:ME.z,6));toast('Its hand is coming over the edge. Get out from under it.',4,'radio')}break;
+  case 'greach':if(onRoof(ME)){SFX.creak(P(S.rg?S.rg.x:ME.x,S.rg?S.rg.z:ME.z,6))}break;
   case 'ggrab':if(e.p===me){SFX.scare(9);ME.flash=.6;ME.fear=1}else{const v=AV.get(e.p);if(v)SFX.scream({x:v.x,y:4,z:v.z})}break;
   case 'chomp':SFX.chomp(P(e.x,e.z,ROOF.gy+18));break;
+  case 'chill':big('<span style="color:#7fc8ff">The Warehouse Is Getting Cold</span>','Restart the ventilation in the room on the roof within 2 minutes',5.5);SFX.radio();break;
+  case 'frozen':big('<span style="color:#7fc8ff">The Warehouse Is Freezing</span>','Everyone is losing health. Restart the ventilation on the roof',5);SFX.thunk(P(ME.x,ME.z,3));break;
+  case 'warm':SFX.ok();toast(e.p===me?'The ventilation is running again.':`${e.n} got the ventilation running again.`,4);break;
   case 'gflinch':if(onRoof(ME))SFX.boom(P(e.x,e.z,ROOF.gy+10));break;
   case 'coldDoor':SFX.thunk(P((COLD.dx0+COLD.dx1)/2,COLD.z1,1));break;
   case 'lever':SFX.lever(P(e.x,e.z,1.2));break;
@@ -3207,6 +3311,7 @@ function promptFor(t,me){switch(t.kind){
   case 'shred':{const b=me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;return!b?'Shredder':b.ret?'<kbd>E</kbd> Shred the damaged return (counts toward quota)':'<kbd>E</kbd> Shred it <span class="warn">(good stock: counts as lost)</span>'}
   case 'ladder':return me.carry>=0||me.can?'Roof ladder (you need both hands)':'<kbd>E</kbd> Climb to the roof';
   case 'hatch':return'<kbd>E</kbd> Climb back down';
+  case 'vent':return S.chill?`Hold <kbd>E</kbd> Restart the ventilation <span class="meter"><i style="width:${Math.round(clamp((ME.ventT||0)/2,0,1)*100)}%"></i></span>`:'Ventilation plant: running';
   case 'stash':return S.stash?'<kbd>E</kbd> Look in the supply crate':'The crate is empty tonight';
   case 'fslot':return t.ok?'<kbd>E</kbd> Set the pallet on the shelf':'Shelf is full';
   case 'fpal':return'<kbd>E</kbd> Lift the pallet';}return null}
@@ -3214,6 +3319,7 @@ function promptFor(t,me){switch(t.kind){
 function hatchNote(){const e=S.elev;if(!e||e.st!=='stall'||!owned('base')||!inCar(ME,e.lvl===0?CAR_UP:CAR_DN))return'';const k=clamp((e.hl||0)/ELEV_HOLD,0,1);
   return`<span class="warnline">SOMETHING IS ON THE ROOF &middot; ${Math.max(0,Math.ceil(ELEV_WAIT-(e.ht||0)))}s</span><br>${ME.lightOn()?'Shine your light up at the hatch':'<kbd>F</kbd> Turn your flashlight on and shine it up at the hatch'} <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}
 function statusLines(me){let h='';
+  if(S.chill)h+=S.chill.st==='cold'?`<div class="bay warnline" style="color:#8fd0ff">FREEZING &middot; ventilation on the roof</div>`:`<div class="bay" style="color:#8fd0ff">GETTING COLD &middot; ventilation on the roof &middot; ${mmss(S.chill.t)}</div>`;
   if(mainsDown())h+=`<div class="bay warnline">POWER OUT &middot; charger slowed</div>`;
   if(owned('gen')&&S.gen)h+=`<div class="bay small${S.outage&&S.gen.fuel<25?' warnline':''}">generator ${S.outage?(S.gen.fuel>0?'running':'empty'):'on standby'} &middot; fuel ${Math.round(S.gen.fuel)}%</div>`;
   if(owned('conv')&&S.conv)h+=`<div class="bay small">sorting bin: <b style="color:${PARCEL_CSS[S.conv.sel]}">${PARCEL_NAMES[S.conv.sel]}</b>${S.conv.jam?' &middot; <span class="warn">JAMMED</span>':''}</div>`;
@@ -3227,7 +3333,7 @@ function carryNote(me){if(!me)return'';
   if(me.can)return`Jerry can &middot; generator ${dirTo(GEN.x,GEN.z)}`;
   const b=me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;if(!b)return'';const n=1+(me.stack?me.stack.length:0);
   let s=n>1?`Carrying ${n} boxes`:'';
-  if(b.fz)s+=(s?' &middot; ':'')+`<span style="color:#9fd4ff">Frozen: thaws in ${Math.max(0,Math.ceil(b.th||0))}s${inCold(ME)?'':` &middot; freezer ${dirTo((COLD.dx0+COLD.dx1)/2,COLD.z1+.6)}`}</span>`;
+  if(b.fz)s+=(s?' &middot; ':'')+`<span style="color:#9fd4ff">${chilled()?'Frozen: holding in the cold':`Frozen: thaws in ${Math.max(0,Math.ceil(b.th||0))}s`}${inCold(ME)?'':` &middot; freezer ${dirTo((COLD.dx0+COLD.dx1)/2,COLD.z1+.6)}`}</span>`;
   else if(b.ret)s+=(s?' &middot; ':'')+`<span style="color:#d9a35a">Damaged return: shred it &middot; ${ME.x>60?`shredder ${dirTo(SHRED.x,SHRED.z)}`:`basement elevator ${dirTo(CAR_UP.x1,(CAR_UP.z0+CAR_UP.z1)/2)}`}</span>`;
   else if(ME.x>60)s+=(s?' &middot; ':'')+`Shelves are upstairs &middot; elevator ${dirTo(CAR_DN.x1,0)}`;
   if(b.pri)s+=(s?' &middot; ':'')+'<span style="color:#ff7a5a">Priority</span>';return s}
@@ -3237,6 +3343,7 @@ const ADD_INTRO={fork:'The forklift is parked by the dock, just east of where yo
   conv:'The sorting conveyor is on the south wall, behind you as you start. Set its lever to the colour of the next parcel to reach the end.',
   base:'The freight elevator is on the west wall, past Bay A. Ten damaged returns wait in the basement. They can\'t be shelved: feed them to the shredder down there.',
   gen:'The generator is on the west wall near the roof ladder. If the power fails, it keeps the lights and the charger running while it has fuel.',
+  heat:'The heater is high on the east wall. The warehouse now takes an extra night to go cold between spells.',
   bayc:'Bay C is open in the north-west corner. Its refrigerated trucks bring more boxes, and more frozen crates if you have cold storage.'};
 function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const fresh=(S.adds||[]).filter(k=>!seen.has(k));if(!fresh.length)return;
   fresh.forEach((k,i)=>{seen.add(k);setTimeout(()=>GAME.on&&S&&S.phase==='play'&&toast(ADD_INTRO[k],6.5),5200+i*7000)});
@@ -3248,7 +3355,7 @@ function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)retu
   const sig=JSON.stringify([S.cash,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
   $('shopCash').textContent=`$${Math.round(S.cash||0)}`;$('shopNight').textContent=`Night ${S.night} done. Night ${S.night+1} is next.`;
   const card=(k,it,ownedNow,extra='')=>{const can=!ownedNow&&S.cash>=it.price;return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+it.price}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" ${can?'':'disabled'}>Buy</button>`}</div>`};
-  $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">+${it.q} boxes to quota · +${it.time} s of shift</div>`)).join('');
+  $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)).join('');
   $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.needs||me.up[it.needs]).map(([k,it])=>{const have=it.once?!!me.up[k]:k==='aid'?(S.aidBonus||0):(me.inv[k]||0);
     const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
     return card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${where?` · ${where}`:''}</div>`:where?`<div class="tag">${where}</div>`:'')}).join('');

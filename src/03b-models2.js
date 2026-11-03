@@ -58,7 +58,7 @@ function makeGiant(){const g=new THREE.Group(),M=MAT.giant.clone(),D=MAT.giantDa
   part(GEO.sph,M,.75,.45,.42,0,5,-.12,torso,o);for(const s of[-1,1])part(GEO.cyl,M,.17,1.6,.17,s*.76,5.1,0,torso,{rz:s*(Math.PI/2-.2),cast:false}); // hunched shoulders, sloping collarbones
   const neck=pivot(0,5.15,.15,torso);part(GEO.cyl,M,.16,2,.16,0,1,0,neck,o);
   const head=pivot(0,2,0,neck);part(GEO.sph,M,.46,.8,.52,0,.38,0,head,o);
-  for(const s of[-1,1]){part(GEO.sph,D,.13,.1,.06,s*.18,.5,.46,head,o);part(GEO.sph,MAT.flare,.013,.013,.013,s*.18,.5,.515,head,o)} // deep sockets, a pinprick in each
+  for(const s of[-1,1]){part(GEO.sph,D,.13,.1,.06,s*.18,.5,.46,head,o);part(GEO.sph,T,.016,.016,.016,s*.18,.5,.515,head,o)} // deep sockets, a pinprick in each
   part(GEO.sph,D,.4,.26,.34,0,-.02,.24,head,o);                           // the inside of its mouth
   for(let i=0;i<12;i++)part(GEO.fang,T,.022,.1,.022,-.27+i*.049,.0,.52,head,{rx:Math.PI,cast:false});
   const jaw=pivot(0,.04,.1,head);part(GEO.sph,M,.42,.24,.46,0,-.14,.08,jaw,o);for(let i=0;i<11;i++)part(GEO.fang,T,.02,.09,.02,-.24+i*.048,-.02,.46,jaw,o);
@@ -88,8 +88,6 @@ function poseGiant(g,{walk=0,stride=0,crouch=0,lean=0,jaw=0,look=null,hands=[nul
     for(const f of A.fingers){f.fp.rotation.x=.2+curl[i]*1.1;f.tip.rotation.x=.25+curl[i]*1.3}}}
 // world position of a hand's palm
 function giantHand(g,i,out){return g.userData.arms[i].wr.localToWorld(out.set(0,0,.9))}
-// faint at a distance (like something seen through weather), bone-white up close
-function giantFade(g,d){const u=g.userData,k=clamp((d-8)/60,0,1);u.mats[0].emissive.setScalar(lerp(.2,.075,k));u.mats[0].color.setScalar(lerp(.9,.5,k));u.mats[1].emissive.setScalar(lerp(.15,.05,k))}
 
 // ---- what rides on the elevator roof (only ever seen through the hatch)
 function makeRoofThing(){const g=new THREE.Group(),head=pivot(0,0,0,g);

@@ -124,6 +124,13 @@ function buildAdditions(){
     acol('gen',FUELR.x-.5,FUELR.z-.25,FUELR.x+.5,FUELR.z+.25);
     addSign([{t:'GENERATOR',size:64,bold:true},{t:'KEEP FUELLED',size:38}],WH.x0+.03,2.2,GEN.z+1.3,Math.PI/2,1.4,.55,g);
     flushStatics(g)}
+  // ---------------------------------------------------------------- warehouse heater (high on the east wall)
+  {const g=addGroup('heat'),x=WH.x1-.45,y=4.2,z=1.5;
+    sbox(MAT.hvac,.8,1,1.6,x,y,z);sbox(MAT.dark,.04,.8,1.4,x-.41,y,z,{cast:false});
+    const coil=new THREE.Mesh(GEO.box,basic(0xff6a20));coil.scale.set(.03,.08,1.2);for(let i=0;i<4;i++){const c=coil.clone();c.position.set(x-.43,y-.3+i*.2,z);g.add(c)}
+    scyl(MAT.steel,.15,.15,WH.h-y-.5,x,y+.5+(WH.h-y-.5)/2,z,{seg:10});
+    addSign([{t:'HEATER',size:70,bold:true}],WH.x1-.03,2.6,z,-Math.PI/2,1.1,.4,g);
+    flushStatics(g)}
 }
 
 // ---------------------------------------------------------------- the "THIS WAY" board
@@ -149,7 +156,7 @@ const bayOn=i=>!BAYS[i].add||owned(BAYS[i].add);
 // ===================================================================== the roof
 // Its own space far off to the west, like the basement: a flat roof the size of the warehouse under a foot of snow,
 // a waist-high parapet, the lot seven metres below, and the storm. Nothing up here is lit.
-const ROOFV={lid:null,beacon:null};
+const ROOFV={lid:null,beacon:null,lamp:null,ventLamp:null};
 function buildRoof(){const R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,W=R.x1-R.x0,D=R.z1-R.z0,gy=R.gy;
   // the building under you, and the lot all around it
   {const g=new THREE.BoxGeometry(W+.4,-gy,D+.4);uvs(g,W/2.2,-gy/2.2);g.translate(cx,gy/2-.1,cz);sg(MAT.wall,g,false)}
@@ -164,9 +171,9 @@ function buildRoof(){const R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,W=R.x1-R.x0,
     sbox(MAT.dark,w*.86,h*.45,.02,x,h*.42,z+d/2+.01,{cast:false});sbox(MAT.dark,w*.86,h*.45,.02,x,h*.42,z-d/2-.01,{cast:false});col(x-w/2,z-d/2,x+w/2,z+d/2)};
   hvac(-213,-8,4.4,2.2);hvac(-187,5,5.8,2.4,1.9);hvac(-201,-15.5,2.9,2);hvac(-177.5,12,2.9,2.2);hvac(-221,9,3,2.4,1.5);
   const vent=(x,z)=>{scyl(MAT.steel,.16,.16,1.1,x,.55,z);scyl(MAT.steel,.32,.32,.08,x,1.14,z);scyl(MAT.snow,.32,.32,.06,x,1.2,z,{cast:false});col(x-.22,z-.22,x+.22,z+.22)};
-  for(const [x,z] of[[-224,-2],[-196,-6],[-182,-12],[-206,12],[-193,15],[-174,-4],[-216,17]])vent(x,z);
+  for(const [x,z] of[[-224,-2],[-196,-9],[-182,-12],[-206,12],[-193,15],[-174,-4],[-216,17]])vent(x,z);
   const glow=basic(0x4a3216);
-  for(const L of LAMPS.slice(0,4)){const x=L.x+R.ox,z=L.z;sbox(MAT.steel,2.3,.36,1.5,x,.18,z);const m=new THREE.Mesh(new THREE.BoxGeometry(2.05,.04,1.25),glow);m.position.set(x,.38,z);ROOT.add(m);col(x-1.15,z-.75,x+1.15,z+.75)}
+  for(const L of LAMPS.slice(0,4)){const x=L.x+R.ox,z=L.z;if(x>RROOM.x0-3&&x<RROOM.x1+3&&z>RROOM.z0-3&&z<RROOM.z1+3)continue;sbox(MAT.steel,2.3,.36,1.5,x,.18,z);const m=new THREE.Mesh(new THREE.BoxGeometry(2.05,.04,1.25),glow);m.position.set(x,.38,z);ROOT.add(m);col(x-1.15,z-.75,x+1.15,z+.75)}
   // drifts piled against the parapet
   for(let i=0;i<34;i++){const side=i%4,t=Math.random();let x,z;
     if(side===0){x=lerp(R.x0+1,R.x1-1,t);z=R.z0+.5}else if(side===1){x=lerp(R.x0+1,R.x1-1,t);z=R.z1-.5}else if(side===2){x=R.x0+.5;z=lerp(R.z0+1,R.z1-1,t)}else{x=R.x1-.5;z=lerp(R.z0+1,R.z1-1,t)}
@@ -178,6 +185,31 @@ function buildRoof(){const R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,W=R.x1-R.x0,
   {const {x,z}=HATCH;sbox(MAT.hvac,1.4,.55,1.4,x,.275,z);sbox(MAT.dark,1.1,.02,1.1,x,.56,z,{cast:false});sbox(MAT.hvac,1.4,1.4,.07,x,1.25,z+.72,{cast:false});
     for(const s of[-1,1]){sbox(MAT.steel,.06,1.1,.06,x+s*.35,1.1,z-.45);sbox(MAT.steel,.06,.06,.3,x+s*.35,1.65,z-.6)}
     const hit=new THREE.Mesh(GEO.box,MAT.steel);hit.scale.set(1.5,1.6,1.5);hit.position.set(x,.8,z);hit.userData={kind:'hatch'};hit.visible=false;ROOT.add(hit);INTER.push(hit);col(x-.7,z-.7,x+.7,z+.7)}
+  // the room in the middle: block walls, a flat roof under the snow, the doorway on the side facing the hatch, one
+  // bulb hanging from the ceiling, and the ventilation plant that keeps the warehouse below warm
+  {const Q=RROOM,t=.25,h=Q.h,mx=(Q.x0+Q.x1)/2,mz=(Q.z0+Q.z1)/2,W=Q.x1-Q.x0,D=Q.z1-Q.z0,dh=2.25;
+    const wall=(x0,z0,x1,z1,y0=0,y1=h)=>{sbox(MAT.wall,x1-x0,y1-y0,z1-z0,(x0+x1)/2,(y0+y1)/2,(z0+z1)/2,{uv:[Math.max(x1-x0,z1-z0)/2.2,(y1-y0)/2.2]});if(!y0)col(x0,z0,x1,z1)};
+    wall(Q.x0-t,Q.z0-t,Q.x1+t,Q.z0);wall(Q.x0-t,Q.z1,Q.x1+t,Q.z1+t);wall(Q.x1,Q.z0,Q.x1+t,Q.z1);
+    wall(Q.x0-t,Q.z0,Q.x0,Q.door.z0);wall(Q.x0-t,Q.door.z1,Q.x0,Q.z1);wall(Q.x0-t,Q.door.z0,Q.x0,Q.door.z1,dh,h);
+    sbox(MAT.hvac,W+.7,.22,D+.7,mx,h+.11,mz);sbox(MAT.snow,W+.75,.14,D+.75,mx,h+.29,mz,{cast:false});sbox(MAT.dark,W-.1,.04,D-.1,mx,h-.02,mz,{cast:false});
+    // the door, swung open against the outside wall, and a sign over it
+    sbox(MAT.door,.06,dh-.05,Q.door.z1-Q.door.z0,Q.x0-t-.05,dh/2,Q.door.z1+(Q.door.z1-Q.door.z0)/2+.05);
+    const s=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.38),toon(0xffffff,{map:signTex([{t:'PLANT ROOM',size:62,bold:true},{t:'VENTILATION',size:30}],{w:300,h:90})}));
+    s.position.set(Q.x0-t-.01,dh+.4,(Q.door.z0+Q.door.z1)/2);s.rotation.y=-Math.PI/2;ROOT.add(s);
+    // the lamp: a cord, a tin shade, a bare bulb
+    scyl(MAT.dark,.01,.01,.7,mx,h-.35,mz,{cast:false});const sh=new THREE.ConeGeometry(.32,.24,12,1,true);sh.translate(mx,h-.78,mz);sg(MAT.shade,sh,false);
+    const b=new THREE.Mesh(GEO.sph,MAT.bulbOn.clone());b.scale.setScalar(.09);b.position.set(mx,h-.88,mz);ROOT.add(b);
+    ROOFV.lamp=new THREE.PointLight(0xffc27a,0,11,1.6);ROOFV.lamp.position.set(mx,h-.95,mz);ROOT.add(ROOFV.lamp);
+    // the ventilation plant: an air handler with ducts up through the roof, a fan, and its control panel
+    const {x,z}=VENT;sbox(MAT.hvac,2.6,2,1.5,x,1,z-.6);sbox(MAT.dark,2.2,1.5,.02,x,1.05,z+.16,{cast:false});
+    for(let i=0;i<5;i++)sbox(MAT.steel,2.1,.04,.03,x,.45+i*.3,z+.18,{cast:false});
+    for(const dx of[-.75,.75]){scyl(MAT.steel,.32,.32,h-2,x+dx,2+(h-2)/2,z-.7,{seg:14});scyl(MAT.steel,.36,.36,.1,x+dx,2.02,z-.7,{seg:14})}
+    sbox(MAT.steel,.7,.9,.12,x+1.75,1.35,z-.1);const lamp=new THREE.Mesh(GEO.sph,basic(0x2aff6a));lamp.scale.setScalar(.06);lamp.position.set(x+1.62,1.65,z-.03);ROOT.add(lamp);ROOFV.ventLamp=lamp;
+    const vs=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.32),toon(0xffffff,{map:signTex([{t:'WAREHOUSE AIR',size:54,bold:true},{t:'KEEP RUNNING',size:30}],{w:300,h:80})}));vs.position.set(x,2.2,z+.16);ROOT.add(vs);
+    col(x-1.3,z-1.35,x+2.1,z+.2);
+    const hit=new THREE.Mesh(GEO.box,MAT.steel);hit.scale.set(3.4,2.2,1.8);hit.position.set(x+.35,1.1,z-.5);hit.userData={kind:'vent'};hit.visible=false;ROOT.add(hit);INTER.push(hit);
+    // a bench and a toolbox, so it reads as somewhere people actually come
+    sbox(MAT.wood,2,.08,.7,Q.x0+1.6,.85,Q.z0+.6);for(const dx of[-.9,.9])sbox(MAT.dark,.06,.85,.6,Q.x0+1.6+dx,.42,Q.z0+.6);sbox(MAT.can,.5,.22,.22,Q.x0+1.2,1,Q.z0+.6);col(Q.x0,Q.z0,Q.x0+2.7,Q.z0+1)}
   // someone's stash at the far end: a crate under a tarp, restocked every night
   {const {x,z}=STASH;sbox(MAT.wood,1.1,.7,.8,x,.35,z,{uv:[1,1]});sbox(MAT.tarp,1.2,.05,.9,x,.73,z-.02,{cast:false});sbox(MAT.snow,1.1,.06,.7,x,.77,z,{cast:false});
     ROOFV.lid=new THREE.Mesh(new THREE.BoxGeometry(1.12,.05,.82).translate(0,0,.41),MAT.wood);ROOFV.lid.position.set(x,.7,z-.41);ROOFV.lid.visible=false;ROOT.add(ROOFV.lid);

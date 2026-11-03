@@ -39,6 +39,11 @@ const GEN={x:-28.6,z:11.9}, FUELR={x:-25.2,z:13.2}, FORK_HOME={x:7.6,z:-15.2,ry:
 // The ladder in the south-west corner comes up through the hatch; the stash is a supply crate someone left at the far end.
 const ROOF={ox:-200,x0:-230,x1:-170,z0:-20,z1:20,gy:-7.3}, LADDER={x:-29.5,z:19.1}, HATCH={x:-229.1,z:18.9}, STASH={x:-172.4,z:-18.2};
 const onRoof=p=>p.x<-100;
+// the room in the middle of the roof (it also fills the one stretch of roof the thing in the yard could not reach),
+// its doorway on the west side facing the hatch, and the ventilation plant inside
+const RROOM={x0:-208,x1:-192,z0:-5,z1:5,h:3.2,door:{z0:1.6,z1:3.2}}, VENT={x:-194.2,z:-2.6};
+const inRoofRoom=p=>p.x>RROOM.x0&&p.x<RROOM.x1&&p.z>RROOM.z0&&p.z<RROOM.z1;
+const chilled=()=>!!(S&&S.chill&&S.chill.st==='cold'); // the warehouse has gone cold (see chillUpdate)
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
 const BOX_KINDS=[{w:.55,h:.42,d:.5,slow:.95},{w:.74,h:.56,d:.64,slow:.86},{w:.92,h:.72,d:.8,slow:.74}];
 const VEST=['#ff7a1a','#a4e33a','#38d4e8','#ff4fa8'];
@@ -191,7 +196,7 @@ const MAT={
   frost:toon(0xffffff,{map:TEX.frostSkin}),frostCold:toon(0x6f9ab8),coldSkin:toon(0xb9d2e2,{map:TEX.lskin}),ice:toon(0xd8ecf6),
   suit:toon(0x26282e),shirt:toon(0xd4d2c8),clip:toon(0x7a5a32),paper2:toon(0xe6e1d2),tie:toon(0x5a1414),
   wrap:toon(0xffffff,{map:TEX.wrap}),wing:toon(0xffffff,{map:TEX.wing,side:THREE.DoubleSide,alphaTest:.5,transparent:false}),mothBody:toon(0x8a8070),
-  giant:toon(0xd9d5ca,{map:TEX.lskin,fog:false,emissive:0x262421}),giantDark:basic(0x070606,{fog:false}),giantShade:toon(0x8e897e,{fog:false,emissive:0x121110}),giantTooth:toon(0xe6e0c8,{fog:false,emissive:0x1a1914}),
+  giant:toon(0xd9d5ca,{map:TEX.lskin}),giantDark:basic(0x070606),giantShade:toon(0x8e897e),giantTooth:toon(0xe6e0c8),
   snow:toon(0xc5ced8),snowDim:toon(0x8f99a6),hvac:toon(0x5a6066),
   parcel:[toon(0xc8352a),toon(0x2e5fb8),toon(0xd8b22a)],chute:toon(0x15161a),belt:toon(0x222326),
   reefer:toon(0xd9dbd8,{map:TEX.ribs}),genY:toon(0x6a6a2a),can:toon(0xa8261c),flare:basic(0xff4a2a),cage:toon(0x55585c),board:toon(0x8b6a43,{map:TEX.pallet}),

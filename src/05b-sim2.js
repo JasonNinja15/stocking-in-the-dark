@@ -7,7 +7,8 @@ const ADDS={
   fork:{name:'Repaired Forklift',price:350,q:8,time:45,desc:'Some trucks bring pallets of eight boxes. Drive one onto a top shelf to shelve all eight at once. Or carry three loose boxes on the forks.'},
   base:{name:'Basement Returns',price:400,q:6,time:60,desc:'Ten damaged returns in a cage downstairs, reached by the freight elevator. They can\'t be shelved: each one fed to the shredder counts toward quota.'},
   gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power for outages (from night 3). Keep it fuelled with jerry cans from the rack by the roof ladder.'},
-  bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'}};
+  bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'},
+  heat:{name:'Warehouse Heater',price:250,q:0,time:0,desc:'A gas heater high on the east wall. The warehouse holds its warmth an extra night between cold spells.'}};
 const SHOP={
   fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam. The battery lasts twice as long.'},
   shake:{name:'Shake flashlight',price:100,once:true,key:'R',desc:'Hold R to shake your flashlight and charge it anywhere. Anything listening hears it.'},
@@ -42,7 +43,7 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.aidLeft=2+(S.aidBonus||0);S.aidBonus=0;
   S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);
   S.parcels=[];S.pallets=[];S.flares=[];S.cold={door:0,open:false,t:0};S.conv={sel:S.conv?S.conv.sel:0,next:12,jam:false};
-  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.rg=null;S.stash=true;HOST.rgT=0;S.paN=0;S.outage=false;
+  S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.rg=null;S.stash=true;HOST.rgT=0;S.chill=null;HOST.frzT=0;HOST.chillAt=coldNight(S.night)?(SHIFT_END-S.extra)/2:Infinity;S.paN=0;S.outage=false;
   HOST.outageAt=S.night>=3&&Math.random()<Math.min(.6,.22+.07*S.night)*diffEv()?rand(SHIFT_END*.12,SHIFT_END*.8):1e9;
   S.fork={x:FORK_HOME.x,z:FORK_HOME.z,ry:FORK_HOME.ry,lift:0,drv:'',pal:-1,pass:null};
   Object.assign(HOST,{nextPA:rand(70,120),nextMoth:rand(30,50),palDue:owned('fork')?3:0,mgr:false,noise:[]});
@@ -85,7 +86,7 @@ function extrasUpdate(dt){
   S.flares=S.flares.filter(f=>(f.t-=dt)>0);
   // a power outage, once it happens, lasts until morning
   if(!S.outage&&!S.ot&&S.t>=HOST.outageAt){S.outage=true;if(!genPowered())S.lamps=S.lamps.map(()=>0);emit({e:'outage',gen:genPowered()});spawnBlind()}
-  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);
+  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);
   if(!HOST.mgr&&S.night>=3&&S.t>=-S.extra+50){HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:MGR_SPOT.x,z:MGR_SPOT.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0})}
   if(owned('gen')){HOST.nextMoth-=dt;if(HOST.nextMoth<=0){HOST.nextMoth=rand(40,70);spawnMoth()}}}
 
@@ -95,12 +96,26 @@ function coldUpdate(dt){if(!owned('cold'))return;const c=S.cold;
   const propped=S.boxes.some(b=>b.st===3&&b.x>COLD.dx0-.3&&b.x<COLD.dx1+.3&&Math.abs(b.z-COLD.z1)<.7);
   // a push bar on the inside: walk up to the shut door from inside and it opens
   if(!c.open&&alivePlayers().some(p=>inCold(p)&&Math.hypot(p.x-(COLD.dx0+COLD.dx1)/2,p.z-COLD.z1)<1.3)){c.open=true;c.t=4;emit({e:'coldDoor',o:1})}
+  if(chilled()&&!c.open){c.open=true;c.t=2;emit({e:'coldDoor',o:1})}if(chilled())c.t=Math.max(c.t,1); // what's in there wants out
   if(c.open){c.t-=dt;if(c.t<=0&&!propped){c.open=false;emit({e:'coldDoor',o:0})}}
   c.door=clamp(c.door+(c.open?dt*2.2:-dt*3),0,1);
-  for(const b of S.boxes){if(!b.fz||(b.st!==1&&b.st!==3))continue;b.th-=dt;
+  for(const b of S.boxes){if(!b.fz||(b.st!==1&&b.st!==3)||chilled())continue;b.th-=dt; /* nothing thaws while the warehouse is cold */
     if(b.th<=0){const h=b.st===1?S.players[b.h]:null;if(h){if(h.carry===b.id)h.carry=h.stack.length?h.stack.pop():-1;else h.stack=h.stack.filter(x=>x!==b.id)}
       b.st=4;S.lost++;S.bver++;emit({e:'msg',m:'A frozen crate thawed and spoiled.'})}}}
-function frostUpdate(m,dt){m.cd-=dt;const shut=S.cold.door<.3;
+// in and out of the freezer room by its door (the floor grid can't see a way through the shelving in there)
+function frostGo(m,tx,tz,home,sp,dt){const dc=(COLD.dx0+COLD.dx1)/2,inM=inCold(m);
+  if(home===inM)return inM?walkStraight(m,tx,tz,sp,dt):monWalk(m,tx,tz,sp,dt);
+  if(inM){if(walkStraight(m,dc,COLD.z1-.7,sp,dt)<.3){m.z=COLD.z1+.9;m.path=null}return 99}
+  if(monWalk(m,dc,COLD.z1+.9,sp,dt)<.4){m.z=COLD.z1-.7;m.x=dc}return 99}
+function walkStraight(m,tx,tz,sp,dt){const dx=tx-m.x,dz=tz-m.z,d=Math.hypot(dx,dz);if(d>.02){const s=Math.min(d,sp*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=Math.atan2(dx,dz)}return Math.hypot(tx-m.x,tz-m.z)}
+function frostUpdate(m,dt){m.cd-=dt;if(!isFinite(m.x)||!isFinite(m.z)){m.x=m.hx;m.z=m.hz;m.path=null}const shut=S.cold.door<.3;
+  // while the warehouse is cold they can leave the freezer room and come after anyone in the building; when it warms
+  // up again they run back to their corners
+  if(chilled()){m.out=true;if(litBy(m.x,1.4,m.z)){m.a=1;return}
+    const tgt=nearestPlayer(m.x,m.z,45,p=>inWH(p)&&inTrailer(p)<0);if(!tgt){m.a=0;return}
+    if(Math.hypot(tgt.x-m.x,tgt.z-m.z)<.95&&m.cd<=0){emit({e:'scare',p:tgt.id,ty:6,id:m.id});damage(tgt,30);m.cd=7;return}
+    m.a=2;frostGo(m,tgt.x,tgt.z,false,1.5,dt);return}
+  if(m.out){m.a=2;if(frostGo(m,m.hx,m.hz,true,4.2,dt)<.3){m.out=false;m.st='still';m.path=null}return}
   if(m.st==='back'){m.a=2;const dx=m.hx-m.x,dz=m.hz-m.z,d=Math.hypot(dx,dz);if(d<.1||m.cd<=0&&!shut){m.st='still'}else{const s=Math.min(d,1.2*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=Math.atan2(dx,dz)}return}
   // they can only move while the door is shut, and never while light is on them
   if(!shut||litBy(m.x,1.4,m.z)){m.a=shut?1:0;return}
@@ -108,8 +123,13 @@ function frostUpdate(m,dt){m.cd-=dt;const shut=S.cold.door<.3;
   const dx=tgt.x-m.x,dz=tgt.z-m.z,d=Math.hypot(dx,dz);
   // one grab and they all shrink back to their corners for a while
   if(d<.95&&m.cd<=0){emit({e:'scare',p:tgt.id,ty:6,id:m.id});damage(tgt,30);for(const o of S.mons)if(o.ty===6){o.st='back';o.cd=8}return}
+  if(d<1e-3)return;
   const s=Math.min(d,1.5*dt);m.x=clamp(m.x+dx/d*s,COLD.x0+.4,COLD.x1-.4);m.z=clamp(m.z+dz/d*s,COLD.z0+1.3,COLD.z1-.4);m.ry=Math.atan2(dx,dz);m.a=2}
 
+// follow the floor grid towards a spot (the same walking the night manager does)
+function monWalk(m,tx,tz,sp,dt){m.rep=(m.rep||0)-dt;if(m.rep<=0||!m.path){m.rep=.6;m.path=astar(m.x,m.z,tx,tz)}let px=tx,pz=tz;
+  if(m.path){while(m.path.length&&Math.hypot(m.path[0].x-m.x,m.path[0].z-m.z)<.4)m.path.shift();if(m.path.length){px=m.path[0].x;pz=m.path[0].z}}
+  const dx=px-m.x,dz=pz-m.z,d=Math.hypot(dx,dz);if(d>.02){const s=Math.min(d,sp*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*6)}return Math.hypot(tx-m.x,tz-m.z)}
 // ---------------------------------------------------------------- sorting conveyor
 function convUpdate(dt){if(!owned('conv'))return;const c=S.conv;
   c.next-=dt;if(c.next<=0&&S.parcels.length<6&&!c.jam){c.next=rand(13,19);
@@ -224,10 +244,12 @@ function yardUpdate(dt){const y=S.yard;if(!y)return;const tr=S.trucks[y.bay];if(
     return}}
 
 // ---------------------------------------------------------------- the thing in the yard, when someone is up on the roof
-// It comes in out of the storm and walks round the building to whoever is nearest an edge. Then it leans over the
-// parapet and reaches, slowly: its hand follows you at a walk, so you can step out from under it, and the middle of the
-// roof is beyond it. If the hand closes on you it lifts you up to its mouth. It gives up after a while and wanders off.
-const RG_O=2.8,RG_REACH=13.6,RG_SPD=2.1,RG_ST=['walk','reach','retract','eat','leave','wait'];
+// It comes in out of the storm from wherever nobody up there is looking, and walks round the outside of the building
+// only as far as the nearest spot it can reach someone from. Then it leans over the parapet and reaches, slowly: its
+// hand follows you at a walk, so you can step out from under it. If you're further in than its arm goes, it plants its
+// other hand on the roof and leans right over the building. Nobody in the room in the middle of the roof can be
+// reached. If the hand closes on you it lifts you up to its mouth. It gives up after a while and wanders off.
+const RG_O=2.8,RG_REACH=13.6,RG_REACH2=23.5,RG_SPD=2.1,RG_ST=['walk','reach','retract','eat','leave','wait'];
 const rgRect=()=>({x0:ROOF.x0-RG_O,z0:ROOF.z0-RG_O,x1:ROOF.x1+RG_O,z1:ROOF.z1+RG_O});
 const rgP=()=>{const r=rgRect();return 2*(r.x1-r.x0+r.z1-r.z0)};
 function perimAt(s){const r=rgRect(),W=r.x1-r.x0,H=r.z1-r.z0,P=2*(W+H);s=((s%P)+P)%P;
@@ -235,43 +257,77 @@ function perimAt(s){const r=rgRect(),W=r.x1-r.x0,H=r.z1-r.z0,P=2*(W+H);s=((s%P)+
 function perimS(x,z){const r=rgRect(),W=r.x1-r.x0,H=r.z1-r.z0;x=clamp(x,r.x0,r.x1);z=clamp(z,r.z0,r.z1);
   const d=[z-r.z0,r.x1-x,r.z1-z,x-r.x0],m=Math.min(...d);
   return m===d[0]?x-r.x0:m===d[1]?W+(z-r.z0):m===d[2]?W+H+(r.x1-x):2*W+H+(r.z1-z)}
+const arcD=(a,b)=>{const P=rgP();let d=Math.abs(a-b)%P;return Math.min(d,P-d)};
 // does the straight walk from a to b cross the building?
 function rgCrosses(ax,az,bx,bz){const R=ROOF,dx=bx-ax,dz=bz-az;let t0=0,t1=1;
   for(const [a,d,lo,hi] of[[ax,dx,R.x0,R.x1],[az,dz,R.z0,R.z1]]){if(Math.abs(d)<1e-9){if(a<lo||a>hi)return false;continue}
     let u=(lo-a)/d,v=(hi-a)/d;if(u>v)[u,v]=[v,u];t0=Math.max(t0,u);t1=Math.min(t1,v);if(t0>t1)return false}return t1>.01&&t0<.99}
+const rgCanTake=p=>!!p&&!p.dead&&onRoof(p)&&!inRoofRoom(p);
+// the spot round the building it can get to soonest from which p is in reach (an ordinary reach if anywhere allows
+// it, otherwise one where it has to brace itself on the roof)
+function rgSpot(g,p){const P=rgP(),gs=perimS(g.x,g.z),gp=perimAt(gs),off=Math.hypot(gp.x-g.x,gp.z-g.z);
+  for(const R of[RG_REACH*.92,RG_REACH2*.95]){let best=null,bd=1e9;
+    for(let s=0;s<P;s+=1){const q=perimAt(s);if(Math.hypot(q.x-p.x,q.z-p.z)>R)continue;
+      const c=off<.5?arcD(s,gs):rgCrosses(g.x,g.z,q.x,q.z)?off+arcD(s,gs):Math.hypot(q.x-g.x,q.z-g.z);
+      if(c<bd){bd=c;best={s,x:q.x,z:q.z,brace:R>RG_REACH,cost:c}}}
+    if(best)return best}
+  return null}
+// out in the storm, in the direction furthest from where anyone up there is facing
+function rgSpawnAt(ups,cx,cz){let best=null,bs=-9;
+  for(let i=0;i<24;i++){const a=i/24*Math.PI*2,x=cx+Math.cos(a)*64,z=cz+Math.sin(a)*54;let sc=9;
+    for(const p of ups){const dx=x-p.x,dz=z-p.z,d=Math.hypot(dx,dz)||1;sc=Math.min(sc,(dx*Math.sin(p.yaw)+dz*Math.cos(p.yaw))/d)}
+    if(sc>bs){bs=sc;best={x,z}}}return best}
 function roofUpdate(dt){const ups=alivePlayers().filter(onRoof),R=ROOF,cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2;let g=S.rg;
   if(!g){HOST.rgT=ups.length?HOST.rgT+dt:Math.min(0,HOST.rgT+dt);
     if(HOST.rgT<9/diffEv())return;
-    const a=rand(0,Math.PI*2);g=S.rg={st:'walk',x:cx+Math.cos(a)*62,z:cz+Math.sin(a)*52,ry:0,k:0,hx:cx,hz:cz,tg:'',t:0,pt:0,far:0,stepD:0};emit({e:'gnear'})}
+    const sp=rgSpawnAt(ups,cx,cz);g=S.rg={st:'walk',x:sp.x,z:sp.z,ry:Math.atan2(cx-sp.x,cz-sp.z),k:0,hx:cx,hz:cz,tg:'',t:0,pt:0,far:0,stepD:0,b:0,re:0,goal:null};emit({e:'gnear'})}
   const P=rgP(),ease=v=>Math.max(0,v);
   const stepTo=(x,z,spd)=>{const dx=x-g.x,dz=z-g.z,d=Math.hypot(dx,dz);if(d<1e-3)return 0;const s=Math.min(d,spd*dt);g.x+=dx/d*s;g.z+=dz/d*s;g.ry=angLerp(g.ry,Math.atan2(dx,dz),dt*1.5);
     g.stepD+=s;if(g.stepD>3.4){g.stepD=0;emit({e:'gstep',x:r2(g.x),z:r2(g.z)})}return d-s};
   const face=(x,z)=>{g.ry=angLerp(g.ry,Math.atan2(x-g.x,z-g.z),dt*1.2)};
-  let tg=S.players[g.tg];if(!tg||tg.dead||!onRoof(tg))tg=null;
-  // whoever on the roof stands nearest an edge is the one it goes for
-  if(g.st==='walk'||g.st==='wait'){let best=null,bd=1e9;for(const p of ups){const e=perimAt(perimS(p.x,p.z)),d=Math.hypot(e.x-p.x,e.z-p.z);if(d<bd){bd=d;best=p}}
-    if(best){tg=best;g.tg=best.id}else{g.st='leave'}}
+  let tg=S.players[g.tg];if(!rgCanTake(tg))tg=null;
+  const prey=ups.filter(rgCanTake);
+  if(g.st==='walk'||g.st==='wait'){
+    if(!ups.length)g.st='leave';
+    else{g.re-=dt;if(g.re<=0||!tg){g.re=.6;let best=null;for(const p of prey){const sp=rgSpot(g,p);if(sp&&(!best||sp.cost<best.sp.cost))best={p,sp}}
+      if(best){tg=best.p;g.tg=tg.id;g.goal=best.sp}else{tg=null;g.goal=null}}}}
   if(g.st!=='leave'&&g.st!=='eat'){g.pt+=dt;if(g.pt>48&&g.st!=='reach')g.st=g.k>0?'retract':'leave'}
-  const dTg=tg?Math.hypot(tg.x-g.x,tg.z-g.z):1e9;
+  const dTg=tg?Math.hypot(tg.x-g.x,tg.z-g.z):1e9,lim=g.b?RG_REACH2:RG_REACH;
   switch(g.st){
-  case 'walk':case 'wait':{const gs=perimS(g.x,g.z),gp=perimAt(gs),on=Math.hypot(gp.x-g.x,gp.z-g.z)<.4,ts=perimS(tg.x,tg.z),tp=perimAt(ts);
-    if(!on){ // still coming in out of the storm: straight to the wall nearest them if nothing's in the way
-      const go=rgCrosses(g.x,g.z,tp.x,tp.z)?gp:tp;stepTo(go.x,go.z,RG_SPD);g.st='walk';break}
-    let ds=ts-gs;if(ds>P/2)ds-=P;if(ds<-P/2)ds+=P;
+  case 'walk':case 'wait':{if(!tg||!g.goal){g.st='wait';break} // everyone up there is in the room: it waits outside
+    const gs=perimS(g.x,g.z),gp=perimAt(gs),on=Math.hypot(gp.x-g.x,gp.z-g.z)<.4,go=g.goal;
+    if(!on){stepTo(...(rgCrosses(g.x,g.z,go.x,go.z)?[gp.x,gp.z]:[go.x,go.z]),RG_SPD);g.st='walk';break} // still coming in out of the storm
+    let ds=go.s-gs;if(ds>P/2)ds-=P;if(ds<-P/2)ds+=P;
     if(Math.abs(ds)>.35){const n=perimAt(gs+Math.sign(ds)*Math.min(Math.abs(ds),RG_SPD*dt));stepTo(n.x,n.z,RG_SPD*2);g.st='walk';break}
-    face(tg.x,tg.z);g.st='wait';if(dTg<=RG_REACH){g.st='reach';const e={x:clamp(g.x,R.x0,R.x1),z:clamp(g.z,R.z0,R.z1)};g.hx=e.x;g.hz=e.z;g.far=0;emit({e:'greach'})}break}
-  case 'reach':{if(!tg){g.st='retract';break}face(tg.x,tg.z);g.k=Math.min(1,g.k+dt/4.2);
+    face(tg.x,tg.z);g.st='wait';
+    if(dTg<=(go.brace?RG_REACH2:RG_REACH)){g.st='reach';g.b=go.brace?1:0;g.hx=clamp(g.x,R.x0,R.x1);g.hz=clamp(g.z,R.z0,R.z1);g.far=0;emit({e:'greach'})}else g.re=0;break}
+  case 'reach':{if(!tg){g.st='retract';break}face(tg.x,tg.z);g.k=Math.min(1,g.k+dt/(g.b?5.5:4.2));
     // the hand drifts after you at a walking pace, never further than its arm goes
     const dx=tg.x-g.hx,dz=tg.z-g.hz,d=Math.hypot(dx,dz),s=Math.min(d,(g.k<1?1.2:2.1)*dt);if(d>1e-3){g.hx+=dx/d*s;g.hz+=dz/d*s}
-    const ox=g.hx-g.x,oz=g.hz-g.z,od=Math.hypot(ox,oz);if(od>RG_REACH){g.hx=g.x+ox/od*RG_REACH;g.hz=g.z+oz/od*RG_REACH}
-    g.far=dTg>RG_REACH+1.2?g.far+dt:0;if(g.far>1.4){g.st='retract';break}
+    const ox=g.hx-g.x,oz=g.hz-g.z,od=Math.hypot(ox,oz);if(od>lim){g.hx=g.x+ox/od*lim;g.hz=g.z+oz/od*lim}
+    g.far=dTg>lim+1.2?g.far+dt:0;if(g.far>1.4){g.st='retract';break}
     if(g.k>=1&&Math.hypot(tg.x-g.hx,tg.z-g.hz)<1.15){g.st='eat';g.t=0;g.tg=tg.id;emit({e:'ggrab',p:tg.id})}break}
-  case 'retract':g.k=Math.max(0,g.k-dt/2.6);if(g.k<=0)g.st=g.pt>48||!ups.length?'leave':'walk';break;
+  case 'retract':g.k=Math.max(0,g.k-dt/2.6);if(g.k<=0){g.b=0;g.re=0;g.st=g.pt>48||!ups.length?'leave':'walk'}break;
   case 'eat':{const v=S.players[g.tg];if(!v||v.dead){g.st='leave';break}g.t+=dt;v.x=g.hx;v.z=g.hz;v.tpT=.5;
     if(g.t>=3.6){emit({e:'scare',p:v.id,ty:9});emit({e:'chomp',x:r2(g.x),z:r2(g.z)});damage(v,999);g.st='leave'}break}
-  case 'leave':{g.k=ease(g.k-dt/2);const dx=g.x-cx,dz=g.z-cz,d=Math.hypot(dx,dz)||1;stepTo(g.x+dx/d*5,g.z+dz/d*5,RG_SPD*1.15);
+  case 'leave':{g.k=ease(g.k-dt/2);if(g.k<=0)g.b=0;const dx=g.x-cx,dz=g.z-cz,d=Math.hypot(dx,dz)||1;stepTo(g.x+dx/d*5,g.z+dz/d*5,RG_SPD*1.15);
     if(d>78){S.rg=null;HOST.rgT=-rand(25,40)}break}}}
 
+
+// ---------------------------------------------------------------- the warehouse getting cold
+// From night 3, every second night (every third with the heater), halfway through the shift the ventilation plant in
+// the room on the roof starts failing. The crew gets two minutes to restart it there. After that the warehouse goes
+// cold: everyone loses a point of health a second until someone restarts it, frozen crates stop thawing, and the
+// frost figures can leave the freezer room. Once it is running again they run back.
+const CHILL_WARN=120;
+function coldNight(n){const N=owned('heat')?3:2;return n>1&&(n-1)%N===0}
+function chillUpdate(dt){
+  if(!S.chill&&S.t>=HOST.chillAt){HOST.chillAt=Infinity;S.chill={st:'warn',t:CHILL_WARN};emit({e:'chill'})}
+  const c=S.chill;if(!c)return;
+  if(c.st==='warn'){c.t-=dt;if(c.t<=0){c.st='cold';c.t=0;HOST.frzT=0;emit({e:'frozen'})}return}
+  HOST.frzT+=dt;if(HOST.frzT<1)return;HOST.frzT-=1;
+  for(const p of alivePlayers()){p.hp-=1;if(p.hp<=0){p.hp=1;damage(p,999)}}}
+function fixVent(p){if(!S.chill||!nearPos(p,VENT.x,VENT.z,3.4))return;const was=S.chill.st;S.chill=null;emit({e:'warm',p:p.id,n:p.name,was})}
 // ---------------------------------------------------------------- the night manager
 function managerUpdate(m,dt){m.t+=dt;
   const walkTo=(tx,tz,sp)=>{m.rep-=dt;if(m.rep<=0||!m.path){m.rep=.6;m.path=astar(m.x,m.z,tx,tz)}let px=tx,pz=tz;
@@ -379,6 +435,7 @@ function act2(pid,p,a){
     if(down&&S.rg&&S.rg.st==='eat'&&S.rg.tg===pid)return true;
     const x=up?HATCH.x+1.15:LADDER.x+1.1,z=up?HATCH.z-1.1:LADDER.z-.9;p.x=x;p.z=z;p.tpT=.8;
     emit({e:'tp',p:pid,x:r2(x),z:r2(z),climb:up?1:-1});return true}
+  case 'vent':fixVent(p);return true;
   case 'stash':{if(!nearPos(p,STASH.x,STASH.z,2.4))return true;if(!S.stash)return toP(p,'Empty. Someone already went through it tonight.'),true;
     S.stash=false;const k=['batt','flare','drink','horn','strobe'][randi(0,4)];p.inv[k]=(p.inv[k]||0)+1;emit({e:'stash',p:pid,k});return true}
   case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>m.ty===14&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
