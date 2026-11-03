@@ -143,3 +143,4 @@ Mouse sensitivity, volume, field of view, graphics quality (Low turns off shadow
 - `src/`: the source. `shell.html` holds the page and UI; `01-core.js` to `07b-client2.js` hold the game (renderer and textures, world, models, audio, simulation, networking, client). The `b` files hold the additions, the shop, the later-night monsters and the items.
 - `build.sh`: rebuilds `stocking-in-the-dark.html` from `src/`, plus a copy as `index.html` for GitHub Pages.
 - `tools/serve.ps1`: a tiny local web server for testing (`powershell -File tools/serve.ps1`, then open http://localhost:8137).
+- `tools/qa.js`: a test harness. With the local server running, open the game, then in the browser console run `await import('/tools/qa.js')` and e.g. `await QA.boot({bots:3,adds:['cold','fork']}); await QA.play(3)` to have bot workers play three nights through the real game actions; `QA.errs` collects any errors and `QA.stats` what happened. The game never loads it.

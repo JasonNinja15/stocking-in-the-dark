@@ -136,15 +136,15 @@ function buildAdditions(){
 // ---------------------------------------------------------------- the "THIS WAY" board
 // Hangs on the dock wall right in front of where everyone starts, listing what the crew owns with an arrow to
 // each one (as seen from the start, facing the dock: up is the dock wall, down is the south wall behind you).
-const DIR_INFO={fork:{n:'FORKLIFT',x:FORK_HOME.x,z:FORK_HOME.z},cold:{n:'COLD STORAGE',x:25.3,z:-13},bayc:{n:'BAY C',x:-24,z:-19},
-  base:{n:'FREIGHT ELEVATOR',x:-27.5,z:-9.3},gen:{n:'GENERATOR',x:GEN.x,z:GEN.z},conv:{n:'SORTING CONVEYOR',x:-7.5,z:18}};
-function drawDirectory(){const m=ADDV.dir,ks=Object.keys(DIR_INFO).filter(owned);m.visible=ks.length>0;if(!ks.length)return;
+const DIR_INFO={roof:{n:'ROOF LADDER',x:LADDER.x,z:LADDER.z,always:true},fork:{n:'FORKLIFT',x:FORK_HOME.x,z:FORK_HOME.z},cold:{n:'COLD STORAGE',x:25.3,z:-13},bayc:{n:'BAY C',x:-24,z:-19},
+  base:{n:'FREIGHT ELEVATOR',x:-27.5,z:-9.3},gen:{n:'GENERATOR',x:GEN.x,z:GEN.z},conv:{n:'SORTING CONVEYOR',x:-7.5,z:18},heat:{n:'HEATER',x:29.5,z:1.5}};
+function drawDirectory(){const m=ADDV.dir,ks=Object.keys(DIR_INFO).filter(k=>DIR_INFO[k].always||owned(k));m.visible=ks.length>0;if(!ks.length)return;
   const W=1024,LH=74,H=96+ks.length*LH;
   const t=ctex(W,H,(g,w,h)=>{g.fillStyle='#c9a227';g.fillRect(0,0,w,h);g.strokeStyle='#16130c';g.lineWidth=10;g.strokeRect(9,9,w-18,h-18);
     g.fillStyle='#16130c';g.font="bold 54px 'Special Elite', Courier New";g.textBaseline='middle';g.fillText('THIS WAY',40,52);
     ks.forEach((k,i)=>{const d=DIR_INFO[k],y=96+i*LH+LH/2-6;g.font="44px 'Special Elite', Courier New";g.fillText(d.n,40,y);
       const a=Math.atan2(d.z-(-15.5),d.x-0);g.save();g.translate(w-90,y);g.rotate(a);g.beginPath();g.moveTo(-30,-7);g.lineTo(8,-7);g.lineTo(8,-20);g.lineTo(32,0);g.lineTo(8,20);g.lineTo(8,7);g.lineTo(-30,7);g.closePath();g.fill();g.restore()})},{aniso:4});
-  if(m.material.map)m.material.map.dispose();m.material.map=t;m.material.needsUpdate=true;m.scale.set(3.6,3.6*H/W,1);m.position.y=3.35+m.scale.y/2-.6}
+  if(m.material.map)m.material.map.dispose();m.material.map=t;m.material.needsUpdate=true;m.scale.set(3.6,3.6*H/W,1);m.position.y=2.55+m.scale.y/2}
 // switch on everything the crew owns (host and clients both run this when the list changes)
 function applyAdds(){for(const k in ADDG)ADDG[k].visible=owned(k);
   for(const c of COL)if(c.add&&!c.door&&c.gate===undefined)c.on=owned(c.add);

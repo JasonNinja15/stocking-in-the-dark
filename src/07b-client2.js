@@ -93,10 +93,10 @@ function buildRoofVisuals(){ROOFG=makeGiant();ROOFG.visible=false;ROOT.add(ROOFG
     fragmentShader:`varying float vA;void main(){vec2 c=gl_PointCoord-.5;float r=dot(c,c);if(r>.25)discard;gl_FragColor=vec4(.86,.9,1.,vA*(1.-r*4.));}`}));
   SNOW.frustumCulled=false;SNOW.visible=false;scene.add(SNOW)}
 const FOG0={c:new THREE.Color(0x030305),d:.052},FOG_ROOF={c:new THREE.Color(0x07090d),d:.06};
-function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.myId];chillHint(me);
+function syncRoof(dt,t){const cp=camera.position,up=cp.x<-100&&S.phase==='play',me=S.players[NET.myId];chillHint(me); // (by the camera, so spectating someone up there shows the storm too)
   // the storm: a lighter, bluer murk, snow in the air, wind, frost creeping in at the edges of your sight
   scene.fog.color.lerp(up?FOG_ROOF.c:FOG0.c,1-Math.exp(-6*dt));scene.fog.density=damp(scene.fog.density,up?FOG_ROOF.d:FOG0.d,6,dt);AMB.intensity=damp(AMB.intensity,up?.07:.32,6,dt);
-  const inRm=up&&inRoofRoom(ME); // indoors up there: out of the snow and most of the wind
+  const inRm=up&&inRoofRoom(cp); // indoors up there: out of the snow and most of the wind
   if(SNOW){SNOW.visible=up&&!inRm;if(up){const u=SNOW.material.uniforms;u.t.value=t;u.cam.value.copy(camera.position);camera.getWorldDirection(u.fw.value);u.lit.value=ME.lightOn()?1:.15}}
   if(AU.ready){if(!WIND)WIND=loop('wind',null,1);if(WIND){WIND.P.panningModel='equalpower';WIND.P.refDistance=1e4;WIND.set(up?(inRm?.18:.55):0,up?.4:.25)}}
   const fr=$('frost');if(fr){ME.cold=damp(ME.cold||0,(up&&!inRm)||chilled()?1:0,up||chilled()?.25:1.5,dt);fr.style.opacity=(ME.cold*.85).toFixed(3)}

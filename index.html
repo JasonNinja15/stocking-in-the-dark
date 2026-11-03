@@ -186,7 +186,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <p><b>The roof.</b> A ladder in the south-west corner climbs to the roof, where it is snowing hard and only your flashlight shows anything. A supply crate up there gives one free item a night. The ventilation plant is in the room in the middle of the roof (its door faces the hatch). From night 3, every couple of nights the warehouse starts getting cold: you get two minutes to get up there and hold <kbd>E</kbd> on the plant before the cold sets in and starts hurting everyone. A heater from the shop buys an extra night between cold spells.</p>
   <p><b>Difficulty</b> is picked on the title screen: Easy has smaller quotas, softer monsters and rarer bad luck; Hard has bigger quotas, harder hits and much more bad luck. A crew plays on the host's setting.</p>
   <p><b>Power outages.</b> From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel. And something that lives in the dark comes out: it can't see you, but it hears you, and it feels footsteps close by. Stand still.</p>
-  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items sit on the hotbar at the bottom of the screen: <kbd>scroll</kbd> (or a number key) to pick one, <kbd>right click</kbd> to use it. The red headlamp is on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold right click with the thermal scanner picked to use it. The <b>THIS WAY</b> board on the dock wall points to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
+  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items sit on the hotbar at the bottom of the screen: <kbd>scroll</kbd> (or a number key) to pick one, <kbd>right click</kbd> to use it. The red headlamp is on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold right click with the thermal scanner picked to use it. The <b>THIS WAY</b> board on the dock wall points to the roof ladder and to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
   <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>Scroll</kbd> pick item &middot; <kbd>Right click</kbd> use item &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause</p>
   <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to ten people can work a shift together. In the crew room the host can make the crew public, and then anyone can find it under <i>Join Public</i> and join, even mid-shift. The quota grows with the crew. If you go down, you watch the others in third person until the night ends: move the mouse to look around, click or use the arrow keys to switch.</p>
   </div>
@@ -594,10 +594,10 @@ function buildWorld(){
         float j=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453); // jittered steps: grain instead of bands
         for(int i=0;i<32;i++){vec3 x=o+d*(t0+(float(i)+j)*st);float h=vA.y-x.y;if(h<0.||h>5.1)continue;
           float R=h*.51,r=length(x.xz-vA.xz);if(r>R)continue;float e=r/max(R,.001);
-          acc+=(.4+2.*smoothstep(.72,1.,e)*(1.-smoothstep(.97,1.,e)))*(1.-.55*h/5.1);}
+          acc+=(.18+2.*smoothstep(.72,1.,e)*(1.-smoothstep(.97,1.,e)))*(1.-.55*h/5.1);}
         float hw=clamp((vA.y-vW.y)/5.1,0.,1.),g=1.-abs(dot(normalize(vN),d));
         float wall=(.35+1.6*g*g*g)*(1.-.65*hw)*(1.-smoothstep(.85,1.,hw)); // the shaft's edge, fading out before the floor
-        float f=exp(-pow(.052*max(tE-3.,0.),2.));gl_FragColor=vec4(vec3(1.,.70,.42)*(acc*st*.04+wall*.07)*lv*f,1.);}`});
+        float f=exp(-pow(.052*max(tE-3.,0.),2.));gl_FragColor=vec4(vec3(1.,.70,.42)*(acc*st*.035+wall*.06)*lv*f,1.);}`});
   const fixture=(x,z)=>{scyl(MAT.dark,.015,.015,WH.h-5.5,x,5.5+(WH.h-5.5)/2,z,{cast:false});
     const g=new THREE.ConeGeometry(.55,.4,14,1,true);g.translate(x,5.35,z);sg(MAT.shade,g,false);
     const b=new THREE.Mesh(GEO.sph,MAT.bulbOn.clone());b.scale.setScalar(.13);b.position.set(x,5.2,z);ROOT.add(b);return b};
@@ -791,15 +791,15 @@ function buildAdditions(){
 // ---------------------------------------------------------------- the "THIS WAY" board
 // Hangs on the dock wall right in front of where everyone starts, listing what the crew owns with an arrow to
 // each one (as seen from the start, facing the dock: up is the dock wall, down is the south wall behind you).
-const DIR_INFO={fork:{n:'FORKLIFT',x:FORK_HOME.x,z:FORK_HOME.z},cold:{n:'COLD STORAGE',x:25.3,z:-13},bayc:{n:'BAY C',x:-24,z:-19},
-  base:{n:'FREIGHT ELEVATOR',x:-27.5,z:-9.3},gen:{n:'GENERATOR',x:GEN.x,z:GEN.z},conv:{n:'SORTING CONVEYOR',x:-7.5,z:18}};
-function drawDirectory(){const m=ADDV.dir,ks=Object.keys(DIR_INFO).filter(owned);m.visible=ks.length>0;if(!ks.length)return;
+const DIR_INFO={roof:{n:'ROOF LADDER',x:LADDER.x,z:LADDER.z,always:true},fork:{n:'FORKLIFT',x:FORK_HOME.x,z:FORK_HOME.z},cold:{n:'COLD STORAGE',x:25.3,z:-13},bayc:{n:'BAY C',x:-24,z:-19},
+  base:{n:'FREIGHT ELEVATOR',x:-27.5,z:-9.3},gen:{n:'GENERATOR',x:GEN.x,z:GEN.z},conv:{n:'SORTING CONVEYOR',x:-7.5,z:18},heat:{n:'HEATER',x:29.5,z:1.5}};
+function drawDirectory(){const m=ADDV.dir,ks=Object.keys(DIR_INFO).filter(k=>DIR_INFO[k].always||owned(k));m.visible=ks.length>0;if(!ks.length)return;
   const W=1024,LH=74,H=96+ks.length*LH;
   const t=ctex(W,H,(g,w,h)=>{g.fillStyle='#c9a227';g.fillRect(0,0,w,h);g.strokeStyle='#16130c';g.lineWidth=10;g.strokeRect(9,9,w-18,h-18);
     g.fillStyle='#16130c';g.font="bold 54px 'Special Elite', Courier New";g.textBaseline='middle';g.fillText('THIS WAY',40,52);
     ks.forEach((k,i)=>{const d=DIR_INFO[k],y=96+i*LH+LH/2-6;g.font="44px 'Special Elite', Courier New";g.fillText(d.n,40,y);
       const a=Math.atan2(d.z-(-15.5),d.x-0);g.save();g.translate(w-90,y);g.rotate(a);g.beginPath();g.moveTo(-30,-7);g.lineTo(8,-7);g.lineTo(8,-20);g.lineTo(32,0);g.lineTo(8,20);g.lineTo(8,7);g.lineTo(-30,7);g.closePath();g.fill();g.restore()})},{aniso:4});
-  if(m.material.map)m.material.map.dispose();m.material.map=t;m.material.needsUpdate=true;m.scale.set(3.6,3.6*H/W,1);m.position.y=3.35+m.scale.y/2-.6}
+  if(m.material.map)m.material.map.dispose();m.material.map=t;m.material.needsUpdate=true;m.scale.set(3.6,3.6*H/W,1);m.position.y=2.55+m.scale.y/2}
 // switch on everything the crew owns (host and clients both run this when the list changes)
 function applyAdds(){for(const k in ADDG)ADDG[k].visible=owned(k);
   for(const c of COL)if(c.add&&!c.door&&c.gate===undefined)c.on=owned(c.add);
@@ -3023,7 +3023,7 @@ async function init(){
   applyQuality();bindUI();saveNote();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,
+  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,
 
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});
@@ -3122,10 +3122,10 @@ function buildRoofVisuals(){ROOFG=makeGiant();ROOFG.visible=false;ROOT.add(ROOFG
     fragmentShader:`varying float vA;void main(){vec2 c=gl_PointCoord-.5;float r=dot(c,c);if(r>.25)discard;gl_FragColor=vec4(.86,.9,1.,vA*(1.-r*4.));}`}));
   SNOW.frustumCulled=false;SNOW.visible=false;scene.add(SNOW)}
 const FOG0={c:new THREE.Color(0x030305),d:.052},FOG_ROOF={c:new THREE.Color(0x07090d),d:.06};
-function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.myId];chillHint(me);
+function syncRoof(dt,t){const cp=camera.position,up=cp.x<-100&&S.phase==='play',me=S.players[NET.myId];chillHint(me); // (by the camera, so spectating someone up there shows the storm too)
   // the storm: a lighter, bluer murk, snow in the air, wind, frost creeping in at the edges of your sight
   scene.fog.color.lerp(up?FOG_ROOF.c:FOG0.c,1-Math.exp(-6*dt));scene.fog.density=damp(scene.fog.density,up?FOG_ROOF.d:FOG0.d,6,dt);AMB.intensity=damp(AMB.intensity,up?.07:.32,6,dt);
-  const inRm=up&&inRoofRoom(ME); // indoors up there: out of the snow and most of the wind
+  const inRm=up&&inRoofRoom(cp); // indoors up there: out of the snow and most of the wind
   if(SNOW){SNOW.visible=up&&!inRm;if(up){const u=SNOW.material.uniforms;u.t.value=t;u.cam.value.copy(camera.position);camera.getWorldDirection(u.fw.value);u.lit.value=ME.lightOn()?1:.15}}
   if(AU.ready){if(!WIND)WIND=loop('wind',null,1);if(WIND){WIND.P.panningModel='equalpower';WIND.P.refDistance=1e4;WIND.set(up?(inRm?.18:.55):0,up?.4:.25)}}
   const fr=$('frost');if(fr){ME.cold=damp(ME.cold||0,(up&&!inRm)||chilled()?1:0,up||chilled()?.25:1.5,dt);fr.style.opacity=(ME.cold*.85).toFixed(3)}

@@ -147,10 +147,10 @@ function buildWorld(){
         float j=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453); // jittered steps: grain instead of bands
         for(int i=0;i<32;i++){vec3 x=o+d*(t0+(float(i)+j)*st);float h=vA.y-x.y;if(h<0.||h>5.1)continue;
           float R=h*.51,r=length(x.xz-vA.xz);if(r>R)continue;float e=r/max(R,.001);
-          acc+=(.4+2.*smoothstep(.72,1.,e)*(1.-smoothstep(.97,1.,e)))*(1.-.55*h/5.1);}
+          acc+=(.18+2.*smoothstep(.72,1.,e)*(1.-smoothstep(.97,1.,e)))*(1.-.55*h/5.1);}
         float hw=clamp((vA.y-vW.y)/5.1,0.,1.),g=1.-abs(dot(normalize(vN),d));
         float wall=(.35+1.6*g*g*g)*(1.-.65*hw)*(1.-smoothstep(.85,1.,hw)); // the shaft's edge, fading out before the floor
-        float f=exp(-pow(.052*max(tE-3.,0.),2.));gl_FragColor=vec4(vec3(1.,.70,.42)*(acc*st*.04+wall*.07)*lv*f,1.);}`});
+        float f=exp(-pow(.052*max(tE-3.,0.),2.));gl_FragColor=vec4(vec3(1.,.70,.42)*(acc*st*.035+wall*.06)*lv*f,1.);}`});
   const fixture=(x,z)=>{scyl(MAT.dark,.015,.015,WH.h-5.5,x,5.5+(WH.h-5.5)/2,z,{cast:false});
     const g=new THREE.ConeGeometry(.55,.4,14,1,true);g.translate(x,5.35,z);sg(MAT.shade,g,false);
     const b=new THREE.Mesh(GEO.sph,MAT.bulbOn.clone());b.scale.setScalar(.13);b.position.set(x,5.2,z);ROOT.add(b);return b};
