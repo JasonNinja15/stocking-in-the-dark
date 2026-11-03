@@ -95,7 +95,10 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S
 function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1,b.fz?1:0,Math.round(b.th||0),b.ret?1:0,b.pri?1:0,b.m?1:0])}
 function applyBoxes(arr){S.boxes=arr.map(a=>({id:a[0],st:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],k:a[6],f:!!a[7],v:a[8],h:a[9],s:a[10],bay:a[11],fz:!!a[12],th:a[13],ret:!!a[14],pri:!!a[15],m:!!a[16]}));
   markSlots()}
-function markSlots(){for(const s of SLOTS)s.box=-1;for(const b of S.boxes)if((b.st===2||b.st===3)&&b.s>=0&&SLOTS[b.s])SLOTS[b.s].box=b.id;
+// which box sits in each shelf slot, and (Better Stocking) which one is stacked on top of it
+function markSlots(){for(const s of SLOTS){s.box=-1;s.box2=-1}
+  for(const b of S.boxes){if((b.st!==2&&b.st!==3)||!(b.s>=0)||!SLOTS[b.s])continue;const s=SLOTS[b.s];if(s.box===-1)s.box=b.id;else s.box2=b.id}
+  for(const s of SLOTS)if(s.box2>=0){const a=S.boxes.find(b=>b.id===s.box),c=S.boxes.find(b=>b.id===s.box2);if(a&&c&&c.y<a.y){s.box=c.id;s.box2=a.id}}
   for(const p of S.pallets||[])if(p.st===2&&p.s>=0&&SLOTS[p.s])SLOTS[p.s].box=-(1000+p.id)}
 function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,inter:m.it,quota:m.q,shelved:m.sh,lost:m.lo,score:m.sc,total:m.to,aidLeft:m.ai,lamps:m.la,over:m.ov});
   const seen=new Set();

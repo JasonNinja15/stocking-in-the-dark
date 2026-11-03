@@ -62,10 +62,30 @@ const ME={x:0,z:-15.5,yaw:0,pitch:0,vx:0,vz:0,stam:100,exh:false,bat:100,light:t
 const K={};
 const locked=()=>document.pointerLockElement===canvas;
 function reqLock(){try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}}
-addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;K[e.code]=true;
-  if(GAME.on&&!GAME.paused&&!e.repeat){const me=S&&S.players[NET.myId];if(me&&me.dead&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(e.code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(e.code))specCycle(-1)}else onKey(e.code)}
-  if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(e.code))e.preventDefault()});
-addEventListener('keyup',e=>{K[e.code]=false});
+// ---- rebindable keys. The game reads every action by its default key; a rebinding turns the key you actually
+// pressed into the default key of the action it's bound to (and the action's old key into nothing).
+const BINDS=[['fwd','Move forward','KeyW'],['back','Move back','KeyS'],['left','Move left','KeyA'],['right','Move right','KeyD'],['run','Run','ShiftLeft'],
+  ['use','Use, pick up, shelve','KeyE'],['kick','Kick','KeyQ'],['drop','Set a box down','KeyG'],['light','Flashlight','KeyF'],['lamp','Red headlamp','KeyH'],['shake','Shake flashlight (hold)','KeyR']];
+let KEYMAP={};
+const boundKey=id=>{const b=BINDS.find(x=>x[0]===id);return(SET.keys&&SET.keys[id])||b[2]};
+function buildKeymap(){KEYMAP={};
+  for(const [id,,def] of BINDS){const k=boundKey(id);if(k===def)continue;KEYMAP[k]=def;if(!(def in KEYMAP))KEYMAP[def]=null;if(id==='run'&&!('ShiftRight' in KEYMAP))KEYMAP.ShiftRight=null}
+  const kh=$('keyhint');if(kh)kh.textContent=`${['fwd','left','back','right'].map(i=>keyName(boundKey(i))).join('')} move · ${keyName(boundKey('run'))} run · ${keyName(boundKey('light'))} flashlight · ${keyName(boundKey('use'))} use · ${keyName(boundKey('kick'))} kick · ${keyName(boundKey('drop'))} set down · scroll + right click items · Esc pause`}
+const mapKey=c=>c in KEYMAP?KEYMAP[c]:c;
+function keyName(c){if(!c)return'?';if(/^Key.$/.test(c))return c.slice(3);if(/^Digit.$/.test(c))return c.slice(5);
+  return{ShiftLeft:'L-Shift',ShiftRight:'R-Shift',ControlLeft:'L-Ctrl',ControlRight:'R-Ctrl',AltLeft:'L-Alt',AltRight:'R-Alt',Space:'Space',Tab:'Tab',CapsLock:'Caps',
+    ArrowUp:'↑',ArrowDown:'↓',ArrowLeft:'←',ArrowRight:'→',Backquote:'`',Minus:'-',Equal:'=',BracketLeft:'[',BracketRight:']',Semicolon:';',Quote:"'",Comma:',',Period:'.',Slash:'/',Backslash:'\\'}[c]||c.replace(/^Numpad/,'Num ')}
+// the key you'd press for a default-key action, as text (for prompts and messages)
+const keyLabel=def=>{const b=BINDS.find(x=>x[2]===def);return keyName(b?boundKey(b[0]):def)};
+const relabel=s=>s.replace(/<kbd>([EQGFHR])<\/kbd>/g,(m,c)=>`<kbd>${keyLabel('Key'+c)}</kbd>`);
+let REBIND=null; // the action waiting for a key in Settings
+addEventListener('keydown',e=>{if(!REBIND)return;e.preventDefault();e.stopImmediatePropagation();
+  if(e.code!=='Escape'){const id=REBIND,old=boundKey(id),other=BINDS.find(b=>b[0]!==id&&boundKey(b[0])===e.code);SET.keys=SET.keys||{};SET.keys[id]=e.code;if(other)SET.keys[other[0]]=old;saveSet();buildKeymap()}
+  REBIND=null;renderBinds()},true);
+addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;const code=mapKey(e.code);if(code===null)return;K[code]=true;
+  if(GAME.on&&!GAME.paused&&!e.repeat){const me=S&&S.players[NET.myId];if(me&&me.dead&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(code))specCycle(-1)}else onKey(code)}
+  if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(code))e.preventDefault()});
+addEventListener('keyup',e=>{const code=mapKey(e.code);if(code)K[code]=false});
 addEventListener('blur',()=>{for(const k in K)K[k]=false});
 document.addEventListener('mousemove',e=>{if(!GAME.on||!locked()||GAME.paused)return;const s=.0021*SET.sens;ME.yaw-=e.movementX*s;ME.pitch=clamp(ME.pitch-e.movementY*s,-1.45,1.45)});
 canvas.addEventListener('mousedown',e=>{auInit();if(!GAME.on)return;if(!locked()){reqLock();return}
@@ -98,7 +118,7 @@ function rayBox(ray,x0,y0,z0,x1,y1,z1){const o=ray.origin,d=ray.direction;let t0
 let BOXPICK=[];
 const GHOST=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1).translate(0,.5,0)),new THREE.LineBasicMaterial({color:0x9dff9a,transparent:true,opacity:.75,fog:false,depthWrite:false}));GHOST.visible=false;scene.add(GHOST);
 function updGhost(me){const t=ME.target;const b=t&&t.kind==='slot'&&me&&me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;GHOST.visible=!!b;if(!b)return;
-  const K=BOX_KINDS[b.k];GHOST.scale.set(t.s.rot?K.d:K.w,K.h,t.s.rot?K.w:K.d);GHOST.position.set(t.s.x,t.s.y+.01,t.s.z);GHOST.material.color.set(t.ok?0x9dff9a:0xff6a5a);GHOST.material.opacity=.45+Math.sin(performance.now()/160)*.25}
+  const K=BOX_KINDS[b.k];GHOST.scale.set(t.s.rot&&!t.under?K.d:K.w,K.h,t.s.rot&&!t.under?K.w:K.d);if(t.under){GHOST.position.set(t.under.x,t.under.y+BOX_KINDS[t.under.k].h+.01,t.under.z);GHOST.rotation.y=t.under.ry}else{GHOST.position.set(t.s.x,t.s.y+.01,t.s.z);GHOST.rotation.y=0}GHOST.material.color.set(t.ok?0x9dff9a:0xff6a5a);GHOST.material.opacity=.45+Math.sin(performance.now()/160)*.25}
 function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.scare)return;
   RC.setFromCamera({x:0,y:0},camera);RC.far=3.1;const carrying=me.carry>=0;
   // in the forklift: pallets first; with no pallet up, loose boxes and shelf slots out past the forks
@@ -106,7 +126,8 @@ function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.s
   if(drv){ME.target=S.fork.pal>=0||!carrying?forkTarget():null;if(ME.target||S.fork.pal>=0)return;RC.far=reach}
   if(carrying){let best=null,bt=reach;for(const s of SLOTS){if(Math.abs(s.x-ME.x)>6||Math.abs(s.z-ME.z)>6||(drv&&s.cold)||!slotOn(s))continue;const hx=s.rot?.55:.97,hz=s.rot?.97:.55;const t=rayBox(RC.ray,s.x-hx,s.y,s.z-hz,s.x+hx,s.y+1.08,s.z+hz);if(t!==null&&t<bt){bt=t;best=s}}
     const cb=S.boxes.find(x=>x.id===me.carry),ret=!!(cb&&cb.ret);
-    if(best){ME.target={kind:'slot',s:best,ok:!ret&&!best.old&&best.box===-1,ret};return}}
+    if(best){const under=best.box>=0?S.boxes.find(x=>x.id===best.box):null,stack=!!under&&!(best.box2>=0)&&canStack(me,under,cb);
+      ME.target={kind:'slot',s:best,ok:!ret&&!best.old&&(best.box===-1||stack),ret,stack,under:stack?under:null,full:best.box2>=0||!!under&&!stack&&!!(me.up&&me.up.stock2)};return}}
   const hits=RC.intersectObjects(BOXPICK.concat(INTER,PARCELPICK,PALPICK,FORKPICK),false);
   for(const h of hits){const ud=h.object.userData;if(!shown(h.object)||(drv&&ud.kind!=='box'))continue;
     // (parcels ride on top of the belt, inside its collider, so they can't be hidden behind it)
@@ -139,7 +160,7 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
       const tr=bi>=0?S.trucks[bi]:null;if(!tr||(tr.st!==2&&tr.st!==3)){if(bi>=0)p.x=BAYS[bi].x;p.z=WH.z0+1.2}}
     p.x=clamp(p.x,WH.x0+.3,WH.x1-.3);p.z=clamp(p.z,TZ_DOCK-TRAIL_LEN+.3,WH.z1-.3)}
   const sp=Math.hypot(p.x-ME.x,p.z-ME.z)/Math.max(dt,1e-4);ME.x=p.x;ME.z=p.z;
-  const fit=me&&me.up?(me.up.stam2?2:me.up.stam?1.5:1):1; // the stamina upgrades
+  const fit=me&&me.up?(me.up.stam4?3.3:me.up.stam3?2.6:me.up.stam2?2:me.up.stam?1.5:1):1; // the stamina upgrades
   if(run&&sp>1){if(!(ME.drinkT>0))ME.stam-=dt*21/fit;if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16)*fit);if(ME.exh&&ME.stam>35)ME.exh=false}
   // head bob + footsteps
   if(sp>.3){const ph0=ME.stepPh;ME.stepPh+=dt*sp*(run?1.9:2.15);if(Math.floor(ph0/Math.PI)!==Math.floor(ME.stepPh/Math.PI))(onRoof(ME)?SFX.crunch(run):SFX.step(ME.z<WH.z0,run))}
@@ -333,7 +354,7 @@ function onEvent(e){const me=NET.myId;
   case 'finalHour':SFX.pa();toast(e.need>0?`Loudspeaker: "Final hour. ${e.need} more box${e.need>1?'es':''} to make quota."`:'Loudspeaker: "Final hour."',5,'radio');break;
   case 'overtime':SFX.powerDown();big('OVERTIME',`${e.need} more box${e.need>1?'es':''} in 60 seconds. The lights are out.`,5);
     if(e.b>=0)setTimeout(()=>GAME.on&&toast(`One last truck is backing into Bay ${BAYS[e.b].name}.`,4,'radio'),2500);break;
-  case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
+  case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost${e.fine?` ($${e.fine} docked)`:''}`:''}`,7);SFX.bell();break;
   case 'hour':SFX.bell();toast(`${e.h||12}:00 AM`,2.5);break;
   case 'truck':if(e.last&&!S.ot){SFX.pa();toast(`Loudspeaker: "Last truck of the night, Bay ${BAYS[e.b].name}."`,5,'radio')}else if(!e.last)toast(`Truck inbound: Bay ${BAYS[e.b].name}`,3);break;
   case 'brake':SFX.brake({x:BAYS[e.b].x,y:1,z:TZ_DOCK-6});break;
@@ -362,7 +383,7 @@ function onEvent(e){const me=NET.myId;
 
 // ===================================================================== HUD
 let toastT=0,bigT=0;
-function toast(m,d=3.5,cls=''){const el=$('toast');el.textContent=m;el.className=cls;el.style.opacity=1;toastT=d}
+function toast(m,d=3.5,cls=''){const el=$('toast');el.textContent=String(m).replace(/\b([Pp]ress|[Hh]old) ([EQGFHR])\b/g,(x,w,c)=>w+' '+keyLabel('Key'+c));el.className=cls;el.style.opacity=1;toastT=d}
 function big(a,b,d=4){const el=$('big');el.innerHTML=`${a}<small>${b||''}</small>`;el.style.opacity=1;bigT=d}
 function fmtClock(t){let mins=Math.floor(t/HOUR*60);if(mins<0)mins+=1440;const h=Math.floor(mins/60)%24,m=mins%60;return`${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`}
 const mmss=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
@@ -376,7 +397,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     if(p2!==null&&p2!==undefined)pr=p2;
     else if(t){if(t.kind==='box'&&ME.driving)pr='<kbd>E</kbd> Load onto the forks';
       else if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Pick up another':'<kbd>E</kbd> Pick up')+(t.b.ret?' damaged return <span class="warn">(shredder only)</span>':'')+' &nbsp; <kbd>Q</kbd> Kick'+(curSel(me)==='cutter'?' &nbsp; <kbd>Right click</kbd> Cut':'');
-      else if(t.kind==='slot')pr=t.ret?'<span class="warn">Returns can\'t be shelved: shred them in the basement</span>':t.ok?'<kbd>E</kbd> Shelve box':'Shelf is full';
+      else if(t.kind==='slot')pr=t.ret?'<span class="warn">Returns can\'t be shelved: shred them in the basement</span>':t.ok?(t.stack?'<kbd>E</kbd> Stack it on top':'<kbd>E</kbd> Shelve box'):t.full?'No room to stack that here':'Shelf is full';
       else if(t.kind==='charger')pr=ME.bat>=99.5?'Flashlight fully charged':ME.charging?`Charging&hellip; ${Math.floor(ME.bat)}%`:'Hold <kbd>E</kbd> Charge flashlight';
       else if(t.kind==='aid')pr=S.aidLeft>0?`<kbd>E</kbd> First aid (${S.aidLeft} left tonight)`:'First-aid cabinet is empty';
       else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=!bayOn(t.bay)?`Bay ${BAYS[t.bay].name}: not in service`:tr.st===0&&tr.stuck>0?`<kbd>E</kbd> Close the Bay ${BAYS[t.bay].name} door`:tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
@@ -385,8 +406,8 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?' &nbsp; <kbd>G</kbd> Set the pallet down':carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
     const hn=hatchNote()||grabNote();if(hn)pr=hn;}
-  if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
-  $('cross').className=t&&(t.kind!=='slot'||t.ok)?'on':'';
+  pr=relabel(pr);if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
+  $('cross').className=`xh x-${SET.cross||'dot'}${t&&(t.kind!=='slot'||t.ok)?' on':''}`;
   // a clock ticks through the last minute and overtime, only while the quota isn't met; double time for the final 10 s
   if(S.phase==='play'&&!S.over&&S.shelved<S.quota&&S.t>=SHIFT_END-60){const urgent=S.ot&&S.t>=SHIFT_END+OVERTIME-10,k=Math.floor(S.t*(urgent?2:1));
     if(k!==GAME.tickK){if(GAME.tickK!==undefined)SFX.tick(urgent||S.ot);GAME.tickK=k}}else GAME.tickK=undefined;
@@ -497,17 +518,23 @@ function bindUI(){
   $('bLeave').onclick=()=>{netClose();showMenu()};
   $('bHow').onclick=()=>show('how');$('bHowBack').onclick=()=>show('menu');
   $('bSettings').onclick=()=>{settingsBack='menu';openSettings()};$('bPauseSet').onclick=()=>{settingsBack='pause';openSettings()};
-  $('bSetBack').onclick=()=>show(settingsBack);
+  $('bSetBack').onclick=()=>{REBIND=null;show(settingsBack)};
   $('bResume').onclick=()=>{auInit();reqLock();hideScreens();GAME.paused=false;setTimeout(()=>{if(GAME.on&&!locked()&&!GAME.overShown)$('lockmsg').classList.remove('hide')},400)};
   $('bQuit').onclick=quitToMenu;$('bMenu').onclick=quitToMenu;
   $('bAgain').onclick=()=>{auInit();if(NET.mode==='host')hostStartGame();else startSolo()};
   const sl=(id,key,fmt,apply)=>{const el=$(id),out=$('v'+id.slice(1));el.value=SET[key];out.textContent=fmt(SET[key]);el.oninput=()=>{SET[key]=+el.value;out.textContent=fmt(SET[key]);saveSet();apply&&apply()}};
   sl('sSens','sens',v=>(+v).toFixed(2));sl('sVol','vol',v=>Math.round(v*100)+'%',()=>auVol(SET.vol));sl('sFov','fov',v=>v+'°',applyQuality);
   $('sQual').value=SET.qual;$('sQual').onchange=()=>{SET.qual=+$('sQual').value;saveSet();applyQuality()};
+  $('sCross').onchange=()=>{SET.cross=$('sCross').value;saveSet();renderBinds()};
+  $('bKeysReset').onclick=()=>{SET.keys={};REBIND=null;saveSet();buildKeymap();renderBinds()};buildKeymap();
   $('sFps').checked=!!SET.fps;$('sFps').onchange=()=>{SET.fps=$('sFps').checked;saveSet();$('fps').classList.toggle('hide',!SET.fps)};$('fps').classList.toggle('hide',!SET.fps);
   $('lockmsg').addEventListener('click',()=>reqLock());
   addEventListener('beforeunload',()=>{try{NET.peer&&NET.peer.destroy()}catch(e){}})}
-function openSettings(){show('settings')}
+function openSettings(){REBIND=null;renderBinds();show('settings')}
+function renderBinds(){const el=$('binds');if(!el)return;
+  el.innerHTML=BINDS.map(([id,name])=>`<span>${name}</span><button data-bind="${id}" class="${REBIND===id?'wait':''}">${REBIND===id?'press a key…':keyName(boundKey(id))}</button>`).join('');
+  el.querySelectorAll('button[data-bind]').forEach(b=>b.onclick=()=>{REBIND=b.dataset.bind;renderBinds()});
+  $('sCross').value=SET.cross||'dot';$('xPrev').className=`xh x-${SET.cross||'dot'}`}
 
 // ===================================================================== main loop
 let lastT=performance.now(),fpsN=0,fpsAcc=0,lastFrameAt=performance.now();GAME.fps=0;
@@ -556,7 +583,7 @@ async function init(){
   applyQuality();bindUI();saveNote();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,
+  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,relabel,toast,applyBoxes,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,
 
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});

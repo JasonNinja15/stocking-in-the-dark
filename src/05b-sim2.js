@@ -8,7 +8,8 @@ const ADDS={
   base:{name:'Basement Returns',price:400,q:6,time:60,desc:'Ten damaged returns in a cage downstairs, reached by the freight elevator. They can\'t be shelved: each one fed to the shredder counts toward quota.'},
   gen:{name:'Generator Room',price:300,q:0,time:40,desc:'Backup power for outages (from night 3). Keep it fuelled with jerry cans from the rack by the roof ladder.'},
   bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'},
-  heat:{name:'Warehouse Heater',price:250,q:0,time:0,desc:'A gas heater high on the east wall. The warehouse holds its warmth an extra night between cold spells.'}};
+  heat:{name:'Warehouse Heater',price:250,q:0,time:0,desc:'A gas heater high on the east wall. The warehouse holds its warmth an extra night between cold spells.'},
+  medkit:{name:'Medkit Upgrade',price:300,q:0,time:0,desc:'A bigger first-aid cabinet: the crew can buy a third first-aid refill each night.'}};
 const SHOP={
   fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam. The battery lasts twice as long.'},
   shake:{name:'Shake flashlight',price:100,once:true,key:'R',desc:'Hold R to shake your flashlight and charge it anywhere. Anything listening hears it.'},
@@ -21,11 +22,14 @@ const SHOP={
   drink:{name:'Energy drinks',price:15,give:2,key:7,desc:'Two cans. Twenty seconds of sprinting without getting tired.'},
   stam:{name:'Stamina upgrade',price:90,once:true,desc:'Sprint half again as long, and get your breath back faster.'},
   stam2:{name:'Stamina upgrade II',price:160,once:true,needs:'stam',desc:'Sprint twice as long as you could at the start, and get your breath back twice as fast.'},
+  stam3:{name:'Stamina upgrade III',price:900,once:true,needs:'stam2',night:7,desc:'Sprint well over twice as long as you could at the start (2.6 times), and recover that much faster.'},
+  stam4:{name:'Stamina upgrade IV',price:1800,once:true,needs:'stam3',night:10,desc:'Sprint more than three times as long as you could at the start, and recover that much faster.'},
+  stock2:{name:'Better Stocking',price:500,once:true,desc:'Stack a second box on top of one already on a shelf, as long as the two fit under the shelf above.'},
   remote:{name:'Bay door remote',price:90,give:1,key:8,desc:'Shuts the nearest bay door from anywhere. Its truck leaves at once.'},
   bulb:{name:'Lamp bulb',price:50,give:1,key:9,desc:'Use it under a dead light fixture to fix it for the rest of the run.'},
   hand:{name:'Carry Upgrade',price:110,once:true,desc:'Carry up to three boxes at once. Slower, and noisier.'},
   red:{name:'Red headlamp',price:80,once:true,key:'H',desc:'A dim red light (H) that monsters don\'t notice.'},
-  aid:{name:'First-aid refill',price:30,desc:'One more use of the first-aid cabinet next night (two at most).'}};
+  aid:{name:'First-aid refill',price:30,desc:'One more use of the first-aid cabinet next night (two at most, three with the Medkit Upgrade).'}};
 const PA_SPOTS=[{n:'by the roof ladder',x:-22.4,z:12.2},{n:'at the west end of aisle two',x:-28.4,z:1.5},{n:'behind the east racks',x:28.6,z:2.5},
   {n:'by the barrels',x:26.4,z:16.4},{n:'between the middle racks',x:0,z:1.5},{n:'at the west end of aisle four',x:-28.4,z:11.5},{n:'by the dock columns',x:5.5,z:-11.2}];
 let parSeq=1,palSeq=1,flSeq=1;
@@ -57,19 +61,23 @@ function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.bver++}
 
 // ---------------------------------------------------------------- the shop (between nights)
+// what something costs right now: 12% more for every night survived, and the shared additions scale with the crew
+function priceOf(k){const it=ADDS[k]||SHOP[k];if(!it)return 0;return Math.round(it.price*(1+.12*Math.max(0,(S?S.night:1)-1))*(ADDS[k]?crewMul():1)/5)*5}
+const aidCap=()=>owned('medkit')?3:2;
 function shopAct(pid,a){const p=S.players[pid];if(!p)return;
   // everyone votes on being done shopping; more than half the crew and the next night starts
   if(a.a==='start'){if(S.phase!=='shop')return;const v=S.votes||(S.votes=[]);if(v.includes(pid))S.votes=v.filter(x=>x!==pid);else v.push(pid);shopVoteCheck();return}
   if(a.a!=='buy'||S.phase!=='shop')return;const k=a.k;
   const no=m=>emit({e:'msg',m,p:pid});
-  if(ADDS[k]){const it=ADDS[k];if(owned(k))return no('Already built.');if(S.cash<it.price)return no('Not enough money.');
-    S.cash-=it.price;S.adds.push(k);applyAdds();emit({e:'bought',k,p:pid,n:p.name});saveRun();return}
-  const it=SHOP[k];if(!it)return;if(S.cash<it.price)return no('Not enough money.');
+  if(ADDS[k]){const it=ADDS[k];if(owned(k))return no('Already built.');const pr=priceOf(k);if(S.cash<pr)return no('Not enough money.');
+    S.cash-=pr;S.adds.push(k);applyAdds();emit({e:'bought',k,p:pid,n:p.name});saveRun();return}
+  const it=SHOP[k];if(!it)return;const pr=priceOf(k);if(S.cash<pr)return no('Not enough money.');
   if(it.once&&p.up[k])return no('You already have one.');
   if(it.needs&&!p.up[it.needs])return no(`Buy the ${SHOP[it.needs].name} first.`);
-  if(k==='aid'&&(S.aidBonus||0)>=2)return no('The cabinet is already stocked for tomorrow.');
+  if(it.night&&S.night+1<it.night)return no(`Not sold until night ${it.night}.`);
+  if(k==='aid'&&(S.aidBonus||0)>=aidCap())return no('The cabinet is already stocked for tomorrow.');
   if(k==='bulb'){const held=Object.values(S.players).reduce((a,q)=>a+(q.inv.bulb||0),0);if(S.fixed.length+held>=MAX_BULBS)return no('There are no more fixtures worth fixing.')}
-  S.cash-=it.price;if(it.once)p.up[k]=true;else if(k==='aid')S.aidBonus=(S.aidBonus||0)+1;else p.inv[k]=(p.inv[k]||0)+it.give;
+  S.cash-=pr;if(it.once)p.up[k]=true;else if(k==='aid')S.aidBonus=(S.aidBonus||0)+1;else p.inv[k]=(p.inv[k]||0)+it.give;
   emit({e:'bought',k,p:pid,n:p.name});saveRun()}
 
 function shopVoteCheck(){const ids=Object.keys(S.players),v=(S.votes||[]).filter(id=>ids.includes(id));S.votes=v;
@@ -538,5 +546,5 @@ function restoreRun(sv){Object.assign(S,{night:sv.night,diff:DIFFS[sv.diff]?sv.d
   const rest=Object.values(left);for(const p of ps)if(!p.got&&rest.length)give(p,rest.shift());
   for(const p of ps){delete p.got;Object.assign(p,{hp:100,dead:false,carry:-1,stack:[],can:false})}
   S.boxes=(sv.boxes||[]).map(b=>Object.assign({id:boxSeq++,st:3,h:'',s:-1,tw:rand(2,4),near:0,nearMax:rand(1.4,2.8)},b,{f:!!b.f,m:!!b.m}));
-  for(const b of S.boxes)if(b.s>=0&&SLOTS[b.s])SLOTS[b.s].box=b.id;
+  markSlots();
   S.bver++}

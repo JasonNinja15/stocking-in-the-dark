@@ -70,8 +70,21 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 .bar i{position:absolute;left:0;top:0;bottom:0;background:#ddd}
 .bar span{position:absolute;left:calc(100% + .6em);top:50%;transform:translateY(-50%);font-size:.75em;color:#d6cdb6;letter-spacing:.16em;white-space:nowrap}
 #hpb i{background:#d0352a}#batb i{background:#f2dc80}#stb i{background:#93b4dc}
-#cross{position:absolute;left:50%;top:50%;width:.32em;height:.32em;transform:translate(-50%,-50%);background:rgba(255,255,255,.85);border-radius:50%;box-shadow:0 0 3px #000}
-#cross.on{width:.7em;height:.7em;background:transparent;border:2px solid #ffd68a;box-shadow:0 0 4px #000}
+#cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+.xh{display:block;width:.32em;height:.32em;background:rgba(255,255,255,.85);border-radius:50%;box-shadow:0 0 3px #000}
+.xh.on{width:.7em;height:.7em;background:transparent;border:2px solid #ffd68a;box-shadow:0 0 4px #000}
+.xh.x-plus,.xh.x-tee{width:1.1em;height:1.1em;border-radius:0;box-shadow:none;border:0;filter:drop-shadow(0 0 1.5px #000);--c:rgba(255,255,255,.9)}
+.xh.x-plus{background:linear-gradient(var(--c),var(--c)) center/2px 100% no-repeat,linear-gradient(var(--c),var(--c)) center/100% 2px no-repeat}
+.xh.x-tee{background:linear-gradient(var(--c),var(--c)) center top/2px 34% no-repeat,linear-gradient(var(--c),var(--c)) center bottom/2px 34% no-repeat,linear-gradient(var(--c),var(--c)) left center/34% 2px no-repeat,linear-gradient(var(--c),var(--c)) right center/34% 2px no-repeat}
+.xh.x-plus.on,.xh.x-tee.on{--c:#ffd68a;width:1.35em;height:1.35em;border:0}
+.xh.x-circle{width:.85em;height:.85em;background:transparent;border:2px solid rgba(255,255,255,.85);box-shadow:0 0 3px #000,inset 0 0 2px #000}
+.xh.x-circle.on{width:1.05em;height:1.05em;border-color:#ffd68a}
+.xh.x-dotring{outline:2px solid rgba(255,255,255,.6);outline-offset:.32em}
+.xh.x-dotring.on{width:.32em;height:.32em;background:#ffd68a;border:0;outline-color:#ffd68a}
+.xh.x-none{display:none}
+.xprev{display:inline-flex;align-items:center;justify-content:center;width:44px;height:30px;background:#3a3f45;border:1px solid var(--line);margin-left:8px;font-size:18px}
+#binds{display:grid;grid-template-columns:1fr auto;gap:4px 14px;align-items:center;min-width:min(420px,80vw);text-align:left}
+#binds button{min-width:90px;padding:3px 10px;font-size:14px}#binds button.wait{border-color:#ffd68a;color:#ffd68a}
 #prompt{position:absolute;left:50%;top:calc(50% + 2.4em);transform:translateX(-50%);font-size:1.1em;text-align:center;max-width:min(86vw,44em);line-height:1.55;
   background:rgba(9,8,7,.8);border:1px solid rgba(227,163,58,.4);padding:.3em .9em;text-shadow:0 1px 2px #000}
 #prompt:empty{display:none}
@@ -167,7 +180,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 
 <div id="shop" class="screen dim hide"><div class="card">
   <h2>BETWEEN SHIFTS</h2><div class="lbl" id="shopNight"></div>
-  <div id="shopCash">$0</div><div class="lbl">crew pay, shared. Every addition adds work, and the time to do it.</div>
+  <div id="shopCash">$0</div><div class="lbl">crew pay, shared. Prices rise every night, and lost boxes are docked from pay. Every addition adds work, and the time to do it.</div>
   <div id="shopCols"><div><h3>Warehouse additions</h3><div id="shopAdds"></div></div><div><h3>Equipment (yours)</h3><div id="shopItems"></div></div></div>
   <button id="bShopGo">Start the next night</button><div class="lbl" id="shopWait"></div>
 </div></div>
@@ -187,19 +200,22 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <p><b>Difficulty</b> is picked on the title screen: Easy has smaller quotas, softer monsters and rarer bad luck; Hard has bigger quotas, harder hits and much more bad luck. A crew plays on the host's setting.</p>
   <p><b>Power outages.</b> From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel. And something that lives in the dark comes out: it can't see you, but it hears you, and it feels footsteps close by. Stand still.</p>
   <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items sit on the hotbar at the bottom of the screen: <kbd>scroll</kbd> (or a number key) to pick one, <kbd>right click</kbd> to use it. The red headlamp is on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold right click with the thermal scanner picked to use it. The <b>THIS WAY</b> board on the dock wall points to the roof ladder and to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
-  <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>Scroll</kbd> pick item &middot; <kbd>Right click</kbd> use item &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause</p>
+  <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>Scroll</kbd> pick item &middot; <kbd>Right click</kbd> use item &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause (these are the default keys: change them, and the crosshair, in Settings)</p>
   <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to ten people can work a shift together. In the crew room the host can make the crew public, and then anyone can find it under <i>Join Public</i> and join, even mid-shift. The quota grows with the crew. If you go down, you watch the others in third person until the night ends: move the mouse to look around, click or use the arrow keys to switch.</p>
   </div>
   <button id="bHowBack">Back</button>
 </div></div>
 
-<div id="settings" class="screen dim hide"><div class="card">
+<div id="settings" class="screen dim hide"><div class="card" style="max-height:92vh;overflow:auto">
   <h2>SETTINGS</h2>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Mouse</span><input type="range" id="sSens" min="0.2" max="2.5" step="0.05"><span id="vSens" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Volume</span><input type="range" id="sVol" min="0" max="1" step="0.05"><span id="vVol" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Field of view</span><input type="range" id="sFov" min="60" max="100" step="1"><span id="vFov" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Graphics</span><select id="sQual"><option value="2">High</option><option value="1">Medium</option><option value="0">Low (fast)</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Show FPS</span><input type="checkbox" id="sFps"><span style="width:40px"></span></div>
+  <div class="row"><span class="lbl" style="width:130px;text-align:right">Crosshair</span><select id="sCross"><option value="dot">Dot</option><option value="plus">Cross</option><option value="circle">Circle</option><option value="dotring">Dot in a ring</option><option value="tee">Open cross</option><option value="none">None</option></select><span class="xprev"><i id="xPrev" class="xh x-dot"></i></span></div>
+  <h3 style="margin:6px 0 0">Controls</h3><div class="lbl">Click a key, then press the new one (Esc cancels). Mouse: left click uses, right click uses the picked item, the wheel picks items.</div>
+  <div id="binds"></div><button class="small" id="bKeysReset">Reset keys</button>
   <button id="bSetBack">Back</button>
 </div></div>
 

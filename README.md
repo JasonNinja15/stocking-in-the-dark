@@ -19,7 +19,7 @@ Things that end your shift outright (the sleeper reaching you, the night manager
 ## The job
 
 - Trucks back into **Bay A** and **Bay B** (and **Bay C**, once it's bought) every minute or so. Walk into the trailer, pick up boxes (**E**) and shelve them on any empty slot. A green outline shows where the box will go.
-- Shelve the quota before 6:00 AM (the clock moves one minute per real second, so an in-game hour is 60 seconds). On Normal, night 1 asks for 15 boxes and each night adds 5. Crews get a bigger quota.
+- Shelve the quota before 6:00 AM (the clock moves one minute per real second, so an in-game hour is 60 seconds). On Normal, night 1 asks for 15 boxes and each night adds 5 up to night 5; after that the quota only grows by 2.5 a night, and the monsters carry the difficulty instead: from night 6, bad luck comes 12% more often each night (up to twice as often) and every hit lands 6% harder each night (up to 60% harder). Crews get a bigger quota.
 - The bar under the quota shows your progress, and its white marker shows where you should be by now. It turns amber, then red, as you fall behind. The supervisor radios at 3, 4 and 5 AM if you're behind pace, and the loudspeaker announces the final hour and the last truck of the night.
 - Short at 6:00 AM? You get **60 seconds of overtime**. Every light goes out, the monsters get bolder, and a last truck comes in if there's nothing left to unload. Make quota and you survive the night. Miss it and you're fired.
 - A truck leaves when it's empty or after about two minutes. Any boxes still on board are lost.
@@ -68,7 +68,7 @@ The **Warehouse Heater** (shop) adds a night between cold spells: nights 4, 7, 1
 
 ## Between nights: the shop
 
-After each night you survive, the crew's pay buys things. The money is shared, and anyone can spend it. When you're finished, press **Done**. Once more than half the crew is done, the next night starts (or it starts by itself after 150 seconds). Press it again to take your vote back.
+After each night you survive, the crew's pay buys things. **Prices rise 12% for every night survived**, and the shared warehouse additions also cost more for bigger crews (whose pay is bigger too). The prices below are night-1 prices for one worker. Every box lost in a night (left on a truck, spoiled, shredded by mistake, cut open) docks $8 from the crew's pay at 6 AM. The money is shared, and anyone can spend it. When you're finished, press **Done**. Once more than half the crew is done, the next night starts (or it starts by itself after 150 seconds). Press it again to take your vote back.
 
 **Saving.** The run saves after every night you survive, and again after every purchase. **Continue** on the main menu picks it up in the shop, before the next night. In a crew, the host's browser keeps the save: the host presses **Continue the saved run** in the crew room, and everyone gets their own gear back by name. When the run ends (the crew dies, or misses quota), the save is deleted. Starting a new run leaves an older save alone until the new run gets through a night, then replaces it.
 
@@ -85,6 +85,7 @@ After each night you survive, the crew's pay buys things. The money is shared, a
 | Generator Room | $300 | 0 | +40 s | Backup power (see power outages). It burns fuel only during an outage; a full tank lasts two minutes, and each jerry can from the rack by the roof ladder adds half a tank. It also stops lamps flickering out on their own. | Moths circle the lamps and break bulbs after 14 s. Shine your light on one and it follows the beam. Lead it 7 m from its lamp and it loses interest. They also circle flares instead. |
 | Bay C | $500 | +10 | +60 s | A third dock in the north-west corner for refrigerated trailers. | The sleepers in those trailers are colder: they creep faster, but light halves the speed of their charge. |
 | Warehouse Heater | $250 | 0 | 0 | A gas heater high on the east wall. The warehouse goes cold every third night instead of every second (see *The cold*). | Nothing. |
+| Medkit Upgrade | $300 | 0 | 0 | A bigger first-aid cabinet: the crew can buy a third first-aid refill each night instead of two. | Nothing. |
 
 **Equipment (yours).** Items you carry sit on the **hotbar** at the bottom of the screen. Scroll the mouse wheel to pick one (or press its number), and right click to use it.
 
@@ -101,11 +102,14 @@ After each night you survive, the crew's pay buys things. The money is shared, a
 | Shake flashlight | $100 | hold R | Charges your battery about 7% a second, anywhere, even in an outage. Anything that hunts by sound hears it. |
 | Stamina upgrade | $90 | | Sprint half again as long (drains at two-thirds the rate) and recover 50% faster. |
 | Stamina upgrade II | $160 | | Shows up in the shop once you own the first one. Sprint twice as long as at the start (drains at half the rate) and recover twice as fast. |
+| Stamina upgrade III | $900 | | Needs II; on sale from the shop before night 7. Sprint 2.6 times as long as at the start, and recover that much faster. |
+| Stamina upgrade IV | $1800 | | Needs III; on sale from the shop before night 10. Sprint 3.3 times as long as at the start, and recover that much faster. |
+| Better Stocking | $500 | | Stack a second box on top of one already on a shelf, as long as the two fit under the shelf above (small on small, or small on medium). The prompt says *Stack it on top* when it fits. |
 | Bay door remote | $90 | 8 | Slams the nearest bay shut: a docked truck leaves at once, its crawler is shut out for good, and a jammed door closes. It won't fire while anyone is inside that trailer. |
 | Lamp bulb | $50 | 9 | Stand under a dead fixture to bring it back for the rest of the run. Three fixtures at most. |
 | Carry Upgrade | $110 | | Carry up to three boxes at once. Crewmates see the whole stack. Slower, and loud enough for the shrink-wrap to hear. |
 | Red headlamp | $80 | H | A dim red light that monsters don't notice: it doesn't scare them off and doesn't set them off. |
-| First-aid refill | $30 | | One more first-aid use next night (two at most). |
+| First-aid refill | $30 | | One more first-aid use next night (two at most, three with the Medkit Upgrade). |
 
 ## Controls
 
@@ -136,6 +140,8 @@ Players connect browser-to-browser over WebRTC, using the free public PeerJS ser
 ## Settings
 
 Mouse sensitivity, volume, field of view, graphics quality (Low turns off shadows and lowers render resolution for older laptops and Chromebooks), and an FPS counter.
+
+**Controls** can be rebound: click an action, then press the new key (Esc cancels). Binding a key that's already in use swaps the two. Prompts, messages and the key hint bar show your keys. **Crosshair**: dot, cross, open cross, circle, dot in a ring, or none.
 
 ## Files
 

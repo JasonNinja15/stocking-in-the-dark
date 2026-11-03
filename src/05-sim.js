@@ -10,18 +10,23 @@ const LURK_HOME=-TRAIL_LEN+.75, LURK_LX=-1.0, CRAWL_HOME=-TRAIL_LEN+1.3;
 
 // difficulty, picked on the menu by whoever runs the world: the quota, how hard monsters hit, and how often bad luck strikes
 const DIFFS=[{name:'Easy',q:.7,dmg:.6,ev:.55},{name:'Normal',q:1,dmg:1,ev:1},{name:'Hard',q:1.3,dmg:1.35,ev:1.5}];
-const DF=()=>DIFFS[S&&DIFFS[S.diff]?S.diff:1],diffEv=()=>DF().ev;
+const DF=()=>DIFFS[S&&DIFFS[S.diff]?S.diff:1];
+// past night 5 the quota grows slowly and the monsters carry the difficulty: bad luck comes more often (+12% a night,
+// up to double) and hits harder (+6% a night, up to +60%)
+const lateN=()=>Math.max(0,(S?S.night:1)-5),diffEv=()=>DF().ev*Math.min(2,1+.12*lateN()),dmgMul=()=>DF().dmg*Math.min(1.6,1+.06*lateN());
 function newState(){return{night:1,diff:DIFFS[SET.diff]?SET.diff:1,t:0,phase:'play',inter:0,quota:15,shelved:0,lost:0,score:0,total:0,aidLeft:2,lamps:LAMPS.map(L=>L.dead?0:1),
   players:{},boxes:[],trucks:BAYS.map(()=>({st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,stuck:0})),mons:[],over:null,bver:0,
   cash:0,adds:[],fixed:[],aidBonus:0,extra:0}}
 function addPlayer(id,name,col){S.players[id]={id,name,col,x:0,z:-16,yaw:0,pitch:0,light:true,hp:100,dead:false,carry:-1,lastHurt:-99,inv:{},up:{},stack:[],can:false}}
 function spawnPoint(i){return{x:-2.4+(i%5)*1.4,z:-15.5+Math.floor(i/5)*1.4}}
-function calcQuota(){const n=Math.max(1,Object.keys(S.players).length);return Math.max(5,Math.round((10+S.night*5+addExtras().q)*(1+.45*Math.min(3,n-1)+.3*Math.max(0,n-4))*DF().q))}
+const crewMul=()=>{const n=Math.max(1,Object.keys(S.players).length);return 1+.45*Math.min(3,n-1)+.3*Math.max(0,n-4)};
+function calcQuota(){const nq=S.night<=5?10+S.night*5:35+(S.night-5)*2.5; // five more a night up to night 5, then two and a half
+  return Math.max(5,Math.round((nq+addExtras().q)*crewMul()*DF().q))}
 
 function startNight(){
   // whatever was left on the floor (mimics included) is still there tonight; last night's shelves were emptied by the day shift
   S.t=0;S.phase='play';S.votes=[];S.shelved=0;S.lost=0;S.aidLeft=2;S.boxes=S.boxes.filter(b=>b.st===3);S.mons=[];S.bver++;
-  for(const s of SLOTS)s.box=-1;for(const b of S.boxes)if(b.s>=0&&SLOTS[b.s])SLOTS[b.s].box=b.id;
+  markSlots();
   S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0}));
   HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)/diffEv()*(i===0?1.8:i===3?.6:1));
   HOST.nextTruck=6;HOST.nextStalker=(rand(42,55)-Math.min(20,(S.night-1)*6))/diffEv();HOST.trucksTonight=0;HOST.lastTruck=false;S.ot=false;
@@ -43,7 +48,9 @@ function endNight(){
     S.boxes=S.boxes.filter(b=>b.st===2||(b.st===3&&!b.fz));S.bver++;
     S.parcels=[];S.flares=[];S.yard=null;if(S.fork){S.fork.drv='';S.fork.pal=-1;S.fork.pass=null}
     for(const p of Object.values(S.players)){p.carry=-1;p.stack=[];p.can=false}
-    emit({e:'nightDone',n:S.night,sh:S.shelved,q:S.quota,lo:S.lost,ot:!!S.ot});S.ot=false;saveRun()}
+    // the company docks the crew's pay for every box that went missing tonight
+    const fine=Math.min(Math.round(S.cash||0),S.lost*8);S.cash=(S.cash||0)-fine;
+    emit({e:'nightDone',n:S.night,sh:S.shelved,q:S.quota,lo:S.lost,ot:!!S.ot,fine});S.ot=false;saveRun()}
   else gameOver('quota')}
 function gameOver(why){if(S.over)return;if(S.saved)dropSave();S.over={why,night:S.night,total:S.total+S.shelved,score:S.score,shelved:S.shelved,quota:S.quota,ot:!!S.ot};emit({e:'over'})}
 // how far behind the steady pace that meets quota exactly at 6:00 AM
@@ -86,7 +93,7 @@ function watched(x,y,z){for(const p of alivePlayers()){const dx=x-p.x,dy=y-1.6,d
 // a flashlight clicked off and on again while pointed at (x,y,z)
 function flashedBy(x,y,z){for(const p of alivePlayers())if(p.togs&&p.togs.length>=2&&litByP(p,x,y,z))return p;return null}
 // floor: the least health this hit can leave you with. Instant kills (999) stay instant kills on every difficulty.
-function damage(p,amt,floor=0){if(!p||p.dead)return;if(amt<999)amt=Math.round(amt*DF().dmg);if(floor)amt=Math.min(amt,Math.max(0,p.hp-floor));p.hp-=amt;p.lastHurt=S.t;if(p.hp<=0){p.hp=0;p.dead=true;dropCarry(p);emit({e:'died',p:p.id})}}
+function damage(p,amt,floor=0){if(!p||p.dead)return;if(amt<999)amt=Math.round(amt*dmgMul());if(floor)amt=Math.min(amt,Math.max(0,p.hp-floor));p.hp-=amt;p.lastHurt=S.t;if(p.hp<=0){p.hp=0;p.dead=true;dropCarry(p);emit({e:'died',p:p.id})}}
 function dropOne(p,id){const b=S.boxes.find(x=>x.id===id);if(!b)return;const tb=trailerAt(p.x,p.z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=p.x-BAYS[tb].x+rand(-.2,.2);b.z=p.z-S.trucks[tb].z}else{b.st=3;b.x=p.x+rand(-.3,.3);b.z=p.z+rand(-.3,.3)}b.y=0;b.h='';S.bver++}
 function dropCarry(p){dropOne(p,p.carry);for(const id of p.stack||[])dropOne(p,id);p.stack=[];p.carry=-1;p.can=false;if(S.fork&&S.fork.drv===p.id)S.fork.drv=''}
 function settleTruck(bay){const bs=S.boxes.filter(b=>b.st===0&&b.bay===bay).sort((a,b)=>a.y-b.y);
@@ -346,12 +353,15 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
     if(b.m){burstMimic(b,pid,true);return}
     if(p.carry>=0)p.stack.push(p.carry);
     const fromTruck=b.st===0,bay=b.bay;b.st=1;b.h=pid;p.carry=b.id;p.baseIdle=0;p.baseWarn=false;if(fromTruck)settleTruck(bay);S.bver++;emit({e:'pick',p:pid,x:w.x,y:w.y,z:w.z});break}
-  case 'place':{const b=B(p.carry),s=SLOTS[a.s];if(!b||!s||s.old||s.box!==-1||!slotOn(s))return;if(drv?tipD(s)>2.8:Math.hypot(p.x-s.x,p.z-s.z)>3.8)return;
+  case 'place':{const b=B(p.carry),s=SLOTS[a.s];if(!b||!s||s.old||!slotOn(s))return;if(drv?tipD(s)>2.8:Math.hypot(p.x-s.x,p.z-s.z)>3.8)return;
+    // an empty slot, or (Better Stocking) on top of the box already there if the two fit
+    const under=s.box>=0?B(s.box):null,top=!!under&&!(s.box2>=0)&&canStack(p,under,b);if(s.box!==-1&&!top)return;
     if(s.cold&&!b.fz)return emit({e:'msg',m:'Only frozen crates go in the freezer.',p:pid});
     if(!s.cold&&b.fz)return emit({e:'msg',m:'Frozen crates go in the cold storage room.',p:pid});
     if(b.ret)return emit({e:'msg',m:'Damaged returns can\'t be shelved. They go in the basement shredder.',p:pid});
-    // some slots tonight aren't slots
-    b.st=2;b.s=s.id;b.x=s.x+rand(-.15,.15);b.y=s.y;b.z=s.z+rand(-.08,.08);b.ry=rand(-.12,.12)+(s.rot?Math.PI/2:0);b.h='';b.m=false;s.box=b.id;nextCarry();S.shelved++;pay(b.pri?20:b.f?15:10);S.bver++;
+    if(top){b.x=under.x+rand(-.04,.04);b.y=under.y+BOX_KINDS[under.k].h;b.z=under.z+rand(-.04,.04);b.ry=under.ry+rand(-.1,.1);s.box2=b.id}
+    else{b.x=s.x+rand(-.15,.15);b.y=s.y;b.z=s.z+rand(-.08,.08);b.ry=rand(-.12,.12)+(s.rot?Math.PI/2:0);s.box=b.id}
+    b.st=2;b.s=s.id;b.h='';b.m=false;nextCarry();S.shelved++;pay(b.pri?20:b.f?15:10);S.bver++;
     emit({e:'place',x:b.x,y:b.y,z:b.z});if(S.shelved===S.quota)emit({e:'quota'});break}
   case 'drop':{const b=B(p.carry);if(!b)return;let x=+a.x,z=+a.z;if(!isFinite(x)||!isFinite(z)||Math.hypot(x-p.x,z-p.z)>(drv?2.8:2.2)||insideAny(x,z,.15)){x=p.x;z=p.z}
     const tb=trailerAt(x,z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=x-BAYS[tb].x;b.z=z-S.trucks[tb].z;b.y=0;settleTruck(tb)}else{b.st=3;b.x=x;b.z=z;b.y=0}

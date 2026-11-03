@@ -10,7 +10,7 @@ const angDiff=(a,b)=>{let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;r
 const damp=(a,b,k,dt)=>lerp(a,b,1-Math.exp(-k*dt));
 const easeOut=t=>1-Math.pow(1-t,3), easeIn=t=>t*t*t, easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 
-const SET=Object.assign({sens:1,vol:0.8,fov:75,qual:2,fps:false,name:''},(()=>{try{return JSON.parse(localStorage.getItem('gs-settings'))||{}}catch(e){return{}}})());
+const SET=Object.assign({sens:1,vol:0.8,fov:75,qual:2,fps:false,name:'',keys:{},cross:'dot'},(()=>{try{return JSON.parse(localStorage.getItem('gs-settings'))||{}}catch(e){return{}}})());
 function saveSet(){try{localStorage.setItem('gs-settings',JSON.stringify(SET))}catch(e){}}
 
 // layout (metres). +x east, +z south, the loading dock is the north wall (z = -20).
@@ -46,6 +46,8 @@ const inRoofRoom=p=>p.x>RROOM.x0&&p.x<RROOM.x1&&p.z>RROOM.z0&&p.z<RROOM.z1;
 const chilled=()=>!!(S&&S.chill&&S.chill.st==='cold'); // the warehouse has gone cold (see chillUpdate)
 const STATION={charger:{x:-1.3,z:-19.8},aid:{x:1.3,z:-19.8}};
 const BOX_KINDS=[{w:.55,h:.42,d:.5,slow:.95},{w:.74,h:.56,d:.64,slow:.86},{w:.92,h:.72,d:.8,slow:.74}];
+// Better Stocking: a second box can go on top of a shelved one if the two together fit under the shelf above
+const STACK_H=1.0,canStack=(p,under,b)=>!!(p&&p.up&&p.up.stock2&&under&&under.st===2&&!under.m&&b&&BOX_KINDS[under.k].h+BOX_KINDS[b.k].h<=STACK_H);
 const MAX_CREW=10; // workers in one crew, host included
 const VEST=['#ff7a1a','#a4e33a','#38d4e8','#ff4fa8','#ffd23a','#9b6bff','#ff3b3b','#3bff9b','#3b7bff','#c08a5a'];
 const bigCrew=()=>Math.max(0,Object.keys(S.players).length-4); // crews past four get more work and more trucks

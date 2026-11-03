@@ -360,7 +360,7 @@ function hotbarHTML(me){if(!me||!me.inv)return'';const sel=curSel(me),items=[];
   for(const [code,k] of Object.entries(ITEM_KEYS)){if(!haveItem(me,k))continue;const n=k==='cutter'||k==='scanner'?'':me.inv[k];
     items.push(`<span class="hb${k===sel?' sel':''}"><small>${code.slice(5)}</small>${ITEM_ICON[k]}${n?`<b>${n}</b>`:''}</span>`)}
   const name=sel?`<div class="hbname">${SHOP[sel].name} &middot; <kbd>Right click</kbd> ${ITEM_USE[sel]}${items.length>1?' &middot; scroll to switch':''}</div>`:'';
-  const lamp=me.up.red?`<span class="hb lamp${ME.red?' on':''}"><small>H</small>Headlamp</span>`:'';
+  const lamp=me.up.red?`<span class="hb lamp${ME.red?' on':''}"><small>${keyLabel('KeyH')}</small>Headlamp</span>`:'';
   return items.length||lamp?`${name}<div class="hbrow">${items.join('')}${lamp}</div>`:''}
 function promptFor(t,me){switch(t.kind){
   case 'fork':return owned('fork')?'<kbd>E</kbd> Drive the forklift':'Broken forklift';
@@ -427,7 +427,9 @@ let shopShown=false,shopSig='';
 function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)return;
   const sig=JSON.stringify([S.cash,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
   $('shopCash').textContent=`$${Math.round(S.cash||0)}`;$('shopNight').textContent=`Night ${S.night} done. Night ${S.night+1} is next.`;
-  const card=(k,it,ownedNow,extra='')=>{const can=!ownedNow&&S.cash>=it.price;return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+it.price}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" ${can?'':'disabled'}>Buy</button>`}</div>`};
+  const card=(k,it,ownedNow,extra='')=>{const pr=priceOf(k),locked=it.night&&S.night+1<it.night,can=!ownedNow&&!locked&&S.cash>=pr;
+    if(locked)extra+=`<div class="tag" style="color:#ff9f70">on sale from night ${it.night}</div>`;
+    return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+pr}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" ${can?'':'disabled'}>Buy</button>`}</div>`};
   $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)).join('');
   $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.needs||me.up[it.needs]).map(([k,it])=>{const have=it.once?!!me.up[k]:k==='aid'?(S.aidBonus||0):(me.inv[k]||0);
     const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
