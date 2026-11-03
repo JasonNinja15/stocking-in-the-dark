@@ -38,16 +38,19 @@ function syncExtras(dt,time){if(!S)return;const t=time;
     ADDV.baseBulb.material.color.setScalar(Math.random()<.04?.2:1)}
   if(S.gen&&owned('gen')){const f=S.gen.fuel/100;ADDV.genGauge.scale.x=Math.max(.01,.36*f);ADDV.genGauge.material.color.set(f>.3?0x3aff7a:f>.12?0xffa020:(Math.sin(t*8)>0?0xff3020:0x400a08))}
   // forklift
-  const f=S.fork;if(f&&FORK3D){FORK3D.position.set(f.x,0,f.z);FORK3D.rotation.y=f.ry;const u=FORK3D.userData;u.lift.position.y=damp(u.lift.position.y,.08+(f.pal>=0?2.62:f.lift||0),3,dt);
+  // (someone else driving it: glide between snapshots instead of jumping to each one)
+  const f=S.fork;if(f&&FORK3D){const mine=f.drv===NET.myId||NET.mode!=='client',P=FORK3D.position,far=Math.hypot(P.x-f.x,P.z-f.z)>4;
+    if(mine||far){P.set(f.x,0,f.z);FORK3D.rotation.y=f.ry}else{P.x=damp(P.x,f.x,12,dt);P.z=damp(P.z,f.z,12,dt);FORK3D.rotation.y=angLerp(FORK3D.rotation.y,f.ry,1-Math.exp(-12*dt))}
+    const fx=P.x,fz=P.z,fry=FORK3D.rotation.y;const u=FORK3D.userData;u.lift.position.y=damp(u.lift.position.y,.08+(f.pal>=0?2.62:f.lift||0),3,dt);
     u.beacon.material.color.set(f.drv&&Math.sin(t*9)>0?0xffa020:0x3a2408);
-    PASS3D.visible=!!f.pass;if(f.pass){const tip={x:f.x+Math.sin(f.ry)*1.35,z:f.z+Math.cos(f.ry)*1.35};PASS3D.position.set(tip.x,u.lift.position.y+.06,tip.z);PASS3D.rotation.y=f.ry+Math.PI}
+    PASS3D.visible=!!f.pass;if(f.pass){const tip={x:fx+Math.sin(fry)*1.35,z:fz+Math.cos(fry)*1.35};PASS3D.position.set(tip.x,u.lift.position.y+.06,tip.z);PASS3D.rotation.y=fry+Math.PI}
     if(AU.ready){if(!FORK3D.userData.eng)FORK3D.userData.eng=loop('engine',{x:f.x,y:1,z:f.z},.55);const sp=Math.hypot(f.x-(FORK3D.userData.px??f.x),f.z-(FORK3D.userData.pz??f.z))/Math.max(dt,1e-3);
       FORK3D.userData.px=f.x;FORK3D.userData.pz=f.z;FORK3D.userData.eng.pos({x:f.x,y:1,z:f.z});FORK3D.userData.eng.set(f.drv?.35+Math.min(1,sp/4)*.6:0,.2)}}
   // pallets
   const pl=new Set();PALPICK.length=0;
   for(const p of S.pallets||[]){pl.add(p.id);let g=PALV.get(p.id);if(!g){g=makePallet();g.traverse(o=>{if(o.isMesh)o.userData={kind:'pallet',id:p.id}});ROOT.add(g);PALV.set(p.id,g)}
     if(p.st===0){const tr=S.trucks[p.bay];g.visible=tr.st!==0;g.position.set(BAYS[p.bay].x+p.lx,0,tr.z+p.lz);g.rotation.y=0}
-    else if(p.st===1&&f){g.visible=true;const u=FORK3D.userData;g.position.set(f.x+Math.sin(f.ry)*1.45,u.lift.position.y+.02,f.z+Math.cos(f.ry)*1.45);g.rotation.y=f.ry}
+    else if(p.st===1&&f){g.visible=true;const u=FORK3D.userData,P=FORK3D.position,ry=FORK3D.rotation.y;g.position.set(P.x+Math.sin(ry)*1.45,u.lift.position.y+.02,P.z+Math.cos(ry)*1.45);g.rotation.y=ry}
     else if(p.st===2){const s=SLOTS[p.s];g.visible=true;if(s)g.position.set(s.x,s.y,s.z);g.rotation.y=0}
     else{g.visible=true;g.position.set(p.x,p.y||0,p.z);g.rotation.y=p.ry}
     if(g.visible)g.traverse(o=>{if(o.isMesh)PALPICK.push(o)})}
@@ -87,6 +90,8 @@ function syncAmr(dt,t){const live=new Set();
     // the deck: down while driving; lifting, it rises to the shelf (the small one's box then slides across onto it)
     const top=r.k==='s'&&s?s.y:(r.k==='l'&&s?s.y:A.deck);v.h=damp(v.h,r.st==='lift'?A.deck+(top-A.deck)*Math.min(1,k/.6):A.deck,6,dt);amrLift(g,v.h);
     if(r.k==='s'&&r.load>=0){const m=BM.get(r.load);if(m){m.visible=true;let x=v.x,z=v.z;if(s&&k>.6){const e=(k-.6)/.4;x=lerp(v.x,s.x,e);z=lerp(v.z,s.z,e)}m.position.set(x,v.h,z);m.rotation.set(0,g.rotation.y,0)}}
+    // the pallet on the big one rides its (smoothed) table rather than jumping with each snapshot
+    if(r.k==='l'&&r.load>=0){const pg=PALV.get(r.load);if(pg){let x=v.x,z=v.z,ry=g.rotation.y;if(s&&k>.6){const e=(k-.6)/.4;x=lerp(v.x,s.x,e);z=lerp(v.z,s.z,e);ry=lerp(ry,0,e)}pg.position.set(x,v.h,z);pg.rotation.y=ry}}
     g.userData.band.color.setHSL(.57,1,r.st==='home'?.35:.45+.15*Math.sin(t*6));if(g.userData.beacon)g.userData.beacon.material.color.set(moving&&Math.sin(t*9)>0?0xffb020:0x3a2408);
     if(AU.ready){if(!v.snd)v.snd=loop('lift',{x:v.x,y:.4,z:v.z},.35);if(v.snd){v.snd.pos({x:v.x,y:.4,z:v.z});v.snd.set(moving||r.st==='lift'?.5:0,.2)}}}
   for(const k in AMRV)if(!live.has(k)){AMRV[k].g.visible=false;AMRV[k].snd&&AMRV[k].snd.set(0,.2)}}

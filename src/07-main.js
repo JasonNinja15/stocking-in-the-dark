@@ -231,7 +231,8 @@ function updScare(dt){const s=ME.scare,g=s.g,ud=g.userData;s.t+=dt;const k=s.t;
 
 // ===================================================================== world sync (host and clients both render from S)
 const TV=[];const BM=new Map(),MV=new Map(),AV=new Map();
-function syncTrucks(){S.trucks.forEach((tr,i)=>{const v=TV[i],b=BAYS[i],bv=BAYV[i];
+function syncTrucks(dt){S.trucks.forEach((tr,i)=>{const v=TV[i],b=BAYS[i],bv=BAYV[i];
+  if(NET.mode==='client'&&tr.tz!==undefined)tr.z=damp(tr.z,tr.tz,9,dt); // glide between snapshots (the boxes inside ride along)
   v.g.visible=tr.st!==0;v.g.position.set(b.x,0,tr.z);const fm=tr.claw?MAT.ribsClaw:b.reefer?MAT.reefer:MAT.ribs;if(v.g.userData.front.material!==fm)v.g.userData.front.material=fm;
   const pnl=bv.door.children[0],h=Math.max(.06,DOOR_H*(1-tr.door));pnl.scale.y=h;pnl.position.y=DOOR_H-h/2;
   bv.ind.material.color.set(!bayOn(i)?0x140606:tr.stuck>0?(Math.sin(performance.now()/120)>0?0xff3020:0x3a0c0c):tr.st===2&&tr.door>=1?0x2aff6a:tr.st===0?0x3a0c0c:0xffa020);bv.scr.material.color.set(tr.st===2?0x1d8a3e:0x4a1410);
@@ -244,8 +245,7 @@ function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
     if(b.st===1){const f=S.fork,onF=!!(f&&f.drv&&f.drv===b.h&&FORK3D),h=S.players[b.h];
       // the box in their arms (or on the forks), with anything stacked on top of it
       const pile=(h?[h.carry,...(h.stack||[]).slice().reverse()]:[]).map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),lv=Math.max(0,pile.indexOf(b));
-      if(onF){let y=FORK3D.userData.lift.position.y+.08;for(let i=0;i<lv;i++)y+=BOX_KINDS[pile[i].k].h;
-        m.visible=true;m.position.set(f.x+Math.sin(f.ry)*1.45,y,f.z+Math.cos(f.ry)*1.45);m.rotation.set(0,f.ry+lv*.1,0);continue}
+      if(onF){let y=FORK3D.userData.lift.position.y+.08;for(let i=0;i<lv;i++)y+=BOX_KINDS[pile[i].k].h;const P=FORK3D.position,fr=FORK3D.rotation.y;        m.visible=true;m.position.set(P.x+Math.sin(fr)*1.45,y,P.z+Math.cos(fr)*1.45);m.rotation.set(0,fr+lv*.1,0);continue}
       if(b.h===NET.myId){m.visible=false;continue}const av=AV.get(b.h);if(!av||!av.g.visible){m.visible=false;continue}
       let y=.92-BOX_KINDS[(pile[0]||b).k].h*.4;for(let i=0;i<lv;i++)y+=BOX_KINDS[pile[i].k].h;
       m.visible=true;m.position.set(av.x-Math.sin(av.yaw)*.42,y,av.z-Math.cos(av.yaw)*.42);m.rotation.set(0,av.yaw+lv*.12,0);continue}
@@ -334,7 +334,7 @@ function syncLamps(dt){let pool=0;LAMPV.forEach((L,i)=>{let on;
   if(light)light.intensity=(L.light?17:15)*lv;L.bulb.material.color.setRGB(lerp(.1,1,lv),lerp(.08,.85,lv),lerp(.06,.62,lv));L.cone.material.uniforms.lv.value=lv;
   if(AU.ready){if(!L.hum)L.hum=loop('hum',{x:LAMPS[i].x,y:5,z:LAMPS[i].z},.35);L.hum.set(lv*.35,.03)}});
   for(;pool<LAMPV.pool.length;pool++)LAMPV.pool[pool].intensity=0}
-function syncWorld(dt,time){applyColliders();syncTrucks();syncAvatars(dt,time);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time)}
+function syncWorld(dt,time){applyColliders();syncTrucks(dt);syncAvatars(dt,time);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time)}
 function clearVisuals(){for(const m of BM.values())ROOT.remove(m);BM.clear();for(const v of MV.values()){ROOT.remove(v.g);v.lp&&v.lp.stop();v.gr&&v.gr.stop()}MV.clear();for(const v of AV.values())ROOT.remove(v.g);AV.clear();
   for(const v of TV)v.g.visible=false;for(const s of REMOTE_SPOTS)s.intensity=0;setViewBox(null);if(ME.scare){camera.remove(ME.scare.g);ME.scare=null}
   for(const s of SLOTS)s.box=-1;BOXPICK.length=0;
