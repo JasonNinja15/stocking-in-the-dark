@@ -233,14 +233,17 @@ function spawnStalkerAt(x,z){const m={id:monSeq++,ty:2,x,y:0,z,ry:0,st:'ambush',
 // ---------------------------------------------------------------- the thing in the yard
 const yardOn=()=>S.night>=7||S.ot;
 const YARD_D=[34,26,18,10],YARD_Y=[15,11,8,5]; // how far out it stands, and how high its face is (it stoops lower each step)
-function yardUpdate(dt){const y=S.yard;if(!y)return;const tr=S.trucks[y.bay];if(!(tr.st===0&&tr.stuck>0)){S.yard=null;return}
-  const gx=BAYS[y.bay].x,gz=WH.z0-YARD_D[y.stage],gy=YARD_Y[y.stage];
+function yardUpdate(dt){const y=S.yard;if(!y)return;const tr=S.trucks[y.bay],gx=BAYS[y.bay].x;
+  // its hand is on its way in through the door: it lands, then the door slams shut on it
+  if(y.hit){y.ht+=dt;if(y.ht>=1.1){const v=S.players[y.hit];if(v&&!v.dead)damage(v,80);emit({e:'yhit',p:y.hit});tr.stuck=0;tr.door=0;emit({e:'slam',x:gx,z:WH.z0});S.yard=null}return}
+  if(!(tr.st===0&&tr.stuck>0)){S.yard=null;return}
+  const gz=WH.z0-YARD_D[y.stage],gy=YARD_Y[y.stage];
   for(const p of alivePlayers()){if(!inWH(p)||inTrailer(p)>=0)continue;const dx=gx-p.x,dy=gy-1.6,dz=gz-p.z,d=Math.hypot(dx,dy,dz);
     const cp=Math.cos(p.pitch),fx=-Math.sin(p.yaw)*cp,fy=Math.sin(p.pitch),fz=-Math.cos(p.yaw)*cp;
     if((dx*fx+dy*fy+dz*fz)/d<.93||segBlocked(p.x,p.z,gx,WH.z0-.5))continue;
     y.look+=dt;if(y.look<1.2)return;y.look=0;
     if(y.stage<3){y.stage++;emit({e:'boom',x:gx,z:WH.z0-YARD_D[y.stage]})}
-    else{emit({e:'scare',p:p.id,ty:9});damage(p,80);tr.stuck=0;tr.door=0;emit({e:'slam',x:gx,z:WH.z0});S.yard=null}
+    else{y.hit=p.id;y.ht=0;emit({e:'yreach',x:gx,z:WH.z0})} // the fourth look: it reaches in for whoever is looking
     return}}
 
 // ---------------------------------------------------------------- the thing in the yard, when someone is up on the roof

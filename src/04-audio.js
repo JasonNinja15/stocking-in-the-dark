@@ -122,8 +122,6 @@ const SFX={
       voice(d,{t:.1,dur:1.2,a:.06,rel:.4,f0:150,f1:95,v:'oo',v2:'ah',rasp:18,raspD:.8,jit:.05,noise:.6,sub:.3,g:.5,drive:4})}
     else if(ty===7){ // the driver: a man's yell that breaks apart halfway through
       voice(d,{dur:1.2,a:.02,rel:.4,f0:180,f1:120,v:'ah',v2:'aw',rasp:52,raspD:.6,jit:.09,vib:.04,noise:.3,sub:.3,g:.65,drive:7});screech(d,{t:.4,dur:.7,f0:600,f1:900,g:.1})}
-    else if(ty===9){ // the thing in the yard: a sound too low and too big for any throat
-      tone(d,{f:38,f2:22,dur:2.4,a:.05,g:.9});voice(d,{dur:2.2,a:.1,rel:.8,f0:48,f1:31,v:'oo',v2:'aw',rasp:14,raspD:.9,jit:.03,noise:.5,sub:1,g:.7,drive:3});nz(d,{dur:1.8,a:.2,g:.3,type:'lowpass',f:200})}
     else if(ty===10){ // the elevator roof: the hatch bangs open and something screams down through it
       tone(d,{type:'square',f:110,f2:60,dur:.25,a:.002,g:.4});nz(d,{dur:.2,a:.002,g:.5,f:1500,q:1});
       voice(d,{t:.12,dur:1.2,a:.02,rel:.4,f0:560,f1:880,v:'ee',v2:'ah',rasp:66,raspD:.6,jit:.08,noise:.2,sub:0,g:.55,drive:7});screech(d,{t:.15,dur:.9,f0:900,f1:1500,g:.14})}
@@ -152,16 +150,7 @@ const SFX={
   writeup(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.2,ref:2});for(let i=0;i<9;i++)nz(d,{t:i*.07,dur:.06,a:.004,g:.22,f:rand(3000,4500),q:4});
     voice(d,{t:.75,dur:.35,a:.03,rel:.15,f0:105,f1:88,v:'eh',v2:'oo',rasp:20,raspD:.3,noise:.1,sub:.2,g:.3,drive:2})},
   boom(pos){if(!AU.ready)return;const d=dest(pos,{rev:.8,gain:1.6,ref:12,roll:.6});tone(d,{f:44,f2:26,dur:1.4,a:.01,g:.8});nz(d,{dur:.6,a:.01,g:.4,type:'lowpass',f:160})},
-  // ---- the thing in the yard: everything about it is too big and too slow
-  // a call from very far up: a hollow, horn-like moan from a throat the size of a room, a second, wrong voice under it,
-  // both sliding down together; the short one is it snatching its hand back
-  gmoan(pos,short){if(!AU.ready)return;const d=dest(pos,{rev:.95,gain:short?1.2:1.5,ref:14,roll:.45}),L=short?1.4:4.6;
-    voice(d,{dur:L,a:short?.15:1.3,rel:short?.6:1.8,f0:short?38:52,f1:short?55:31,v:'oo',v2:'aw',rasp:5,raspD:.45,jit:.015,vib:.012,noise:.18,sub:.9,g:.5,drive:1.6});
-    voice(d,{t:short?0:.35,dur:L*.92,a:1,rel:1.5,f0:short?27:37,f1:short?39:22,v:'oo',rasp:3,raspD:.3,jit:.01,noise:.1,sub:1,g:.32,drive:1.3});
-    tone(d,{f:short?22:26,f2:short?30:17,dur:L,a:L*.3,g:.55});nz(d,{dur:L,a:L*.4,g:.12,type:'lowpass',f:180})},
-  // one footfall: a deep thump through the ground and a crust of snow giving way under it
-  gstep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.7,gain:1.7,ref:12,roll:.5});tone(d,{f:38,f2:19,dur:1.3,a:.01,g:.95});tone(d,{f:62,f2:30,dur:.4,a:.005,g:.4});
-    nz(d,{dur:.7,a:.02,g:.45,type:'lowpass',f:140});nz(d,{t:.02,dur:.35,a:.01,g:.18,type:'bandpass',f:900,q:.7})},
+  // ---- the thing in the yard: everything about it is too big and too slow (its footfalls are the plain boom)
   // its joints: slow, stick-slip creaks like old ship timbers, far too low for anything alive
   gcreak(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.5,ref:8,roll:.6});let t=0;
     for(let k=0;k<3;k++){const f=rand(170,320),n=randi(9,16);for(let i=0;i<n;i++)nz(d,{t:t+i*rand(.025,.045),dur:.05,a:.003,g:.35,f:f*(1-i*.012),q:14});t+=rand(.55,.9)}

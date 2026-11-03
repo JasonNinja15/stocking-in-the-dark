@@ -1280,8 +1280,6 @@ const SFX={
       voice(d,{t:.1,dur:1.2,a:.06,rel:.4,f0:150,f1:95,v:'oo',v2:'ah',rasp:18,raspD:.8,jit:.05,noise:.6,sub:.3,g:.5,drive:4})}
     else if(ty===7){ // the driver: a man's yell that breaks apart halfway through
       voice(d,{dur:1.2,a:.02,rel:.4,f0:180,f1:120,v:'ah',v2:'aw',rasp:52,raspD:.6,jit:.09,vib:.04,noise:.3,sub:.3,g:.65,drive:7});screech(d,{t:.4,dur:.7,f0:600,f1:900,g:.1})}
-    else if(ty===9){ // the thing in the yard: a sound too low and too big for any throat
-      tone(d,{f:38,f2:22,dur:2.4,a:.05,g:.9});voice(d,{dur:2.2,a:.1,rel:.8,f0:48,f1:31,v:'oo',v2:'aw',rasp:14,raspD:.9,jit:.03,noise:.5,sub:1,g:.7,drive:3});nz(d,{dur:1.8,a:.2,g:.3,type:'lowpass',f:200})}
     else if(ty===10){ // the elevator roof: the hatch bangs open and something screams down through it
       tone(d,{type:'square',f:110,f2:60,dur:.25,a:.002,g:.4});nz(d,{dur:.2,a:.002,g:.5,f:1500,q:1});
       voice(d,{t:.12,dur:1.2,a:.02,rel:.4,f0:560,f1:880,v:'ee',v2:'ah',rasp:66,raspD:.6,jit:.08,noise:.2,sub:0,g:.55,drive:7});screech(d,{t:.15,dur:.9,f0:900,f1:1500,g:.14})}
@@ -1310,16 +1308,7 @@ const SFX={
   writeup(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:1.2,ref:2});for(let i=0;i<9;i++)nz(d,{t:i*.07,dur:.06,a:.004,g:.22,f:rand(3000,4500),q:4});
     voice(d,{t:.75,dur:.35,a:.03,rel:.15,f0:105,f1:88,v:'eh',v2:'oo',rasp:20,raspD:.3,noise:.1,sub:.2,g:.3,drive:2})},
   boom(pos){if(!AU.ready)return;const d=dest(pos,{rev:.8,gain:1.6,ref:12,roll:.6});tone(d,{f:44,f2:26,dur:1.4,a:.01,g:.8});nz(d,{dur:.6,a:.01,g:.4,type:'lowpass',f:160})},
-  // ---- the thing in the yard: everything about it is too big and too slow
-  // a call from very far up: a hollow, horn-like moan from a throat the size of a room, a second, wrong voice under it,
-  // both sliding down together; the short one is it snatching its hand back
-  gmoan(pos,short){if(!AU.ready)return;const d=dest(pos,{rev:.95,gain:short?1.2:1.5,ref:14,roll:.45}),L=short?1.4:4.6;
-    voice(d,{dur:L,a:short?.15:1.3,rel:short?.6:1.8,f0:short?38:52,f1:short?55:31,v:'oo',v2:'aw',rasp:5,raspD:.45,jit:.015,vib:.012,noise:.18,sub:.9,g:.5,drive:1.6});
-    voice(d,{t:short?0:.35,dur:L*.92,a:1,rel:1.5,f0:short?27:37,f1:short?39:22,v:'oo',rasp:3,raspD:.3,jit:.01,noise:.1,sub:1,g:.32,drive:1.3});
-    tone(d,{f:short?22:26,f2:short?30:17,dur:L,a:L*.3,g:.55});nz(d,{dur:L,a:L*.4,g:.12,type:'lowpass',f:180})},
-  // one footfall: a deep thump through the ground and a crust of snow giving way under it
-  gstep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.7,gain:1.7,ref:12,roll:.5});tone(d,{f:38,f2:19,dur:1.3,a:.01,g:.95});tone(d,{f:62,f2:30,dur:.4,a:.005,g:.4});
-    nz(d,{dur:.7,a:.02,g:.45,type:'lowpass',f:140});nz(d,{t:.02,dur:.35,a:.01,g:.18,type:'bandpass',f:900,q:.7})},
+  // ---- the thing in the yard: everything about it is too big and too slow (its footfalls are the plain boom)
   // its joints: slow, stick-slip creaks like old ship timbers, far too low for anything alive
   gcreak(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.5,ref:8,roll:.6});let t=0;
     for(let k=0;k<3;k++){const f=rand(170,320),n=randi(9,16);for(let i=0;i<n;i++)nz(d,{t:t+i*rand(.025,.045),dur:.05,a:.003,g:.35,f:f*(1-i*.012),q:14});t+=rand(.55,.9)}
@@ -2030,14 +2019,17 @@ function spawnStalkerAt(x,z){const m={id:monSeq++,ty:2,x,y:0,z,ry:0,st:'ambush',
 // ---------------------------------------------------------------- the thing in the yard
 const yardOn=()=>S.night>=7||S.ot;
 const YARD_D=[34,26,18,10],YARD_Y=[15,11,8,5]; // how far out it stands, and how high its face is (it stoops lower each step)
-function yardUpdate(dt){const y=S.yard;if(!y)return;const tr=S.trucks[y.bay];if(!(tr.st===0&&tr.stuck>0)){S.yard=null;return}
-  const gx=BAYS[y.bay].x,gz=WH.z0-YARD_D[y.stage],gy=YARD_Y[y.stage];
+function yardUpdate(dt){const y=S.yard;if(!y)return;const tr=S.trucks[y.bay],gx=BAYS[y.bay].x;
+  // its hand is on its way in through the door: it lands, then the door slams shut on it
+  if(y.hit){y.ht+=dt;if(y.ht>=1.1){const v=S.players[y.hit];if(v&&!v.dead)damage(v,80);emit({e:'yhit',p:y.hit});tr.stuck=0;tr.door=0;emit({e:'slam',x:gx,z:WH.z0});S.yard=null}return}
+  if(!(tr.st===0&&tr.stuck>0)){S.yard=null;return}
+  const gz=WH.z0-YARD_D[y.stage],gy=YARD_Y[y.stage];
   for(const p of alivePlayers()){if(!inWH(p)||inTrailer(p)>=0)continue;const dx=gx-p.x,dy=gy-1.6,dz=gz-p.z,d=Math.hypot(dx,dy,dz);
     const cp=Math.cos(p.pitch),fx=-Math.sin(p.yaw)*cp,fy=Math.sin(p.pitch),fz=-Math.cos(p.yaw)*cp;
     if((dx*fx+dy*fy+dz*fz)/d<.93||segBlocked(p.x,p.z,gx,WH.z0-.5))continue;
     y.look+=dt;if(y.look<1.2)return;y.look=0;
     if(y.stage<3){y.stage++;emit({e:'boom',x:gx,z:WH.z0-YARD_D[y.stage]})}
-    else{emit({e:'scare',p:p.id,ty:9});damage(p,80);tr.stuck=0;tr.door=0;emit({e:'slam',x:gx,z:WH.z0});S.yard=null}
+    else{y.hit=p.id;y.ht=0;emit({e:'yreach',x:gx,z:WH.z0})} // the fourth look: it reaches in for whoever is looking
     return}}
 
 // ---------------------------------------------------------------- the thing in the yard, when someone is up on the roof
@@ -2406,7 +2398,7 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S
     par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1]),
     fl:(S.flares||[]).map(f=>[f.id,r2(f.x),r2(f.z),Math.round(f.t)]),cold:S.cold&&[r2(S.cold.door),S.cold.open?1:0],conv:S.conv&&[S.conv.sel,S.conv.jam?1:0],
     elev:S.elev&&[S.elev.lvl,S.elev.st,r2(S.elev.t),r2(S.elev.gate),r2(S.elev.hl||0),r2(S.elev.ht||0)],df:S.diff,gen:S.gen&&[Math.round(S.gen.fuel),S.gen.out?1:0],
-    out:S.outage?1:0,fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage],st:S.stash?1:0,ch:S.chill&&[S.chill.st==='cold'?1:0,Math.ceil(S.chill.t)],
+    out:S.outage?1:0,fork:S.fork&&[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry),r2(S.fork.lift),S.fork.drv,S.fork.pal,S.fork.pass?1:0],yard:S.yard&&[S.yard.bay,S.yard.stage,S.yard.hit||'',r2(S.yard.ht||0)],st:S.stash?1:0,ch:S.chill&&[S.chill.st==='cold'?1:0,Math.ceil(S.chill.t)],
     rg:S.rg&&[RG_ST.indexOf(S.rg.st),r2(S.rg.x),r2(S.rg.z),r3(S.rg.ry),r2(S.rg.k),r2(S.rg.hx),r2(S.rg.hz),S.rg.tg||'',r2(S.rg.t),S.rg.b|0]},
   ev:NETEV.splice(0)}}
 function boxSnap(){return S.boxes.filter(b=>b.st!==4).map(b=>[b.id,b.st,r2(b.x),r2(b.y),r2(b.z),r2(b.ry),b.k,b.f?1:0,b.v,b.h||'',b.s,b.bay??-1,b.fz?1:0,Math.round(b.th||0),b.ret?1:0,b.pri?1:0,b.m?1:0])}
@@ -2422,7 +2414,7 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
   m.tr.forEach((a,i)=>Object.assign(S.trucks[i],{st:a[0],z:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]}));
   S.mons=m.mo.map(a=>({id:a[0],ty:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],a:a[6],k:a[7],v:a[8],f:!!a[9],tg:a[10]||''}));
   const x=m.x||{};const addsChanged=JSON.stringify(x.adds||[])!==JSON.stringify(S.adds||[]);
-  Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1]}:null,stash:!!x.st,chill:x.ch?{st:x.ch[0]?'cold':'warn',t:x.ch[1]}:null,
+  Object.assign(S,{outage:!!x.out,cash:x.cash,adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1],hit:x.yard[2]||'',ht:x.yard[3]||0}:null,stash:!!x.st,chill:x.ch?{st:x.ch[0]?'cold':'warn',t:x.ch[1]}:null,
     rg:x.rg?{st:RG_ST[x.rg[0]],x:x.rg[1],z:x.rg[2],ry:x.rg[3],k:x.rg[4],hx:x.rg[5],hz:x.rg[6],tg:x.rg[7],t:x.rg[8],b:x.rg[9]|0}:null,
     parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8]})),
     flares:(x.fl||[]).map(a=>({id:a[0],x:a[1],z:a[2],t:a[3]}))});
@@ -3048,10 +3040,14 @@ function syncExtras(dt,time){if(!S)return;const t=time;
   // the thing in the yard: each time it steps closer it stoops lower to see in, and at the last step its fingers
   // come round the top of the door frame
   if(S.yard){const y=S.yard,bx=BAYS[y.bay].x,z=WH.z0-YARD_D[y.stage],u=GIANT.userData,v=u.v||(u.v={walk:0,st:0});GIANT.visible=camera.position.x>-100;
-    if(!GIANT.position.z){GIANT.position.z=z}const oz=GIANT.position.z;GIANT.position.set(bx,-1.25,damp(oz,z,1.2,dt));const sp=Math.abs(GIANT.position.z-oz)/Math.max(dt,1e-3);
+    if(!GIANT.position.z){GIANT.position.z=z}const oz=GIANT.position.z;GIANT.position.set(bx,-1.25,damp(oz,z+(y.hit?4.5*clamp(y.ht/.5,0,1):0),y.hit?6:1.2,dt)); /* reaching in, it lunges up to the doorway */const sp=Math.abs(GIANT.position.z-oz)/Math.max(dt,1e-3);
     v.walk+=sp*dt*.55;v.st=damp(v.st,Math.min(1,sp/1.2),3,dt);v.cr=damp(v.cr||0,[0,.15,.4,1][y.stage],1.5,dt);v.ln=damp(v.ln||0,[0,.1,.35,1.25][y.stage],1.5,dt);GIANT.rotation.y=0;
     const grip=y.stage===3?_yv.set(bx+DOOR_HW-.25,DOOR_H+.15,WH.z0-.35):null;
-    poseGiant(GIANT,{walk:v.walk,stride:v.st,crouch:v.cr,lean:v.ln,look:camera.position,hands:[null,grip],curl:[0,grip?.75:0],t})}
+    // the fourth look: its free hand comes in low through the doorway, straight at whoever was looking
+    let reach=null;const vt=y.hit&&S.players[y.hit];
+    if(vt){const a=clamp(y.ht/.9,0,1),e=a*a*(3-2*a),door=_pv.set(bx,1.6,WH.z0+.4),tgt=y.hit===NET.myId?_pw.copy(camera.position):_pw.set(vt.x,1.2,vt.z);
+      reach=e<.5?GIANT.localToWorld(_rv.set(-2.1,.9,1.6)).lerp(door,e*2):door.lerp(tgt,(e-.5)*2)}
+    poseGiant(GIANT,{walk:v.walk,stride:v.st,crouch:v.cr,lean:v.ln+(vt?.15:0),look:vt&&y.hit!==NET.myId?_rm.set(vt.x,1.6,vt.z):camera.position,hands:[reach,grip],curl:[vt?.6:0,grip?.75:0],t})}
   else{GIANT.visible=false;GIANT.position.z=0}
   syncRoof(dt,t)}
 const reach0=g=>g.st==='reach'||g.st==='retract'||g.st==='eat',_pv=new THREE.Vector3(),_pw=new THREE.Vector3();
@@ -3115,10 +3111,9 @@ function syncRoof(dt,t){const up=onRoof(ME)&&S.phase==='play',me=S.players[NET.m
     const px=clamp(v.x+fx*(RG_O+2.2)+sx*A.s*3.2,ROOF.x0+.6,ROOF.x1-.6),pz=clamp(v.z+fz*(RG_O+2.2)+sz*A.s*3.2,ROOF.z0+.6,ROOF.z1-.6);
     const rest=ROOFG.localToWorld(_pv.set(A.s*2.1,.9,1.6));hands[o]=rest.lerp(_pw.set(px,.12,pz),v.br);cl[o]=.35*v.br}
   poseGiant(ROOFG,{walk:v.walk,stride:v.st,lean:Math.min(1,v.k*1.25)+(g.st==='wait'?.15:0)+v.br*.12,crouch:v.k*.35-v.br*.15,jaw,look,hands,curl:cl,out,t});
-  // its breathing, and now and then a call
+  // its breathing
   if(AU.ready){const hp=ROOFG.userData.head.getWorldPosition(_pw);if(!u.breath){u.breath=loop('gbreath',hp,1);if(u.breath){u.breath.P.refDistance=9;u.breath.P.rolloffFactor=.5}}
-    if(u.breath){u.breath.pos(hp);u.breath.set(ROOFG.visible?.9:0,.5)}
-    v.mt=(v.mt??rand(6,10))-dt;if(v.mt<=0){v.mt=rand(10,20);if(ROOFG.visible&&!eat)SFX.gmoan(hp)}}}
+    if(u.breath){u.breath.pos(hp);u.breath.set(ROOFG.visible?.9:0,.5)}}}
 // where a held player is: in its fist
 function rgHeldAt(id){const g=S.rg;if(!g||g.st!=='eat'||g.tg!==id||!ROOFG||!ROOFG.userData.v)return null;return giantHand(ROOFG,ROOFG.userData.v.hi,_rm)}
 // being lifted: the camera rides in its hand, turned to face what it's lifting you to
@@ -3255,16 +3250,12 @@ function fearOf(v,d){if(v.ty===4)return v.a===4?clamp(1-d/9,0,1)*1.2:clamp(1-d/7
   if(v.ty===6)return clamp(1-d/6,0,1)*(v.a===2?.9:.3);if(v.ty===7)return clamp(1-d/8,0,1)*.8;if(v.ty===12)return clamp(1-d/5,0,1)*.25;return null}
 
 // ---------------------------------------------------------------- jumpscares for the new ones
-function makeScare2(ty){return ty===13?makeBlind():ty===14?makeHunch():ty===4?makeManager():ty===5?makeShrink():ty===6?makeFrost():ty===7?makeDriver():ty===9?makeGiant():ty===10?makeRoofThing():ty===11?makePassenger():null}
+function makeScare2(ty){return ty===13?makeBlind():ty===14?makeHunch():ty===4?makeManager():ty===5?makeShrink():ty===6?makeFrost():ty===7?makeDriver():ty===10?makeRoofThing():ty===11?makePassenger():null}
 function updScare2(s,k,lunge){const g=s.g,u=g.userData;
   if(s.ty===4){g.position.set(rand(-.01,.01),-2.36,lerp(-1.9,-.78,lunge(.18)));g.rotation.y=Math.PI*0;u.clip.position.y=.3;u.clip.rotation.x=1.35;u.head.rotation.set(-.2,0,Math.sin(k*17)*.05+.15);u.arms.forEach(a=>{a.rotation.x=-1.6;a.rotation.z=0})}
   else if(s.ty===5){g.position.set(rand(-.02,.02),-1.9,lerp(-1.4,-.6,lunge(.2)));u.head.rotation.set(-.15,0,Math.sin(k*25)*.2);u.torso.rotation.x=.25}
   else if(s.ty===6){g.position.set(rand(-.02,.02),-1.84,lerp(-1.5,-.62,lunge(.16)));u.arms.forEach((a,i)=>{a.rotation.x=-1.9;a.rotation.z=(i?-1:1)*.3});u.head.rotation.set(-.25,0,0)}
   else if(s.ty===7){g.position.set(rand(-.02,.02),-1.66,lerp(-1.4,-.58,lunge(.16)));g.rotation.y=Math.PI;u.head.rotation.set(-.2,0,.85+Math.sin(k*30)*.15);u.arms.forEach(a=>a.rotation.x=-1.7);u.beam.visible=false;u.tag.visible=false}
-  else if(s.ty===9){ // its face, stooped right down to yours, and the grin opening
-    g.position.set(0,0,0);poseGiant(g,{crouch:.55,lean:.85,jaw:clamp(k*1.6-.15,0,1),t:k*3});g.updateMatrixWorld(true);
-    const hl=g.worldToLocal(u.head.getWorldPosition(_yv));g.position.set(-hl.x+rand(-.02,.02),-hl.y-.35,-hl.z-lerp(3.2,1.25,lunge(.45)));
-    g.updateMatrixWorld(true);u.head.lookAt(camera.getWorldPosition(_rv));u.head.rotateZ(.35+Math.sin(k*20)*.05)}
   else if(s.ty===10){g.position.set(rand(-.01,.01),lerp(1.2,.12,lunge(.14)),-.5);g.rotation.set(0,0,Math.PI);u.arms.forEach((a,i)=>a.rotation.z=(i?-1:1)*.8)}
   else if(s.ty===13){g.position.set(rand(-.02,.02),-2.2,lerp(-1.5,-.6,lunge(.16)));u.head.rotation.set(-.2,0,.4+Math.sin(k*22)*.12);u.arms.forEach(a=>a.rotation.x=-1.6)}
   else if(s.ty===14){g.position.set(rand(-.02,.02),-1.1,lerp(-1.2,-.45,lunge(.22)));u.body.position.y=0;u.torso.rotation.x=.3;u.head.rotation.x=-.2;u.arms.forEach(a=>a.rotation.x=-1.5)}
@@ -3296,7 +3287,7 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   case 'vanish':SFX.vanish(P(e.x,e.z,e.y||1));break;
   case 'writeup':SFX.writeup(evPos(e)||P(ME.x,ME.z));if(e.p===me)toast(e.n>=2?'The night manager writes you up again. Keep busy. Don\'t let it happen a third time.':'The night manager writes you up for standing around. That\'s $10 off your pay.',5,'radio');break;
   case 'mgrFinal':if(e.p===me){toast('He lowers the clipboard. Don\'t stop moving.',5,'radio');ME.shake=Math.max(ME.shake,.4)}break;
-  case 'boom':SFX.gstep(P(e.x,e.z,-1));ME.shake=Math.max(ME.shake,.25);setTimeout(()=>SFX.gmoan(P(e.x,e.z,14)),700);break; // the thing in the yard takes a step closer
+  case 'boom':SFX.boom(P(e.x,e.z,0));ME.shake=Math.max(ME.shake,.25);break; // the thing in the yard takes a step closer
   case 'roof':SFX.roofStep(P(e.x,e.z,2.8));break;
   case 'stall':SFX.thunk(P(ME.x,ME.z,2));if(AU.ready&&ADDV.lift)ADDV.lift.set(0,.1);if(Math.abs(ME.x-(e.lvl===0?-28.7:71.3))<3)toast('The elevator jerks to a stop. Something is on the roof. Shine your flashlight up at the hatch!',6,'radio');break;
   case 'unstall':SFX.thunk(P(ME.x,ME.z,2));break;
@@ -3307,15 +3298,16 @@ function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
         for(let i=0;i<5;i++)setTimeout(()=>SFX.step(true,false),i*120);ME.yaw=e.climb>0?Math.PI*.75:Math.PI*.25;ME.pitch=0;
         if(e.climb>0&&!GAME.hints.roof){GAME.hints.roof=1;toast('The roof. It\'s snowing hard and nothing up here is lit. Someone keeps a supply crate at the far end.',6)}}}break;
   case 'stash':if(e.p===me){SFX.ok();toast(`Someone stashed supplies up here: +1 ${SHOP[e.k].name.toLowerCase()}.`,3.5)}break;
-  case 'gnear':if(onRoof(ME)&&S.rg)SFX.gmoan(P(S.rg.x,S.rg.z,ROOF.gy+18));break;
-  case 'gstep':{const d=Math.hypot(e.x-ME.x,e.z-ME.z);if(onRoof(ME)){SFX.gstep(P(e.x,e.z,ROOF.gy));ME.shake=Math.max(ME.shake,clamp(1-d/45,0,1)*.45)}break}
+  case 'gstep':{const d=Math.hypot(e.x-ME.x,e.z-ME.z);if(onRoof(ME)){SFX.boom(P(e.x,e.z,ROOF.gy));ME.shake=Math.max(ME.shake,clamp(1-d/45,0,1)*.45)}break}
   case 'greach':if(onRoof(ME)&&S.rg)SFX.gcreak(P(S.rg.x,S.rg.z,ROOF.gy+16));break;
   case 'ggrab':if(e.p===me){SFX.gcreak(P(ME.x,ME.z,1.5));ME.shake=Math.max(ME.shake,.7);ME.fear=1}else{const v=AV.get(e.p);if(v)SFX.scream({x:v.x,y:4,z:v.z})}break;
   case 'gbite':if(onRoof(ME)||e.p===me)SFX.gbite(e.p===me?null:P(e.x,e.z,ROOF.gy+17));break;
   case 'chill':big('<span style="color:#7fc8ff">The Warehouse Is Getting Cold</span>','Restart the ventilation in the room on the roof within 2 minutes',5.5);SFX.radio();ME.chillAt=performance.now()+5600;break;
   case 'frozen':big('<span style="color:#7fc8ff">The Warehouse Is Freezing</span>','Everyone is losing health. Restart the ventilation on the roof',5);SFX.thunk(P(ME.x,ME.z,3));break;
   case 'warm':SFX.ok();toast(e.p===me?'The ventilation is running again.':`${e.n} got the ventilation running again.`,4);break;
-  case 'gflinch':if(onRoof(ME))SFX.gmoan(P(e.x,e.z,ROOF.gy+18),true);break;
+  case 'yreach':SFX.gcreak(P(e.x,e.z,4));ME.shake=Math.max(ME.shake,.3);break;
+  case 'yhit':if(e.p===me){ME.shake=1;ME.flash=Math.max(ME.flash,.35)}break;
+  case 'gflinch':if(onRoof(ME))SFX.gcreak(P(e.x,e.z,ROOF.gy+16));break;
   case 'coldDoor':SFX.thunk(P((COLD.dx0+COLD.dx1)/2,COLD.z1,1));break;
   case 'lever':SFX.lever(P(e.x,e.z,1.2));break;
   case 'jam':SFX.deny();toast('The conveyor jammed. Hold E on the red button by the bins.',4);break;
