@@ -50,9 +50,14 @@ function botStep(id){const S=GS.S,p=S.players[id];if(!p||p.dead)return;const K=G
   if(!b)return;const w=GS.boxWorld(b);near(p,w.x,w.z+.8);
   if(Math.random()<.3)act({a:'kick',b:b.id}); // they check some boxes first
   act({a:'pick',b:b.id})}
-function botShop(id){const S=GS.S,p=S.players[id];if(!p)return;
-  const ks=Object.keys(GS.SHOP).concat(Object.keys(GS.ADDS));for(let i=0;i<3;i++){const k=ks[Math.floor(Math.random()*ks.length)];GS.act(id,{a:'buy',k})}
-  if(!(S.votes||[]).includes(id))GS.act(id,{a:'start'})}
+function botShop(id,g=0){const S=GS.S,p=S.players[id];if(!p)return;
+  // personal gear from their own fund, a few tries on the first pass
+  if(g<2){const ks=Object.keys(GS.SHOP).filter(k=>!GS.isTeam(k));for(let i=0;i<3;i++){const k=ks[Math.floor(Math.random()*ks.length)];GS.act(id,{a:'buy',k})}}
+  // the crew agrees on the cheapest addition the team fund covers, and everyone votes for it once
+  const team=Object.keys(GS.ADDS).filter(k=>!GS.owned(k)&&GS.priceOf(k)<=(S.cash||0)).sort((a,b)=>GS.priceOf(a)-GS.priceOf(b));
+  const k=team[0]||((S.aidBonus||0)<1&&(S.cash||0)>=GS.priceOf('aid')?'aid':null);
+  if(k&&!((S.tvotes||{})[k]||[]).includes(id)&&QA.teamVote!==false)GS.act(id,{a:'buy',k});
+  if(g>3&&!(S.votes||[]).includes(id))GS.act(id,{a:'start'})}
 
 // play nights with the bots; keeps everyone alive (recording deaths) so the run carries on
 QA.play=async(nights=1,{keepAlive=true,every=8,topUp=true}={})=>{const S=GS.S;
@@ -68,7 +73,7 @@ QA.play=async(nights=1,{keepAlive=true,every=8,topUp=true}={})=>{const S=GS.S;
       await QA.run(.25,every);if(QA.errs.length>40)return}
     QA.stats.nights++;
     // the shop: bots buy things and vote; so does the local player
-    let g=0;while(S.phase==='shop'&&g++<200){for(const id in S.players)if(id!=='me')botShop(id);if(!(S.votes||[]).includes('me'))GS.act('me',{a:'start'});await QA.run(.25,every)}}};
+    let g=0;while(S.phase==='shop'&&g++<200){for(const id in S.players)if(id!=="me")botShop(id,g);if(!(S.votes||[]).includes('me'))GS.act('me',{a:'start'});await QA.run(.25,every)}}};
 const SHIFT_END_GUESS=()=>360;
 export default QA;
 // photograph every monster that's out right now from a few metres in front of it, lit
