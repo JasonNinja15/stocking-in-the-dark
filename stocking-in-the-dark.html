@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Stocking In The Dark</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='b' cx='.3' cy='.1' r='.9'%3E%3Cstop offset='0' stop-color='%23f3dc9a' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%23f3dc9a' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='12' fill='%230b0a09'/%3E%3Cpath d='M4 4 L34 4 L60 46 L18 60 Z' fill='url(%23b)'/%3E%3Cpath d='M12 30 L32 22 L52 30 L32 38 Z' fill='%231a1006'/%3E%3Cpath d='M12 30 L32 38 L32 58 L12 50 Z' fill='%23b8803f'/%3E%3Cpath d='M52 30 L32 38 L32 58 L52 50 Z' fill='%238a5a28'/%3E%3Cpath d='M12 30 L4 24 L24 17 L32 22 Z' fill='%23c99352'/%3E%3Cpath d='M52 30 L60 24 L40 17 L32 22 Z' fill='%239c6a33'/%3E%3Cpath d='M19 39.5 L25 42 L25 52 L19 49.5 Z' fill='%23d8b98a' opacity='.55'/%3E%3Ccircle cx='26.5' cy='29.5' r='2.6' fill='%23ff2a1a'/%3E%3Ccircle cx='36.5' cy='29.5' r='2.6' fill='%23ff2a1a'/%3E%3Ccircle cx='26.5' cy='29.5' r='1' fill='%23ffd0c0'/%3E%3Ccircle cx='36.5' cy='29.5' r='1' fill='%23ffd0c0'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -132,9 +132,70 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
 .sc button:disabled{opacity:.35;cursor:default;background:rgba(20,20,22,.9);border-color:var(--line);color:var(--ink)}
 #shopCash{font-size:30px;color:#8fd48a;letter-spacing:.06em}
 #shopCash small{font-size:18px;color:#d6cdb6;margin:0 .6em}.sc button.votes{color:#ffd68a;border-color:#ffd68a}.sc button.voted{color:#6aff9a;border-color:#6aff9a}
-@media (max-width:760px){#shopCols{grid-template-columns:1fr}}
+@media (max-width:580px){#shopCols{grid-template-columns:1fr}}@media (max-width:900px){#shopCols{gap:10px}.sc{padding:7px 9px}.sc p{font-size:12px;margin:3px 0 5px}.sh{font-size:15px}}
 .stat{font-size:18px;line-height:1.7}
 .stat b{color:var(--amber);font-weight:400}
+/* screens scroll when they don't fit (phones), and stay centred when they do */
+.screen{overflow-y:auto;justify-content:flex-start;-webkit-overflow-scrolling:touch}
+.screen>:first-child{margin-top:auto}.screen>:last-child{margin-bottom:auto}
+@media (max-height:560px){
+  .screen{gap:8px;padding:10px max(12px,env(safe-area-inset-right)) 10px max(12px,env(safe-area-inset-left))}
+  .card{padding:12px 16px;gap:8px}
+  button{padding:8px 14px;font-size:15px;min-width:170px}
+  h1{font-size:clamp(34px,13vh,66px)}h2{font-size:21px}.sub{margin-bottom:2px;font-size:13px}
+  #code{font-size:32px}#overTitle{font-size:40px!important}.stat{font-size:15px;line-height:1.5}
+  /* the shop: the whole card scrolls, and the start button stays in reach at the bottom */
+  #shop .card{max-height:none;overflow:visible}#shopCols{max-height:none;overflow:visible}#shopCash{font-size:22px}
+  #bShopGo{position:sticky;bottom:0;z-index:2;box-shadow:0 -6px 14px rgba(0,0,0,.8)}
+  .how{max-height:none}
+}
+/* a short, wide screen (a phone on its side): the title on the left, the buttons on the right */
+@media (max-height:560px) and (orientation:landscape){
+  #menu{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-flow:row dense;align-content:center;justify-items:center;column-gap:18px;row-gap:7px}
+  #menu>*{grid-column:2;margin:0}#menu>h1{grid-column:1;grid-row:1/span 6;align-self:end}#menu>.sub{grid-column:1;grid-row:7/span 5;align-self:start;margin-top:10px}
+  #menu .diffnote{max-width:100%;font-size:11.5px;min-height:0;line-height:1.3}#menu>#diffNote,#menu>#contNote{display:none}#menu .err{min-height:0}#menu .err:empty{display:none}#menu button{padding:6px 12px;font-size:14px}#menu input{padding:6px 9px}#menu .diffs button{padding:5px 11px;font-size:14px}
+}
+/* ---- touch controls */
+:root{--tbs:1}
+body.touch{-webkit-touch-callout:none;touch-action:none}
+body.touch .screen,body.touch .screen *,body.touch #rotate{touch-action:pan-y}
+#touch{position:fixed;inset:0;z-index:9;touch-action:none;--u:calc(clamp(46px,15vmin,86px)*var(--tbs))}
+#touch .tb{position:absolute;min-width:0;width:var(--u);height:var(--u);padding:0;border-radius:50%;font-size:calc(var(--u)*.2);letter-spacing:.04em;
+  background:rgba(14,12,10,.5);border:2px solid rgba(227,163,58,.55);color:#f1ead6;text-shadow:0 1px 2px #000;box-shadow:0 2px 10px rgba(0,0,0,.5);transition:none;-webkit-tap-highlight-color:transparent}
+#touch .tb.on{background:rgba(227,163,58,.55);color:#16130c;border-color:#ffd68a;text-shadow:none}
+#touch .tb.lit{border-color:#ffe9a8;box-shadow:0 0 12px rgba(255,220,140,.45)}
+#touch .tb:hover{background:rgba(14,12,10,.5);color:#f1ead6}#touch .tb.on:hover{background:rgba(227,163,58,.55);color:#16130c}
+#tBtns{position:absolute;right:env(safe-area-inset-right);bottom:env(safe-area-inset-bottom);width:0;height:0}
+#tBtns .tb{transform:translate(50%,50%)}
+#tUse{--s:1.32;width:calc(var(--u)*1.32)!important;height:calc(var(--u)*1.32)!important;right:calc(var(--u)*1.05);bottom:calc(var(--u)*1.0);font-size:calc(var(--u)*.24)!important}
+#tKick{right:calc(var(--u)*2.45);bottom:calc(var(--u)*.68)}
+#tItem{right:calc(var(--u)*.74);bottom:calc(var(--u)*2.42);font-size:calc(var(--u)*.16)!important}
+#touch .tb.sm{width:calc(var(--u)*.78);height:calc(var(--u)*.78);font-size:calc(var(--u)*.15)}
+#tLight{right:calc(var(--u)*2.2);bottom:calc(var(--u)*1.98)}
+#tDrop{right:calc(var(--u)*3.55);bottom:calc(var(--u)*.6)}
+#tLamp{right:calc(var(--u)*1.75);bottom:calc(var(--u)*3.1)}
+#tShake{right:calc(var(--u)*3.1);bottom:calc(var(--u)*1.75)}
+#tPause{left:50%;top:max(6px,env(safe-area-inset-top));transform:translateX(-50%);width:calc(var(--u)*.66);height:calc(var(--u)*.66);font-size:calc(var(--u)*.2);border-radius:8px}
+#tStick{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px solid rgba(241,234,214,.35);background:rgba(10,9,8,.28);pointer-events:none}
+#tStick i{position:absolute;left:50%;top:50%;width:46%;height:46%;border-radius:50%;background:rgba(241,234,214,.42);border:2px solid rgba(241,234,214,.6)}
+#tStick.run{border-color:#93b4dc}#tStick.run i{background:rgba(147,180,220,.6)}
+#rotate{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.9);padding:20px;text-align:center}
+/* the HUD with touch controls: the bars move to the bottom middle between the thumbs, the hotbar sits above them, and the items can be tapped */
+body.touch #keyhint{display:none}
+body.touch #hud{--hud:clamp(11px,calc(.5vw + 1.1vh),20px)}
+body.touch #tl{left:max(.6em,env(safe-area-inset-left));top:.6em;min-width:10em}
+body.touch #tr{right:max(.6em,env(safe-area-inset-right));top:.6em;font-size:.74em;max-width:min(34vw,26em);max-height:calc(100vh - var(--hud)*4 - clamp(46px,15vmin,86px)*3.4);overflow:hidden}
+body.touch #bl{left:50%;bottom:max(.4em,env(safe-area-inset-bottom));transform:translateX(-50%);gap:.38em;padding:.4em 4.9em .4em .7em}
+body.touch .bar{width:clamp(80px,17vw,200px);height:.6em}
+body.touch #hotbar{bottom:calc(5.2em + env(safe-area-inset-bottom));max-width:34vw}
+body.touch .hbname{white-space:normal;max-width:34vw;text-align:center}
+body.touch .hb{pointer-events:auto;padding:1.15em .6em .55em;touch-action:none}
+body.touch #plist{left:max(.6em,env(safe-area-inset-left));bottom:auto;top:calc(10.2em);font-size:.8em}
+body.touch #spect{bottom:5.5em}
+body.touch #toast{top:20%}
+body.touch #prompt{top:calc(50% + 2em);max-width:min(44vw,36em);font-size:1em}
+body.touch #lockmsg{display:none!important}
+@media (orientation:portrait){body.touch #bl{left:max(.6em,env(safe-area-inset-left));transform:none}body.touch #hotbar{left:max(.6em,env(safe-area-inset-left));transform:none;align-items:flex-start;max-width:52vw}body.touch .hbname{max-width:52vw;text-align:left}body.touch .hbrow{justify-content:flex-start}body.touch #tr{max-width:44vw}body.touch #prompt{max-width:86vw}}
 </style>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
@@ -203,6 +264,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <p><b>Power outages.</b> From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel. And something that lives in the dark comes out: it can't see you, but it hears you, and it feels footsteps close by. Stand still.</p>
   <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items sit on the hotbar at the bottom of the screen: <kbd>scroll</kbd> (or a number key) to pick one, <kbd>right click</kbd> or <kbd>Space</kbd> to use it. The red headlamp is on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold right click (or Space) with the thermal scanner picked to use it. The <b>THIS WAY</b> board on the dock wall points to the roof ladder and to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
   <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>Scroll</kbd> pick item &middot; <kbd>Right click</kbd> use item &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause (these are the default keys: change them, and the crosshair, in Settings)</p>
+  <p><b>On a phone or tablet:</b> drag on the left half of the screen to walk (push the stick all the way up to run), drag on the right half to look around. <b>USE</b> picks up, shelves and works things (hold it at the charger), <b>KICK</b> kicks, <b>ITEM</b> uses the item you picked (tap one on the hotbar to pick it; hold ITEM with the scanner), <b>LIGHT</b> is the flashlight and <b>DROP</b> sets a box down. LAMP and SHAKE appear once you own them. The button at the top pauses. Settings has the look speed and the button size. Turn the phone sideways.</p>
   <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to ten people can work a shift together. In the crew room the host can make the crew public, and then anyone can find it under <i>Join Public</i> and join, even mid-shift. The quota grows with the crew. If you go down, you watch the others in third person until the night ends: move the mouse to look around, click or use the arrow keys to switch.</p>
   </div>
   <button id="bHowBack">Back</button>
@@ -217,6 +279,9 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Show FPS</span><input type="checkbox" id="sFps"><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Forklift steering</span><select id="sForkInv"><option value="0">Normal</option><option value="1">Inverted</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Crosshair</span><select id="sCross"><option value="dot">Dot</option><option value="plus">Cross</option><option value="circle">Circle</option><option value="dotring">Dot in a ring</option><option value="tee">Open cross</option><option value="none">None</option></select><span class="xprev"><i id="xPrev" class="xh x-dot"></i></span></div>
+  <div id="touchSet" style="display:contents"><div class="row"><span class="lbl" style="width:130px;text-align:right">Touch controls</span><select id="sTouch"><option value="auto">Auto (touch screens)</option><option value="on">On</option><option value="off">Off</option></select><span style="width:40px"></span></div>
+  <div class="row"><span class="lbl" style="width:130px;text-align:right">Touch look</span><input type="range" id="sTsens" min="0.3" max="3" step="0.05"><span id="vTsens" style="width:40px"></span></div>
+  <div class="row"><span class="lbl" style="width:130px;text-align:right">Button size</span><input type="range" id="sTbs" min="0.7" max="1.4" step="0.05"><span id="vTbs" style="width:40px"></span></div></div>
   <h3 style="margin:6px 0 0">Controls</h3><div class="lbl">Click a key, then press the new one (Esc cancels). Mouse: left click uses, right click (or the item key) uses the picked item, the wheel picks items.</div>
   <div id="binds"></div><button class="small" id="bKeysReset">Reset keys</button>
   <button id="bSetBack">Back</button>
@@ -2802,8 +2867,12 @@ const GAME={on:false,paused:false,overShown:false,overT:0,wasLocked:false,hints:
 const ME={x:0,z:-15.5,yaw:0,pitch:0,vx:0,vz:0,stam:100,exh:false,bat:100,light:true,bob:0,stepPh:0,kickCD:0,kickA:0,scare:null,shake:0,hurt:0,flash:0,fear:0,specId:'',lastHp:100,target:null,deathT:0,charging:false,beatT:0,flick:1,
   lightOn(){return this.light&&this.bat>0}};
 const K={};
-const locked=()=>document.pointerLockElement===canvas;
-function reqLock(){try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}}
+// touch screens (phones, tablets) get on-screen controls instead of the mouse lock; Settings can force it either way
+const TOUCH={on:false};const TJ={x:0,y:0,run:false}; // TJ: the touch stick, x right, y down, -1..1
+const locked=()=>TOUCH.on||document.pointerLockElement===canvas;
+// both the keyboard and the touch stick drive these: forward and right, -1..1 (the stick gives in-between values)
+function moveAxes(){return[clamp((K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0)-TJ.y,-1,1),clamp((K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0)+TJ.x,-1,1)]}
+function reqLock(){if(TOUCH.on)return;try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}}
 // ---- rebindable keys. The game reads every action by its default key; a rebinding turns the key you actually
 // pressed into the default key of the action it's bound to (and the action's old key into nothing).
 const BINDS=[['fwd','Move forward','KeyW'],['back','Move back','KeyS'],['left','Move left','KeyA'],['right','Move right','KeyD'],['run','Run','ShiftLeft'],
@@ -2818,15 +2887,19 @@ function keyName(c){if(!c)return'?';if(/^Key.$/.test(c))return c.slice(3);if(/^D
   return{ShiftLeft:'L-Shift',ShiftRight:'R-Shift',ControlLeft:'L-Ctrl',ControlRight:'R-Ctrl',AltLeft:'L-Alt',AltRight:'R-Alt',Space:'Space',Tab:'Tab',CapsLock:'Caps',
     ArrowUp:'↑',ArrowDown:'↓',ArrowLeft:'←',ArrowRight:'→',Backquote:'`',Minus:'-',Equal:'=',BracketLeft:'[',BracketRight:']',Semicolon:';',Quote:"'",Comma:',',Period:'.',Slash:'/',Backslash:'\\'}[c]||c.replace(/^Numpad/,'Num ')}
 // the key you'd press for a default-key action, as text (for prompts and messages)
-const keyLabel=def=>{const b=BINDS.find(x=>x[2]===def);return keyName(b?boundKey(b[0]):def)};
-const relabel=s=>s.replace(/<kbd>([EQGFHR])<\/kbd>/g,(m,c)=>`<kbd>${keyLabel('Key'+c)}</kbd>`);
+const TLAB={KeyE:'USE',KeyQ:'KICK',KeyG:'DROP',KeyF:'LIGHT',KeyH:'LAMP',KeyR:'SHAKE',Space:'ITEM'};
+const keyLabel=def=>{if(TOUCH.on&&TLAB[def])return TLAB[def];const b=BINDS.find(x=>x[2]===def);return keyName(b?boundKey(b[0]):def)};
+const relabel=s=>s.replace(/<kbd>([EQGFHR])<\/kbd>/g,(m,c)=>`<kbd>${keyLabel('Key'+c)}</kbd>`).replace(/<kbd>Right click<\/kbd>/g,()=>TOUCH.on?'<kbd>ITEM</kbd>':'<kbd>Right click</kbd>');
 let REBIND=null; // the action waiting for a key in Settings
 addEventListener('keydown',e=>{if(!REBIND)return;e.preventDefault();e.stopImmediatePropagation();
   if(e.code!=='Escape'){const id=REBIND,old=boundKey(id),other=BINDS.find(b=>b[0]!==id&&boundKey(b[0])===e.code);SET.keys=SET.keys||{};SET.keys[id]=e.code;if(other)SET.keys[other[0]]=old;saveSet();buildKeymap()}
   REBIND=null;renderBinds()},true);
 addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;const code=mapKey(e.code);if(code===null)return;K[code]=true;
-  if(GAME.on&&!GAME.paused&&!e.repeat){const me=S&&S.players[NET.myId];if(me&&me.dead&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(code))specCycle(-1)}else onKey(code)}
+  if(!e.repeat)keyPress(code);
   if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(code))e.preventDefault()});
+// a key (or touch button) going down: spectating, it switches whose view you watch
+function keyPress(code){if(!GAME.on||GAME.paused)return;const me=S&&S.players[NET.myId];
+  if(me&&me.dead&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(code))specCycle(-1)}else onKey(code)}
 addEventListener('keyup',e=>{const code=mapKey(e.code);if(code)K[code]=false});
 addEventListener('blur',()=>{for(const k in K)K[k]=false});
 // Chrome sometimes reports one wildly wrong mouse movement while the pointer is locked (most often just after it locks,
@@ -2897,13 +2970,13 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   ME.deathT=0;localUpdate2(dt,me);if(grabUpdate(dt,me)||rgHeld(dt,me)){findTarget(null);return}
   const busy=!!ME.scare||S.phase!=='play';
   if(ME.driving){driveUpdate(dt,me);batteryUpdate(dt,busy,me);findTarget(me);return}
-  const fw=busy?0:(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),st=busy?0:(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0);
+  const ax=moveAxes(),fw=busy?0:ax[0],st=busy?0:ax[1];
   // a stack (carry upgrade) is heavier; a jerry can slows you a little
   const carry=me.carry>=0?S.boxes.find(b=>b.id===me.carry):null,slow=(carry?BOX_KINDS[carry.k].slow:1)*Math.pow(.85,me.stack?me.stack.length:0)*(me.can?.9:1);
-  const moving=fw||st,run=(K.ShiftLeft||K.ShiftRight)&&fw>0&&!ME.exh&&ME.stam>0;
+  const moving=fw||st,run=(K.ShiftLeft||K.ShiftRight||TJ.run)&&fw>0&&!ME.exh&&ME.stam>0;
   const spd=(run?5.3:3.05)*slow;
   const sx=-Math.sin(ME.yaw),sz=-Math.cos(ME.yaw),rx=Math.cos(ME.yaw),rz=-Math.sin(ME.yaw);
-  let tx=sx*fw+rx*st,tz=sz*fw+rz*st;const tl=Math.hypot(tx,tz);if(tl>0){tx=tx/tl*spd;tz=tz/tl*spd}
+  let tx=sx*fw+rx*st,tz=sz*fw+rz*st;const tl=Math.hypot(tx,tz);if(tl>0){const m=Math.min(1,tl);tx=tx/tl*spd*m;tz=tz/tl*spd*m} // a half-pushed stick walks slower
   ME.vx=damp(ME.vx,tx,10,dt);ME.vz=damp(ME.vz,tz,10,dt);
   const p={x:ME.x+ME.vx*dt,z:ME.z+ME.vz*dt};collideCircle(p,.32);
   // never strand anyone outside: if the trailer they're in isn't docked, put them back by the bay door
@@ -3306,7 +3379,7 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
     if(NET.mode!=='client'&&!GAME.paused)simUpdate(dt);
     ME.driving=!!(S.fork&&S.fork.drv===NET.myId);
     if(!GAME.paused)localUpdate(dt);
-    drainEvents();syncWorld(dt,time);netTick(dt);hud(dt);near=updFear(dt);checkOver(dt);shopTick();syncScanner();
+    drainEvents();syncWorld(dt,time);netTick(dt);hud(dt);touchTick();near=updFear(dt);checkOver(dt);shopTick();syncScanner();
     const me=S.players[NET.myId];
     const fl2=me&&me.up&&me.up.fl2;FL.angle=fl2?.55:.44;FL.distance=fl2?28:24;
     FL.intensity=ME.scare?(Math.random()<.45?7:.5):(ME.lightOn()&&me&&!me.dead?(fl2?40:30)*ME.flick:0);
@@ -3514,7 +3587,7 @@ function rgHeld(dt,me){const h=rgHeldAt(NET.myId);if(!h){ME.eatFade=0;return fal
 
 // ---------------------------------------------------------------- driving the forklift
 function driveUpdate(dt,me){const f=S.fork,busy=!!ME.scare||S.phase!=='play';
-  const th=busy?0:(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),st=busy?0:(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0);
+  const ax=moveAxes(),th=busy?0:ax[0],st=busy?0:ax[1];
   ME.fv=damp(ME.fv||0,th>0?4.4:th<0?-2:0,th?2:3.5,dt);
   // D steers right, A left (turning right means the heading angle goes down); Settings can invert it
   f.ry-=st*dt*1.5*clamp(Math.abs(ME.fv)/1.2,0,1)*(ME.fv<0?-1:1)*(SET.forkInv?-1:1);
@@ -3723,9 +3796,9 @@ const ITEM_ICON={batt:'Battery',flare:'Flare',cutter:'Cutter',strobe:'Strobe',sc
 const ITEM_USE={batt:'swap in a fresh battery',flare:'light a flare',cutter:'cut open the box you\'re looking at',strobe:'flash it',scanner:'hold to see warm bodies',horn:'blast it',drink:'drink it',remote:'shut the nearest bay door',bulb:'fit it under a dead fixture'};
 function hotbarHTML(me){if(!me||!me.inv)return'';const sel=curSel(me),items=[];
   for(const [code,k] of Object.entries(ITEM_KEYS)){if(!haveItem(me,k))continue;const n=k==='cutter'||k==='scanner'?'':me.inv[k];
-    items.push(`<span class="hb${k===sel?' sel':''}"><small>${code.slice(5)}</small>${ITEM_ICON[k]}${n?`<b>${n}</b>`:''}</span>`)}
-  const name=sel?`<div class="hbname">${SHOP[sel].name} &middot; <kbd>Right click</kbd> ${ITEM_USE[sel]}${items.length>1?' &middot; scroll to switch':''}</div>`:'';
-  const lamp=me.up.red?`<span class="hb lamp${ME.red?' on':''}"><small>${keyLabel('KeyH')}</small>Headlamp</span>`:'';
+    items.push(`<span data-k="${k}" class="hb${k===sel?' sel':''}"><small>${code.slice(5)}</small>${ITEM_ICON[k]}${n?`<b>${n}</b>`:''}</span>`)}
+  const name=sel?`<div class="hbname">${SHOP[sel].name} &middot; <kbd>${TOUCH.on?'ITEM':'Right click'}</kbd> ${ITEM_USE[sel]}${items.length>1?(TOUCH.on?' &middot; tap one to switch':' &middot; scroll to switch'):''}</div>`:'';
+  const lamp=me.up.red?`<span data-k="lamp" class="hb lamp${ME.red?' on':''}"><small>${keyLabel('KeyH')}</small>Headlamp</span>`:'';
   return items.length||lamp?`${name}<div class="hbrow">${items.join('')}${lamp}</div>`:''}
 function promptFor(t,me){switch(t.kind){
   case 'fork':return owned('fork')?'<kbd>E</kbd> Drive the forklift':'Broken forklift';
@@ -3926,6 +3999,102 @@ function onEvent3(e){const P=(x,z,y=1)=>({x,y,z});
   case 'audHit':SFX.audHit(P(e.x,e.z,2.7));return true;
   case 'audOff':SFX.audHit(P(e.x,e.z,2.7));return true}
   return false}
+
+// ===================================================================== touch controls (phones and tablets)
+// Left thumb: a stick that appears wherever you put it down (push it all the way up to run).
+// Right thumb: drag anywhere to look, and the buttons in the corner press the same keys the keyboard
+// would (USE is E, KICK is Q, ITEM is Space...), so holding USE at the charger or ITEM with the scanner just works.
+// Items on the hotbar can be tapped to pick them.
+const TOUCH_KEYS=['KeyE','KeyQ','Space','KeyF','KeyG','KeyH','KeyR'];
+const TT={stick:null,look:null,btn:new Map(),vis:false,el:null,knob:null,base:null,R:60,portraitOk:false};
+function touchDetect(){const m=SET.touch||'auto';
+  TOUCH.on=m==='on'||(m!=='off'&&!!(matchMedia&&matchMedia('(pointer:coarse)').matches));
+  document.body.classList.toggle('touch',TOUCH.on);document.documentElement.style.setProperty('--tbs',String(SET.tbs||1));
+  GAME.lastPr=null;GAME.lastHb=null;buildKeymap();if(TOUCH.on&&document.pointerLockElement)document.exitPointerLock()}
+function touchRelease(){for(const k of TOUCH_KEYS)K[k]=false;TJ.x=TJ.y=0;TJ.run=false;TT.stick=TT.look=null;TT.btn.clear();
+  if(TT.base)TT.base.classList.add('hide');if(TT.el)TT.el.querySelectorAll('.tb.on').forEach(b=>b.classList.remove('on'))}
+function touchSetup(){
+  const el=document.createElement('div');el.id='touch';el.className='hide';
+  el.innerHTML=`<div id="tStick" class="hide"><i></i></div>
+    <button class="tb" id="tPause" data-k="pause" aria-label="Pause">&#10074;&#10074;</button>
+    <div id="tBtns">
+      <button class="tb big" data-k="KeyE" id="tUse">USE</button>
+      <button class="tb" data-k="KeyQ" id="tKick">KICK</button>
+      <button class="tb" data-k="Space" id="tItem">ITEM</button>
+      <button class="tb sm" data-k="KeyF" id="tLight">LIGHT</button>
+      <button class="tb sm" data-k="KeyG" id="tDrop">DROP</button>
+      <button class="tb sm hide" data-k="KeyH" id="tLamp">LAMP</button>
+      <button class="tb sm hide" data-k="KeyR" id="tShake">SHAKE</button>
+    </div>`;
+  document.body.appendChild(el);TT.el=el;TT.base=$('tStick');TT.knob=TT.base.firstChild;
+  const rot=document.createElement('div');rot.id='rotate';rot.className='hide';
+  rot.innerHTML=`<div class="card"><h2>TURN YOUR PHONE SIDEWAYS</h2><div class="lbl">The warehouse is wide. It plays best held landscape.</div><button id="bRotOk" class="small">Play upright anyway</button></div>`;
+  document.body.appendChild(rot);$('bRotOk').onclick=()=>{TT.portraitOk=true;rot.classList.add('hide')};
+  const opt={passive:false};
+  el.addEventListener('touchstart',e=>{e.preventDefault();auInit();for(const t of e.changedTouches)touchDown(t)},opt);
+  el.addEventListener('touchmove',e=>{e.preventDefault();for(const t of e.changedTouches)touchMove(t)},opt);
+  const up=e=>{e.preventDefault();for(const t of e.changedTouches)touchUp(t)};
+  el.addEventListener('touchend',up,opt);el.addEventListener('touchcancel',up,opt);
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+  // tapping an item on the hotbar picks it
+  $('hotbar').addEventListener('touchstart',e=>{const s=e.target.closest('[data-k]');if(!s||!TOUCH.on)return;e.preventDefault();
+    const me=S&&S.players[NET.myId];if(!me||me.dead)return;
+    if(s.dataset.k==='lamp'){keyPress('KeyH');return}if(ME.sel!==s.dataset.k){ME.sel=s.dataset.k;SFX.click()}},opt);
+  // phones go full screen (and try to stay landscape) when a shift starts or resumes
+  document.addEventListener('click',e=>{if(!TOUCH.on)return;const b=e.target.closest&&e.target.closest('button');
+    if(b&&(/^b(Solo|Host|Join|Cont2?|Start|Resume|Again)$/.test(b.id)||b.dataset.code))goFull()},true);
+  // switching apps mid-shift takes you to the break room (solo, that stops the clock)
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&TOUCH.on&&GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop'))showPause()});
+  addEventListener('resize',()=>{if(TT.vis)touchRelease()});
+  // Settings: touch controls on/off, look speed, button size
+  const set=$('touchSet');
+  if(set){$('sTouch').value=SET.touch||'auto';$('sTouch').onchange=()=>{SET.touch=$('sTouch').value;saveSet();touchDetect()};
+    const sl=(id,key,fmt,ap)=>{const i=$(id),o=$('v'+id.slice(1));i.value=SET[key]||1;o.textContent=fmt(+i.value);i.oninput=()=>{SET[key]=+i.value;o.textContent=fmt(+i.value);saveSet();ap&&ap()}};
+    sl('sTsens','tsens',v=>v.toFixed(2));sl('sTbs','tbs',v=>Math.round(v*100)+'%',()=>document.documentElement.style.setProperty('--tbs',String(SET.tbs)))}
+  touchDetect()}
+function goFull(){const d=document.documentElement;if(document.fullscreenElement||document.webkitFullscreenElement)return;
+  const f=d.requestFullscreen||d.webkitRequestFullscreen;if(!f)return;
+  try{const p=f.call(d,{navigationUI:'hide'});const lock=()=>{try{const o=screen.orientation;if(o&&o.lock)o.lock('landscape').catch(()=>{})}catch(e){}};
+    if(p&&p.then)p.then(lock).catch(()=>{});else lock()}catch(e){}}
+function touchDown(t){const b=t.target&&t.target.closest&&t.target.closest('.tb');
+  if(b){const k=b.dataset.k;TT.btn.set(t.identifier,b);b.classList.add('on');
+    if(k==='pause'){if(GAME.on&&!GAME.overShown)showPause();return}
+    if(navigator.vibrate&&(!navigator.userActivation||navigator.userActivation.hasBeenActive))try{navigator.vibrate(8)}catch(e){}
+    K[k]=true;keyPress(k);return}
+  if(t.clientX<innerWidth*.42&&!TT.stick){ // the stick comes up under your thumb
+    TT.R=Math.max(44,Math.min(innerWidth,innerHeight)*.13);
+    TT.stick={id:t.identifier,ox:t.clientX,oy:t.clientY};TJ.x=TJ.y=0;
+    TT.base.style.left=t.clientX+'px';TT.base.style.top=t.clientY+'px';TT.base.style.width=TT.base.style.height=TT.R*2+'px';TT.knob.style.transform='translate(-50%,-50%)';TT.base.classList.remove('hide','run');return}
+  if(!TT.look)TT.look={id:t.identifier,x:t.clientX,y:t.clientY,sx:t.clientX,sy:t.clientY,t0:performance.now()}}
+function touchMove(t){
+  if(TT.stick&&t.identifier===TT.stick.id){let dx=t.clientX-TT.stick.ox,dy=t.clientY-TT.stick.oy;const R=TT.R,d=Math.hypot(dx,dy);
+    // dragged well past the rim, the stick follows your thumb so it never gets stuck at the edge
+    if(d>R*1.6){const k=(d-R*1.6)/d;TT.stick.ox+=dx*k;TT.stick.oy+=dy*k;dx=t.clientX-TT.stick.ox;dy=t.clientY-TT.stick.oy;TT.base.style.left=TT.stick.ox+'px';TT.base.style.top=TT.stick.oy+'px'}
+    const m=Math.min(1,Math.hypot(dx,dy)/R),a=Math.atan2(dy,dx),dz=.14,v=m<dz?0:(m-dz)/(1-dz);
+    TJ.x=Math.cos(a)*v;TJ.y=Math.sin(a)*v;TJ.run=v>.93&&TJ.y<-.55;
+    TT.knob.style.transform=`translate(calc(-50% + ${Math.cos(a)*m*R}px),calc(-50% + ${Math.sin(a)*m*R}px))`;TT.base.classList.toggle('run',TJ.run);return}
+  if(TT.look&&t.identifier===TT.look.id){const dx=t.clientX-TT.look.x,dy=t.clientY-TT.look.y;TT.look.x=t.clientX;TT.look.y=t.clientY;
+    if(!GAME.on||GAME.paused)return;const s=.0052*(SET.tsens||1);ME.yaw-=dx*s;ME.pitch=clamp(ME.pitch-dy*s,-1.45,1.45)}}
+function touchUp(t){const b=TT.btn.get(t.identifier);
+  if(b){TT.btn.delete(t.identifier);b.classList.remove('on');const k=b.dataset.k;if(k!=='pause'&&![...TT.btn.values()].some(o=>o.dataset.k===k))K[k]=false;return}
+  if(TT.stick&&t.identifier===TT.stick.id){TT.stick=null;TJ.x=TJ.y=0;TJ.run=false;TT.base.classList.add('hide');return}
+  if(TT.look&&t.identifier===TT.look.id){const L=TT.look;TT.look=null;
+    // watching a crewmate after you go down, a tap switches to the next one
+    const me=S&&S.players[NET.myId];if(me&&me.dead&&performance.now()-L.t0<350&&Math.hypot(t.clientX-L.sx,t.clientY-L.sy)<14)specCycle(1)}}
+// every frame: show the controls only while you're on shift, and fit the buttons to what you're doing
+const _tl={};
+function touchTick(){const vis=TOUCH.on&&GAME.on&&!$('hud').classList.contains('hide')&&SCREENS.every(s=>$(s).classList.contains('hide'));
+  if(vis!==TT.vis){TT.vis=vis;TT.el.classList.toggle('hide',!vis);if(!vis)touchRelease()}
+  $('rotate').classList.toggle('hide',!(vis&&!TT.portraitOk&&innerHeight>innerWidth*1.1));
+  if(!vis)return;const me=S&&S.players[NET.myId];if(!me)return;
+  const dead=!!me.dead,lab=(id,s)=>{if(_tl[id]!==s){_tl[id]=s;$(id).textContent=s}},hid=(id,h)=>$(id).classList.toggle('hide',h);
+  const sel=dead?'':curSel(me);
+  lab('tUse',dead?'NEXT':ME.grab?'PULL':'USE');lab('tKick',dead?'BACK':ME.grab?'PULL':ME.driving?'GET OUT':'KICK');
+  lab('tItem',sel?(ITEM_ICON[sel]||'ITEM').toUpperCase():'ITEM');hid('tItem',dead||!sel);
+  hid('tLight',dead||ME.driving);hid('tDrop',dead||(me.carry<0&&!(ME.driving&&S.fork&&S.fork.pal>=0)));
+  hid('tLamp',dead||!(me.up&&me.up.red));hid('tShake',dead||!(me.up&&me.up.shake)||ME.driving);
+  $('tLight').classList.toggle('lit',ME.lightOn());$('tLamp').classList.toggle('lit',!!ME.red)}
+touchSetup();
 </script>
 </body>
 </html>

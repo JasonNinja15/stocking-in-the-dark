@@ -60,8 +60,12 @@ const GAME={on:false,paused:false,overShown:false,overT:0,wasLocked:false,hints:
 const ME={x:0,z:-15.5,yaw:0,pitch:0,vx:0,vz:0,stam:100,exh:false,bat:100,light:true,bob:0,stepPh:0,kickCD:0,kickA:0,scare:null,shake:0,hurt:0,flash:0,fear:0,specId:'',lastHp:100,target:null,deathT:0,charging:false,beatT:0,flick:1,
   lightOn(){return this.light&&this.bat>0}};
 const K={};
-const locked=()=>document.pointerLockElement===canvas;
-function reqLock(){try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}}
+// touch screens (phones, tablets) get on-screen controls instead of the mouse lock; Settings can force it either way
+const TOUCH={on:false};const TJ={x:0,y:0,run:false}; // TJ: the touch stick, x right, y down, -1..1
+const locked=()=>TOUCH.on||document.pointerLockElement===canvas;
+// both the keyboard and the touch stick drive these: forward and right, -1..1 (the stick gives in-between values)
+function moveAxes(){return[clamp((K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0)-TJ.y,-1,1),clamp((K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0)+TJ.x,-1,1)]}
+function reqLock(){if(TOUCH.on)return;try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}}
 // ---- rebindable keys. The game reads every action by its default key; a rebinding turns the key you actually
 // pressed into the default key of the action it's bound to (and the action's old key into nothing).
 const BINDS=[['fwd','Move forward','KeyW'],['back','Move back','KeyS'],['left','Move left','KeyA'],['right','Move right','KeyD'],['run','Run','ShiftLeft'],
@@ -76,15 +80,19 @@ function keyName(c){if(!c)return'?';if(/^Key.$/.test(c))return c.slice(3);if(/^D
   return{ShiftLeft:'L-Shift',ShiftRight:'R-Shift',ControlLeft:'L-Ctrl',ControlRight:'R-Ctrl',AltLeft:'L-Alt',AltRight:'R-Alt',Space:'Space',Tab:'Tab',CapsLock:'Caps',
     ArrowUp:'↑',ArrowDown:'↓',ArrowLeft:'←',ArrowRight:'→',Backquote:'`',Minus:'-',Equal:'=',BracketLeft:'[',BracketRight:']',Semicolon:';',Quote:"'",Comma:',',Period:'.',Slash:'/',Backslash:'\\'}[c]||c.replace(/^Numpad/,'Num ')}
 // the key you'd press for a default-key action, as text (for prompts and messages)
-const keyLabel=def=>{const b=BINDS.find(x=>x[2]===def);return keyName(b?boundKey(b[0]):def)};
-const relabel=s=>s.replace(/<kbd>([EQGFHR])<\/kbd>/g,(m,c)=>`<kbd>${keyLabel('Key'+c)}</kbd>`);
+const TLAB={KeyE:'USE',KeyQ:'KICK',KeyG:'DROP',KeyF:'LIGHT',KeyH:'LAMP',KeyR:'SHAKE',Space:'ITEM'};
+const keyLabel=def=>{if(TOUCH.on&&TLAB[def])return TLAB[def];const b=BINDS.find(x=>x[2]===def);return keyName(b?boundKey(b[0]):def)};
+const relabel=s=>s.replace(/<kbd>([EQGFHR])<\/kbd>/g,(m,c)=>`<kbd>${keyLabel('Key'+c)}</kbd>`).replace(/<kbd>Right click<\/kbd>/g,()=>TOUCH.on?'<kbd>ITEM</kbd>':'<kbd>Right click</kbd>');
 let REBIND=null; // the action waiting for a key in Settings
 addEventListener('keydown',e=>{if(!REBIND)return;e.preventDefault();e.stopImmediatePropagation();
   if(e.code!=='Escape'){const id=REBIND,old=boundKey(id),other=BINDS.find(b=>b[0]!==id&&boundKey(b[0])===e.code);SET.keys=SET.keys||{};SET.keys[id]=e.code;if(other)SET.keys[other[0]]=old;saveSet();buildKeymap()}
   REBIND=null;renderBinds()},true);
 addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;const code=mapKey(e.code);if(code===null)return;K[code]=true;
-  if(GAME.on&&!GAME.paused&&!e.repeat){const me=S&&S.players[NET.myId];if(me&&me.dead&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(code))specCycle(-1)}else onKey(code)}
+  if(!e.repeat)keyPress(code);
   if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(code))e.preventDefault()});
+// a key (or touch button) going down: spectating, it switches whose view you watch
+function keyPress(code){if(!GAME.on||GAME.paused)return;const me=S&&S.players[NET.myId];
+  if(me&&me.dead&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(code))specCycle(-1)}else onKey(code)}
 addEventListener('keyup',e=>{const code=mapKey(e.code);if(code)K[code]=false});
 addEventListener('blur',()=>{for(const k in K)K[k]=false});
 // Chrome sometimes reports one wildly wrong mouse movement while the pointer is locked (most often just after it locks,
@@ -155,13 +163,13 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   ME.deathT=0;localUpdate2(dt,me);if(grabUpdate(dt,me)||rgHeld(dt,me)){findTarget(null);return}
   const busy=!!ME.scare||S.phase!=='play';
   if(ME.driving){driveUpdate(dt,me);batteryUpdate(dt,busy,me);findTarget(me);return}
-  const fw=busy?0:(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),st=busy?0:(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0);
+  const ax=moveAxes(),fw=busy?0:ax[0],st=busy?0:ax[1];
   // a stack (carry upgrade) is heavier; a jerry can slows you a little
   const carry=me.carry>=0?S.boxes.find(b=>b.id===me.carry):null,slow=(carry?BOX_KINDS[carry.k].slow:1)*Math.pow(.85,me.stack?me.stack.length:0)*(me.can?.9:1);
-  const moving=fw||st,run=(K.ShiftLeft||K.ShiftRight)&&fw>0&&!ME.exh&&ME.stam>0;
+  const moving=fw||st,run=(K.ShiftLeft||K.ShiftRight||TJ.run)&&fw>0&&!ME.exh&&ME.stam>0;
   const spd=(run?5.3:3.05)*slow;
   const sx=-Math.sin(ME.yaw),sz=-Math.cos(ME.yaw),rx=Math.cos(ME.yaw),rz=-Math.sin(ME.yaw);
-  let tx=sx*fw+rx*st,tz=sz*fw+rz*st;const tl=Math.hypot(tx,tz);if(tl>0){tx=tx/tl*spd;tz=tz/tl*spd}
+  let tx=sx*fw+rx*st,tz=sz*fw+rz*st;const tl=Math.hypot(tx,tz);if(tl>0){const m=Math.min(1,tl);tx=tx/tl*spd*m;tz=tz/tl*spd*m} // a half-pushed stick walks slower
   ME.vx=damp(ME.vx,tx,10,dt);ME.vz=damp(ME.vz,tz,10,dt);
   const p={x:ME.x+ME.vx*dt,z:ME.z+ME.vz*dt};collideCircle(p,.32);
   // never strand anyone outside: if the trailer they're in isn't docked, put them back by the bay door
@@ -564,7 +572,7 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
     if(NET.mode!=='client'&&!GAME.paused)simUpdate(dt);
     ME.driving=!!(S.fork&&S.fork.drv===NET.myId);
     if(!GAME.paused)localUpdate(dt);
-    drainEvents();syncWorld(dt,time);netTick(dt);hud(dt);near=updFear(dt);checkOver(dt);shopTick();syncScanner();
+    drainEvents();syncWorld(dt,time);netTick(dt);hud(dt);touchTick();near=updFear(dt);checkOver(dt);shopTick();syncScanner();
     const me=S.players[NET.myId];
     const fl2=me&&me.up&&me.up.fl2;FL.angle=fl2?.55:.44;FL.distance=fl2?28:24;
     FL.intensity=ME.scare?(Math.random()<.45?7:.5):(ME.lightOn()&&me&&!me.dead?(fl2?40:30)*ME.flick:0);

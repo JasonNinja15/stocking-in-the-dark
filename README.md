@@ -136,6 +136,23 @@ When you're finished, press **Done**. Once more than half the crew is done, the 
 | R (hold) | Shake flashlight: charge the battery anywhere, loudly |
 | Esc | Pause (solo) / menu (crew) |
 
+### Phones and tablets
+
+On a touch screen the game shows on-screen controls instead of locking the mouse. Hold the phone sideways (upright works too, after a reminder). When a shift starts or resumes, the game tries to go full screen and stay in landscape.
+
+| Touch | Does |
+|---|---|
+| Drag on the left part of the screen | Walk. The stick appears under your thumb, and a small push walks slowly. Push it all the way up to run (the stick turns blue). |
+| Drag anywhere else | Look around |
+| USE | Pick up, shelve, use things. Hold it at the charger, the vents and the jam button. |
+| KICK | Kick. Gets you off the forklift while you're driving it. |
+| ITEM | Use the item you picked. It's labelled with that item, and you hold it for the thermal scanner. Tap an item on the hotbar to pick it. |
+| LIGHT, DROP | Flashlight, set a box down. DROP only shows while you're carrying something. |
+| LAMP, SHAKE | Red headlamp and shake flashlight (hold), shown once you own them |
+| ❚❚ (top) | Pause. Switching away from the game pauses it too. |
+
+When you go down, USE and KICK switch to the next or previous crewmate, and a tap on the screen does the same. Prompts on screen name the buttons instead of the keys. On short screens the menus and the shop scroll, and the shop's start button stays at the bottom. Settings has **Touch controls** (Auto, On, Off: Auto turns them on for touch screens), **Touch look** speed and **Button size**.
+
 ## Playing with a crew
 
 1. One player presses **Host a Crew** and shares the five-character code.
@@ -154,7 +171,7 @@ Mouse sensitivity, volume, field of view, graphics quality (Low turns off shadow
 ## Files
 
 - `stocking-in-the-dark.html`: the whole game in one file. This is what you play or upload.
-- `src/`: the source. `shell.html` holds the page and UI; `01-core.js` to `07b-client2.js` hold the game (renderer and textures, world, models, audio, simulation, networking, client). The `b` files hold the additions, the shop, the later-night monsters and the items.
+- `src/`: the source. `shell.html` holds the page and UI; `01-core.js` to `07d-touch.js` hold the game (renderer and textures, world, models, audio, simulation, networking, client, touch controls). The `b` files hold the additions, the shop, the later-night monsters and the items.
 - `build.sh`: rebuilds `stocking-in-the-dark.html` from `src/`, plus a copy as `index.html` for GitHub Pages.
 - `tools/serve.ps1`: a tiny local web server for testing (`powershell -File tools/serve.ps1`, then open http://localhost:8137).
 - `tools/qa.js`: a test harness. With the local server running, open the game, then in the browser console run `await import('/tools/qa.js')` and e.g. `await QA.boot({bots:3,adds:['cold','fork']}); await QA.play(3)` to have bot workers play three nights through the real game actions; `QA.errs` collects any errors and `QA.stats` what happened. The game never loads it.
