@@ -9,7 +9,11 @@ const TT={stick:null,look:null,btn:new Map(),vis:false,el:null,knob:null,base:nu
 function touchDetect(){const m=SET.touch||'auto';
   TOUCH.on=m==='on'||(m!=='off'&&!!(matchMedia&&matchMedia('(pointer:coarse)').matches));
   document.body.classList.toggle('touch',TOUCH.on);document.documentElement.style.setProperty('--tbs',String(SET.tbs||1));
-  GAME.lastPr=null;GAME.lastHb=null;buildKeymap();if(TOUCH.on&&document.pointerLockElement)document.exitPointerLock()}
+  GAME.lastPr=null;GAME.lastHb=null;buildKeymap();
+  // Settings shows the sensitivity for what you play with: the screen on touch, the mouse otherwise
+  const row=id=>{const e=$(id);return e&&e.closest('.row')};if(row('sSens'))row('sSens').classList.toggle('hide',TOUCH.on);
+  if(row('sTsens'))row('sTsens').classList.toggle('hide',!TOUCH.on);if(row('sTbs'))row('sTbs').classList.toggle('hide',!TOUCH.on);
+  if(typeof applyQuality==='function'&&renderer)applyQuality();if(TOUCH.on&&document.pointerLockElement)document.exitPointerLock()}
 function touchRelease(){for(const k of TOUCH_KEYS)K[k]=false;TJ.x=TJ.y=0;TJ.run=false;TT.stick=TT.look=null;TT.btn.clear();
   if(TT.base)TT.base.classList.add('hide');if(TT.el)TT.el.querySelectorAll('.tb.on').forEach(b=>b.classList.remove('on'))}
 function touchSetup(){
@@ -46,6 +50,8 @@ function touchSetup(){
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&TOUCH.on&&GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop'))showPause()});
   addEventListener('resize',()=>{if(TT.vis)touchRelease()});
   // Settings: touch controls on/off, look speed, button size
+  // the screen sensitivity slider sits where the mouse one is
+  {const ms=$('sSens')&&$('sSens').closest('.row'),ts=$('sTsens')&&$('sTsens').closest('.row');if(ms&&ts)ms.after(ts)}
   const set=$('touchSet');
   if(set){$('sTouch').value=SET.touch||'auto';$('sTouch').onchange=()=>{SET.touch=$('sTouch').value;saveSet();touchDetect()};
     const sl=(id,key,fmt,ap)=>{const i=$(id),o=$('v'+id.slice(1));i.value=SET[key]||1;o.textContent=fmt(+i.value);i.oninput=()=>{SET[key]=+i.value;o.textContent=fmt(+i.value);saveSet();ap&&ap()}};
@@ -94,3 +100,32 @@ function touchTick(){const vis=TOUCH.on&&GAME.on&&!$('hud').classList.contains('
   hid('tLamp',dead||!(me.up&&me.up.red));hid('tShake',dead||!(me.up&&me.up.shake)||ME.driving);
   $('tLight').classList.toggle('lit',ME.lightOn());$('tLamp').classList.toggle('lit',!!ME.red)}
 touchSetup();
+
+// ===================================================================== full screen and the app
+// Two buttons in the bottom corners of the title screen and the break room: Full screen (any device that
+// allows it) and, on phones and tablets, Get the app (install it to the home screen; it then opens full screen).
+let INSTALL_EVT=null,INSTALL_BACK='menu';
+const isApp=()=>!!(matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches||navigator.standalone);
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+const fsOk=()=>{const d=document.documentElement;return!!(d.requestFullscreen||d.webkitRequestFullscreen)&&!matchMedia('(display-mode: fullscreen)').matches};
+function cornerSync(){const c=$('corner');if(!c)return;const on=['menu','pause'].some(s=>!$(s).classList.contains('hide'));c.classList.toggle('hide',!on);if(!on)return;
+  $('bFull').classList.toggle('hide',!fsOk());$('bFull').innerHTML=fsEl()?'&#x2716; Exit full screen':'&#x26F6; Full screen';
+  const mobile=TOUCH.on||matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  $('bApp').classList.toggle('hide',!mobile||isApp())}
+function toggleFull(){if(fsEl()){const x=document.exitFullscreen||document.webkitExitFullscreen;try{const p=x&&x.call(document);if(p&&p.catch)p.catch(()=>{})}catch(e){}}else goFull()}
+async function getApp(){
+  if(INSTALL_EVT){const e=INSTALL_EVT;INSTALL_EVT=null;try{await e.prompt();const r=await e.userChoice;if(r&&r.outcome==='accepted')$('bApp').classList.add('hide')}catch(err){}return}
+  // no install prompt from the browser: say how to do it by hand
+  const ios=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  $('installHow').innerHTML=!/^https?:/.test(location.protocol)?'The game has to be opened from its web address (not a saved file) to be installed.'
+    :ios?'In Safari, tap the <b>Share</b> button (the square with an arrow), then <b>Add to Home Screen</b>. Open it from the new icon and it plays full screen with no browser bars.'
+    :'Open the browser menu (<b>&#8942;</b>, top right) and choose <b>Install app</b> or <b>Add to Home screen</b>. Open it from the new icon and it plays full screen.';
+  INSTALL_BACK=$('pause').classList.contains('hide')?'menu':'pause';show('install')}
+(()=>{const c=document.createElement('div');c.id='corner';c.className='hide';
+  c.innerHTML='<button class="small" id="bApp">&#x2913; Get the app</button><button class="small" id="bFull">&#x26F6; Full screen</button>';document.body.appendChild(c);
+  $('bFull').onclick=()=>{toggleFull();setTimeout(cornerSync,300)};$('bApp').onclick=getApp;$('bInstallBack').onclick=()=>show(INSTALL_BACK);
+  document.addEventListener('fullscreenchange',cornerSync);document.addEventListener('webkitfullscreenchange',cornerSync);
+  addEventListener('beforeinstallprompt',e=>{e.preventDefault();INSTALL_EVT=e;cornerSync()});
+  addEventListener('appinstalled',()=>{INSTALL_EVT=null;cornerSync()});
+  if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  cornerSync()})();

@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Stocking In The Dark</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='b' cx='.3' cy='.1' r='.9'%3E%3Cstop offset='0' stop-color='%23f3dc9a' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%23f3dc9a' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='12' fill='%230b0a09'/%3E%3Cpath d='M4 4 L34 4 L60 46 L18 60 Z' fill='url(%23b)'/%3E%3Cpath d='M12 30 L32 22 L52 30 L32 38 Z' fill='%231a1006'/%3E%3Cpath d='M12 30 L32 38 L32 58 L12 50 Z' fill='%23b8803f'/%3E%3Cpath d='M52 30 L32 38 L32 58 L52 50 Z' fill='%238a5a28'/%3E%3Cpath d='M12 30 L4 24 L24 17 L32 22 Z' fill='%23c99352'/%3E%3Cpath d='M52 30 L60 24 L40 17 L32 22 Z' fill='%239c6a33'/%3E%3Cpath d='M19 39.5 L25 42 L25 52 L19 49.5 Z' fill='%23d8b98a' opacity='.55'/%3E%3Ccircle cx='26.5' cy='29.5' r='2.6' fill='%23ff2a1a'/%3E%3Ccircle cx='36.5' cy='29.5' r='2.6' fill='%23ff2a1a'/%3E%3Ccircle cx='26.5' cy='29.5' r='1' fill='%23ffd0c0'/%3E%3Ccircle cx='36.5' cy='29.5' r='1' fill='%23ffd0c0'/%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#050506">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stocking">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Creepster&display=swap" rel="stylesheet">
 <style>
@@ -155,6 +162,9 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   #menu>*{grid-column:2;margin:0}#menu>h1{grid-column:1;grid-row:1/span 6;align-self:end}#menu>.sub{grid-column:1;grid-row:7/span 5;align-self:start;margin-top:10px}
   #menu .diffnote{max-width:100%;font-size:11.5px;min-height:0;line-height:1.3}#menu>#diffNote,#menu>#contNote{display:none}#menu .err{min-height:0}#menu .err:empty{display:none}#menu button{padding:6px 12px;font-size:14px}#menu input{padding:6px 9px}#menu .diffs button{padding:5px 11px;font-size:14px}
 }
+/* the full screen and get-the-app buttons, in the bottom corners of the title screen and the break room */
+#corner{position:fixed;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));z-index:21;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none}
+#corner button{pointer-events:auto;background:rgba(14,12,10,.85)}#corner #bFull{margin-left:auto}
 /* ---- touch controls */
 :root{--tbs:1}
 body.touch{-webkit-touch-callout:none;touch-action:none}
@@ -276,11 +286,12 @@ body.touch #lockmsg{display:none!important}
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Volume</span><input type="range" id="sVol" min="0" max="1" step="0.05"><span id="vVol" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Field of view</span><input type="range" id="sFov" min="60" max="100" step="1"><span id="vFov" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Graphics</span><select id="sQual"><option value="2">High</option><option value="1">Medium</option><option value="0">Low (fast)</option></select><span style="width:40px"></span></div>
+  <div class="row"><span class="lbl" style="width:130px;text-align:right">Outlines</span><select id="sOutl"><option value="auto">Auto</option><option value="on">Full</option><option value="soft">Soft (phones)</option><option value="off">Off</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Show FPS</span><input type="checkbox" id="sFps"><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Forklift steering</span><select id="sForkInv"><option value="0">Normal</option><option value="1">Inverted</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Crosshair</span><select id="sCross"><option value="dot">Dot</option><option value="plus">Cross</option><option value="circle">Circle</option><option value="dotring">Dot in a ring</option><option value="tee">Open cross</option><option value="none">None</option></select><span class="xprev"><i id="xPrev" class="xh x-dot"></i></span></div>
   <div id="touchSet" style="display:contents"><div class="row"><span class="lbl" style="width:130px;text-align:right">Touch controls</span><select id="sTouch"><option value="auto">Auto (touch screens)</option><option value="on">On</option><option value="off">Off</option></select><span style="width:40px"></span></div>
-  <div class="row"><span class="lbl" style="width:130px;text-align:right">Touch look</span><input type="range" id="sTsens" min="0.3" max="3" step="0.05"><span id="vTsens" style="width:40px"></span></div>
+  <div class="row"><span class="lbl" style="width:130px;text-align:right">Screen sensitivity</span><input type="range" id="sTsens" min="0.3" max="3" step="0.05"><span id="vTsens" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Button size</span><input type="range" id="sTbs" min="0.7" max="1.4" step="0.05"><span id="vTbs" style="width:40px"></span></div></div>
   <h3 style="margin:6px 0 0">Controls</h3><div class="lbl">Click a key, then press the new one (Esc cancels). Mouse: left click uses, right click (or the item key) uses the picked item, the wheel picks items.</div>
   <div id="binds"></div><button class="small" id="bKeysReset">Reset keys</button>
@@ -302,6 +313,12 @@ body.touch #lockmsg{display:none!important}
   <ul id="lobbyList"></ul>
   <div class="row"><button id="bStart">Start the shift</button><button id="bCont2" class="hide">Continue the saved run</button><button id="bLeave" class="small">Leave</button></div>
   <div class="row"><button id="bPublic" class="small hide">Private: join by code only</button></div><div class="lbl hide" id="pubNote"></div>
+</div></div>
+
+<div id="install" class="screen dim hide"><div class="card">
+  <h2>GET THE APP</h2>
+  <div class="how" id="installHow" style="text-align:center"></div>
+  <button id="bInstallBack">Back</button>
 </div></div>
 
 <div id="pause" class="screen dim hide"><div class="card">

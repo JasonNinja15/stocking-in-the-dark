@@ -151,7 +151,9 @@ On a touch screen the game shows on-screen controls instead of locking the mouse
 | LAMP, SHAKE | Red headlamp and shake flashlight (hold), shown once you own them |
 | ❚❚ (top) | Pause. Switching away from the game pauses it too. |
 
-When you go down, USE and KICK switch to the next or previous crewmate, and a tap on the screen does the same. Prompts on screen name the buttons instead of the keys. On short screens the menus and the shop scroll, and the shop's start button stays at the bottom. Settings has **Touch controls** (Auto, On, Off: Auto turns them on for touch screens), **Touch look** speed and **Button size**.
+**Full screen and the app.** The title screen and the break room have a **Full screen** button in the bottom-right corner, on every device that allows it (iPhones only allow it for videos, so there it doesn't show). On phones and tablets, **Get the app** in the bottom-left corner installs the game to the home screen. It then opens full screen and in landscape, like an app, and can start without a connection once it has loaded (crews still need the internet). On Android Chrome the button brings up the install prompt. On an iPhone, or in browsers without an install prompt, it explains how to do it from the browser menu or Safari's Share button.
+
+When you go down, USE and KICK switch to the next or previous crewmate, and a tap on the screen does the same. Prompts on screen name the buttons instead of the keys. On short screens the menus and the shop scroll, and the shop's start button stays at the bottom. Settings has **Touch controls** (Auto, On, Off: Auto turns them on for touch screens), **Button size**. On a touch screen the Mouse slider is replaced by **Screen sensitivity**, which sets how fast dragging turns the view.
 
 ## Playing with a crew
 
@@ -164,7 +166,7 @@ Players connect browser-to-browser over WebRTC, using the free public PeerJS ser
 
 ## Settings
 
-Mouse sensitivity, volume, field of view, graphics quality (Low turns off shadows and lowers render resolution for older laptops and Chromebooks), and an FPS counter.
+Mouse sensitivity, volume, field of view, graphics quality (Low turns off shadows and lowers render resolution for older laptops and Chromebooks), an FPS counter, and **Outlines**: Full, Soft or Off. Auto uses Soft on touch screens, because phones often store depth less precisely and stretch the picture, which drew stray lines on flat floors and walls and turned the scanlines into stripes. Soft ignores those small depth differences, only outlines things close up, and drops the scanlines.
 
 **Controls** can be rebound: click an action, then press the new key (Esc cancels). Binding a key that's already in use swaps the two. Prompts, messages and the key hint bar show your keys. **Crosshair**: dot, cross, open cross, circle, dot in a ring, or none. **Forklift steering**: Normal (D turns right, A turns left) or Inverted.
 
@@ -173,5 +175,6 @@ Mouse sensitivity, volume, field of view, graphics quality (Low turns off shadow
 - `stocking-in-the-dark.html`: the whole game in one file. This is what you play or upload.
 - `src/`: the source. `shell.html` holds the page and UI; `01-core.js` to `07d-touch.js` hold the game (renderer and textures, world, models, audio, simulation, networking, client, touch controls). The `b` files hold the additions, the shop, the later-night monsters and the items.
 - `build.sh`: rebuilds `stocking-in-the-dark.html` from `src/`, plus a copy as `index.html` for GitHub Pages.
+- `manifest.webmanifest`, `sw.js`, `icon-*.png`, `apple-touch-icon.png`: what lets phones install the game as an app. `tools/make-icons.ps1` redraws the PNG icons from the shapes in `icon.svg`.
 - `tools/serve.ps1`: a tiny local web server for testing (`powershell -File tools/serve.ps1`, then open http://localhost:8137).
 - `tools/qa.js`: a test harness. With the local server running, open the game, then in the browser console run `await import('/tools/qa.js')` and e.g. `await QA.boot({bots:3,adds:['cold','fork']}); await QA.play(3)` to have bot workers play three nights through the real game actions; `QA.errs` collects any errors and `QA.stats` what happened. The game never loads it.

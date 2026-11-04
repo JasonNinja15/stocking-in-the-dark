@@ -3,9 +3,9 @@ const RT=new THREE.WebGLRenderTarget(4,4,{type:THREE.HalfFloatType,depthBuffer:t
 RT.depthTexture=new THREE.DepthTexture(4,4);RT.depthTexture.type=THREE.UnsignedIntType;
 const POST=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
   uniforms:{tCol:{value:RT.texture},tDep:{value:RT.depthTexture},res:{value:new THREE.Vector2(4,4)},time:{value:0},near:{value:camera.near},far:{value:camera.far},
-    hurt:{value:0},flash:{value:0},fear:{value:0},lowhp:{value:0},dead:{value:0},edgeW:{value:1},scan:{value:0}},
+    hurt:{value:0},flash:{value:0},fear:{value:0},lowhp:{value:0},dead:{value:0},edgeW:{value:1},scan:{value:0},eLo:{value:.02},eHi:{value:.07},eFar:{value:11},eOn:{value:1},scanK:{value:1}},
   vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`,
-  fragmentShader:`precision highp float;uniform sampler2D tCol,tDep;uniform vec2 res;uniform float time,near,far,hurt,flash,fear,lowhp,dead,edgeW,scan;varying vec2 vUv;
+  fragmentShader:`precision highp float;uniform sampler2D tCol,tDep;uniform vec2 res;uniform float time,near,far,hurt,flash,fear,lowhp,dead,edgeW,scan,eLo,eHi,eFar,eOn,scanK;varying vec2 vUv;
   float W(vec2 uv){float d=texture2D(tDep,uv).r;float vz=(near*far)/((far-near)*d-far);return -1.0/vz;}
   float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
   void main(){vec2 uv=vUv;
@@ -13,7 +13,7 @@ const POST=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
     vec2 px=edgeW/res;float c=W(uv);
     float lap=abs(W(uv-vec2(px.x,0.))+W(uv+vec2(px.x,0.))+W(uv-vec2(0.,px.y))+W(uv+vec2(0.,px.y))-4.0*c)/max(c,1e-5);
     // outlines fade out with the fog, so nothing far away shows up as a silhouette against lamp glow
-    float zl=1.0/max(c,1e-5);float edge=smoothstep(.02,.07,lap)*(1.0-smoothstep(6.0,11.0,zl));
+    float zl=1.0/max(c,1e-5);float edge=smoothstep(eLo,eHi,lap)*(1.0-smoothstep(eFar*.55,eFar,zl))*eOn;
     vec2 ca=(uv-.5)*(0.0025+0.012*fear+0.02*hurt);
     vec3 col=vec3(texture2D(tCol,uv+ca).r,texture2D(tCol,uv).g,texture2D(tCol,uv-ca).b);
     col=col/(1.0+col*.3);
@@ -25,7 +25,7 @@ const POST=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
     float vg=length((vUv-.5)*vec2(res.x/res.y,1.));col*=1.0-smoothstep(.42,1.1,vg)*(.78+.18*fear);
     col=mix(col,vec3(.5,0.,0.),hurt*(.18+.5*smoothstep(.2,.85,vg)));
     col+=(hash(vUv*res+fract(time*7.13)*91.0)-.5)*(.05+.05*fear);
-    float sl=sin(vUv.y*res.y*1.6+time*30.)*.5+.5;col*=1.0-sl*.035*(1.0+fear);
+    float sl=sin(vUv.y*res.y*1.6+time*30.)*.5+.5;col*=1.0-sl*.035*scanK*(1.0+fear);
     col=floor(col*40.+.5)/40.;
     col=mix(col,vec3(1.,.96,.92),flash);
     col=mix(col,vec3(lum*.55,0.,0.),dead*.75);
@@ -50,6 +50,11 @@ const DUST=(()=>{const n=900,p=new Float32Array(n*3),sd=new Float32Array(n);for(
 function applyQuality(){const q=+SET.qual;const pr=q===2?Math.min(devicePixelRatio||1,1.5):1,sc=q===2?1:q===1?.8:.6;
   renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight,false);
   const w=Math.max(4,Math.floor(innerWidth*pr*sc)),h=Math.max(4,Math.floor(innerHeight*pr*sc));RT.setSize(w,h);POST.uniforms.res.value.set(w,h);POST.uniforms.edgeW.value=w>2200?1.5:1;
+  // outlines: phones often keep depth at lower precision, which shows up as stray lines on flat floors and walls, and they
+  // stretch the picture up to the screen, which turns the scanlines into stripes. Soft ignores small depth steps, keeps outlines
+  // close up, and drops the scanlines. Auto picks Soft on touch screens.
+  {const m=SET.outl||'auto',mob=TOUCH.on||matchMedia('(pointer:coarse)').matches,o=m==='auto'?(mob?'soft':'on'):m,U=POST.uniforms;
+   U.eOn.value=o==='off'?0:1;U.eLo.value=o==='soft'?.075:.02;U.eHi.value=o==='soft'?.17:.07;U.eFar.value=o==='soft'?7.5:11;U.scanK.value=o==='on'?1:0}
   const shadows=q>0,ms=q===2?1024:512;if(FL.castShadow!==shadows||FL.shadow.mapSize.x!==ms){FL.castShadow=shadows;FL.shadow.mapSize.set(ms,ms);if(FL.shadow.map){FL.shadow.map.dispose();FL.shadow.map=null}}
   DUST.uniforms.px.value=h/900;
   camera.aspect=innerWidth/innerHeight;camera.fov=+SET.fov;camera.updateProjectionMatrix()}
@@ -468,9 +473,9 @@ function updFear(dt){const me=S.players[NET.myId];let f=0,near=99;
   return near}
 
 // ===================================================================== screens
-const SCREENS=['menu','how','settings','lobby','pause','over','shop','pubs'];
-function hideScreens(){for(const s of SCREENS)$(s).classList.add('hide')}
-function show(id){hideScreens();$(id).classList.remove('hide')}
+const SCREENS=['menu','how','settings','lobby','pause','over','shop','pubs','install'];
+function hideScreens(){for(const s of SCREENS)$(s).classList.add('hide');cornerSync()}
+function show(id){hideScreens();$(id).classList.remove('hide');cornerSync()}
 let settingsBack='menu';
 function showMenu(err){GAME.on=false;$('hud').classList.add('hide');$('lockmsg').classList.add('hide');show('menu');$('menuErr').textContent=err?String(err):'';saveNote();if(document.pointerLockElement)document.exitPointerLock()}
 function showPause(){if(!GAME.on)return;if(NET.mode==='solo')GAME.paused=true;$('pauseNote').textContent=NET.mode==='solo'?'The clock is stopped.':`Crew ${NET.code}: the night keeps going without you.`;show('pause')}
@@ -544,7 +549,7 @@ function bindUI(){
   $('bAgain').onclick=()=>{auInit();if(NET.mode==='host')hostStartGame();else startSolo()};
   const sl=(id,key,fmt,apply)=>{const el=$(id),out=$('v'+id.slice(1));el.value=SET[key];out.textContent=fmt(SET[key]);el.oninput=()=>{SET[key]=+el.value;out.textContent=fmt(SET[key]);saveSet();apply&&apply()}};
   sl('sSens','sens',v=>(+v).toFixed(2));sl('sVol','vol',v=>Math.round(v*100)+'%',()=>auVol(SET.vol));sl('sFov','fov',v=>v+'°',applyQuality);
-  $('sQual').value=SET.qual;$('sQual').onchange=()=>{SET.qual=+$('sQual').value;saveSet();applyQuality()};
+  $('sOutl').value=SET.outl||'auto';$('sOutl').onchange=()=>{SET.outl=$('sOutl').value;saveSet();applyQuality()};$('sQual').value=SET.qual;$('sQual').onchange=()=>{SET.qual=+$('sQual').value;saveSet();applyQuality()};
   $('sForkInv').value=SET.forkInv?'1':'0';$('sForkInv').onchange=()=>{SET.forkInv=$('sForkInv').value==='1';saveSet()};
   $('sCross').onchange=()=>{SET.cross=$('sCross').value;saveSet();renderBinds()};
   $('bKeysReset').onclick=()=>{SET.keys={};REBIND=null;saveSet();buildKeymap();renderBinds()};buildKeymap();

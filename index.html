@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Stocking In The Dark</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='b' cx='.3' cy='.1' r='.9'%3E%3Cstop offset='0' stop-color='%23f3dc9a' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%23f3dc9a' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='12' fill='%230b0a09'/%3E%3Cpath d='M4 4 L34 4 L60 46 L18 60 Z' fill='url(%23b)'/%3E%3Cpath d='M12 30 L32 22 L52 30 L32 38 Z' fill='%231a1006'/%3E%3Cpath d='M12 30 L32 38 L32 58 L12 50 Z' fill='%23b8803f'/%3E%3Cpath d='M52 30 L32 38 L32 58 L52 50 Z' fill='%238a5a28'/%3E%3Cpath d='M12 30 L4 24 L24 17 L32 22 Z' fill='%23c99352'/%3E%3Cpath d='M52 30 L60 24 L40 17 L32 22 Z' fill='%239c6a33'/%3E%3Cpath d='M19 39.5 L25 42 L25 52 L19 49.5 Z' fill='%23d8b98a' opacity='.55'/%3E%3Ccircle cx='26.5' cy='29.5' r='2.6' fill='%23ff2a1a'/%3E%3Ccircle cx='36.5' cy='29.5' r='2.6' fill='%23ff2a1a'/%3E%3Ccircle cx='26.5' cy='29.5' r='1' fill='%23ffd0c0'/%3E%3Ccircle cx='36.5' cy='29.5' r='1' fill='%23ffd0c0'/%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#050506">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stocking">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Creepster&display=swap" rel="stylesheet">
 <style>
@@ -155,6 +162,9 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   #menu>*{grid-column:2;margin:0}#menu>h1{grid-column:1;grid-row:1/span 6;align-self:end}#menu>.sub{grid-column:1;grid-row:7/span 5;align-self:start;margin-top:10px}
   #menu .diffnote{max-width:100%;font-size:11.5px;min-height:0;line-height:1.3}#menu>#diffNote,#menu>#contNote{display:none}#menu .err{min-height:0}#menu .err:empty{display:none}#menu button{padding:6px 12px;font-size:14px}#menu input{padding:6px 9px}#menu .diffs button{padding:5px 11px;font-size:14px}
 }
+/* the full screen and get-the-app buttons, in the bottom corners of the title screen and the break room */
+#corner{position:fixed;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));z-index:21;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none}
+#corner button{pointer-events:auto;background:rgba(14,12,10,.85)}#corner #bFull{margin-left:auto}
 /* ---- touch controls */
 :root{--tbs:1}
 body.touch{-webkit-touch-callout:none;touch-action:none}
@@ -276,11 +286,12 @@ body.touch #lockmsg{display:none!important}
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Volume</span><input type="range" id="sVol" min="0" max="1" step="0.05"><span id="vVol" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Field of view</span><input type="range" id="sFov" min="60" max="100" step="1"><span id="vFov" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Graphics</span><select id="sQual"><option value="2">High</option><option value="1">Medium</option><option value="0">Low (fast)</option></select><span style="width:40px"></span></div>
+  <div class="row"><span class="lbl" style="width:130px;text-align:right">Outlines</span><select id="sOutl"><option value="auto">Auto</option><option value="on">Full</option><option value="soft">Soft (phones)</option><option value="off">Off</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Show FPS</span><input type="checkbox" id="sFps"><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Forklift steering</span><select id="sForkInv"><option value="0">Normal</option><option value="1">Inverted</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Crosshair</span><select id="sCross"><option value="dot">Dot</option><option value="plus">Cross</option><option value="circle">Circle</option><option value="dotring">Dot in a ring</option><option value="tee">Open cross</option><option value="none">None</option></select><span class="xprev"><i id="xPrev" class="xh x-dot"></i></span></div>
   <div id="touchSet" style="display:contents"><div class="row"><span class="lbl" style="width:130px;text-align:right">Touch controls</span><select id="sTouch"><option value="auto">Auto (touch screens)</option><option value="on">On</option><option value="off">Off</option></select><span style="width:40px"></span></div>
-  <div class="row"><span class="lbl" style="width:130px;text-align:right">Touch look</span><input type="range" id="sTsens" min="0.3" max="3" step="0.05"><span id="vTsens" style="width:40px"></span></div>
+  <div class="row"><span class="lbl" style="width:130px;text-align:right">Screen sensitivity</span><input type="range" id="sTsens" min="0.3" max="3" step="0.05"><span id="vTsens" style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Button size</span><input type="range" id="sTbs" min="0.7" max="1.4" step="0.05"><span id="vTbs" style="width:40px"></span></div></div>
   <h3 style="margin:6px 0 0">Controls</h3><div class="lbl">Click a key, then press the new one (Esc cancels). Mouse: left click uses, right click (or the item key) uses the picked item, the wheel picks items.</div>
   <div id="binds"></div><button class="small" id="bKeysReset">Reset keys</button>
@@ -302,6 +313,12 @@ body.touch #lockmsg{display:none!important}
   <ul id="lobbyList"></ul>
   <div class="row"><button id="bStart">Start the shift</button><button id="bCont2" class="hide">Continue the saved run</button><button id="bLeave" class="small">Leave</button></div>
   <div class="row"><button id="bPublic" class="small hide">Private: join by code only</button></div><div class="lbl hide" id="pubNote"></div>
+</div></div>
+
+<div id="install" class="screen dim hide"><div class="card">
+  <h2>GET THE APP</h2>
+  <div class="how" id="installHow" style="text-align:center"></div>
+  <button id="bInstallBack">Back</button>
 </div></div>
 
 <div id="pause" class="screen dim hide"><div class="card">
@@ -2810,9 +2827,9 @@ const RT=new THREE.WebGLRenderTarget(4,4,{type:THREE.HalfFloatType,depthBuffer:t
 RT.depthTexture=new THREE.DepthTexture(4,4);RT.depthTexture.type=THREE.UnsignedIntType;
 const POST=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
   uniforms:{tCol:{value:RT.texture},tDep:{value:RT.depthTexture},res:{value:new THREE.Vector2(4,4)},time:{value:0},near:{value:camera.near},far:{value:camera.far},
-    hurt:{value:0},flash:{value:0},fear:{value:0},lowhp:{value:0},dead:{value:0},edgeW:{value:1},scan:{value:0}},
+    hurt:{value:0},flash:{value:0},fear:{value:0},lowhp:{value:0},dead:{value:0},edgeW:{value:1},scan:{value:0},eLo:{value:.02},eHi:{value:.07},eFar:{value:11},eOn:{value:1},scanK:{value:1}},
   vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`,
-  fragmentShader:`precision highp float;uniform sampler2D tCol,tDep;uniform vec2 res;uniform float time,near,far,hurt,flash,fear,lowhp,dead,edgeW,scan;varying vec2 vUv;
+  fragmentShader:`precision highp float;uniform sampler2D tCol,tDep;uniform vec2 res;uniform float time,near,far,hurt,flash,fear,lowhp,dead,edgeW,scan,eLo,eHi,eFar,eOn,scanK;varying vec2 vUv;
   float W(vec2 uv){float d=texture2D(tDep,uv).r;float vz=(near*far)/((far-near)*d-far);return -1.0/vz;}
   float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
   void main(){vec2 uv=vUv;
@@ -2820,7 +2837,7 @@ const POST=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
     vec2 px=edgeW/res;float c=W(uv);
     float lap=abs(W(uv-vec2(px.x,0.))+W(uv+vec2(px.x,0.))+W(uv-vec2(0.,px.y))+W(uv+vec2(0.,px.y))-4.0*c)/max(c,1e-5);
     // outlines fade out with the fog, so nothing far away shows up as a silhouette against lamp glow
-    float zl=1.0/max(c,1e-5);float edge=smoothstep(.02,.07,lap)*(1.0-smoothstep(6.0,11.0,zl));
+    float zl=1.0/max(c,1e-5);float edge=smoothstep(eLo,eHi,lap)*(1.0-smoothstep(eFar*.55,eFar,zl))*eOn;
     vec2 ca=(uv-.5)*(0.0025+0.012*fear+0.02*hurt);
     vec3 col=vec3(texture2D(tCol,uv+ca).r,texture2D(tCol,uv).g,texture2D(tCol,uv-ca).b);
     col=col/(1.0+col*.3);
@@ -2832,7 +2849,7 @@ const POST=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
     float vg=length((vUv-.5)*vec2(res.x/res.y,1.));col*=1.0-smoothstep(.42,1.1,vg)*(.78+.18*fear);
     col=mix(col,vec3(.5,0.,0.),hurt*(.18+.5*smoothstep(.2,.85,vg)));
     col+=(hash(vUv*res+fract(time*7.13)*91.0)-.5)*(.05+.05*fear);
-    float sl=sin(vUv.y*res.y*1.6+time*30.)*.5+.5;col*=1.0-sl*.035*(1.0+fear);
+    float sl=sin(vUv.y*res.y*1.6+time*30.)*.5+.5;col*=1.0-sl*.035*scanK*(1.0+fear);
     col=floor(col*40.+.5)/40.;
     col=mix(col,vec3(1.,.96,.92),flash);
     col=mix(col,vec3(lum*.55,0.,0.),dead*.75);
@@ -2857,6 +2874,11 @@ const DUST=(()=>{const n=900,p=new Float32Array(n*3),sd=new Float32Array(n);for(
 function applyQuality(){const q=+SET.qual;const pr=q===2?Math.min(devicePixelRatio||1,1.5):1,sc=q===2?1:q===1?.8:.6;
   renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight,false);
   const w=Math.max(4,Math.floor(innerWidth*pr*sc)),h=Math.max(4,Math.floor(innerHeight*pr*sc));RT.setSize(w,h);POST.uniforms.res.value.set(w,h);POST.uniforms.edgeW.value=w>2200?1.5:1;
+  // outlines: phones often keep depth at lower precision, which shows up as stray lines on flat floors and walls, and they
+  // stretch the picture up to the screen, which turns the scanlines into stripes. Soft ignores small depth steps, keeps outlines
+  // close up, and drops the scanlines. Auto picks Soft on touch screens.
+  {const m=SET.outl||'auto',mob=TOUCH.on||matchMedia('(pointer:coarse)').matches,o=m==='auto'?(mob?'soft':'on'):m,U=POST.uniforms;
+   U.eOn.value=o==='off'?0:1;U.eLo.value=o==='soft'?.075:.02;U.eHi.value=o==='soft'?.17:.07;U.eFar.value=o==='soft'?7.5:11;U.scanK.value=o==='on'?1:0}
   const shadows=q>0,ms=q===2?1024:512;if(FL.castShadow!==shadows||FL.shadow.mapSize.x!==ms){FL.castShadow=shadows;FL.shadow.mapSize.set(ms,ms);if(FL.shadow.map){FL.shadow.map.dispose();FL.shadow.map=null}}
   DUST.uniforms.px.value=h/900;
   camera.aspect=innerWidth/innerHeight;camera.fov=+SET.fov;camera.updateProjectionMatrix()}
@@ -3275,9 +3297,9 @@ function updFear(dt){const me=S.players[NET.myId];let f=0,near=99;
   return near}
 
 // ===================================================================== screens
-const SCREENS=['menu','how','settings','lobby','pause','over','shop','pubs'];
-function hideScreens(){for(const s of SCREENS)$(s).classList.add('hide')}
-function show(id){hideScreens();$(id).classList.remove('hide')}
+const SCREENS=['menu','how','settings','lobby','pause','over','shop','pubs','install'];
+function hideScreens(){for(const s of SCREENS)$(s).classList.add('hide');cornerSync()}
+function show(id){hideScreens();$(id).classList.remove('hide');cornerSync()}
 let settingsBack='menu';
 function showMenu(err){GAME.on=false;$('hud').classList.add('hide');$('lockmsg').classList.add('hide');show('menu');$('menuErr').textContent=err?String(err):'';saveNote();if(document.pointerLockElement)document.exitPointerLock()}
 function showPause(){if(!GAME.on)return;if(NET.mode==='solo')GAME.paused=true;$('pauseNote').textContent=NET.mode==='solo'?'The clock is stopped.':`Crew ${NET.code}: the night keeps going without you.`;show('pause')}
@@ -3351,7 +3373,7 @@ function bindUI(){
   $('bAgain').onclick=()=>{auInit();if(NET.mode==='host')hostStartGame();else startSolo()};
   const sl=(id,key,fmt,apply)=>{const el=$(id),out=$('v'+id.slice(1));el.value=SET[key];out.textContent=fmt(SET[key]);el.oninput=()=>{SET[key]=+el.value;out.textContent=fmt(SET[key]);saveSet();apply&&apply()}};
   sl('sSens','sens',v=>(+v).toFixed(2));sl('sVol','vol',v=>Math.round(v*100)+'%',()=>auVol(SET.vol));sl('sFov','fov',v=>v+'°',applyQuality);
-  $('sQual').value=SET.qual;$('sQual').onchange=()=>{SET.qual=+$('sQual').value;saveSet();applyQuality()};
+  $('sOutl').value=SET.outl||'auto';$('sOutl').onchange=()=>{SET.outl=$('sOutl').value;saveSet();applyQuality()};$('sQual').value=SET.qual;$('sQual').onchange=()=>{SET.qual=+$('sQual').value;saveSet();applyQuality()};
   $('sForkInv').value=SET.forkInv?'1':'0';$('sForkInv').onchange=()=>{SET.forkInv=$('sForkInv').value==='1';saveSet()};
   $('sCross').onchange=()=>{SET.cross=$('sCross').value;saveSet();renderBinds()};
   $('bKeysReset').onclick=()=>{SET.keys={};REBIND=null;saveSet();buildKeymap();renderBinds()};buildKeymap();
@@ -4010,7 +4032,11 @@ const TT={stick:null,look:null,btn:new Map(),vis:false,el:null,knob:null,base:nu
 function touchDetect(){const m=SET.touch||'auto';
   TOUCH.on=m==='on'||(m!=='off'&&!!(matchMedia&&matchMedia('(pointer:coarse)').matches));
   document.body.classList.toggle('touch',TOUCH.on);document.documentElement.style.setProperty('--tbs',String(SET.tbs||1));
-  GAME.lastPr=null;GAME.lastHb=null;buildKeymap();if(TOUCH.on&&document.pointerLockElement)document.exitPointerLock()}
+  GAME.lastPr=null;GAME.lastHb=null;buildKeymap();
+  // Settings shows the sensitivity for what you play with: the screen on touch, the mouse otherwise
+  const row=id=>{const e=$(id);return e&&e.closest('.row')};if(row('sSens'))row('sSens').classList.toggle('hide',TOUCH.on);
+  if(row('sTsens'))row('sTsens').classList.toggle('hide',!TOUCH.on);if(row('sTbs'))row('sTbs').classList.toggle('hide',!TOUCH.on);
+  if(typeof applyQuality==='function'&&renderer)applyQuality();if(TOUCH.on&&document.pointerLockElement)document.exitPointerLock()}
 function touchRelease(){for(const k of TOUCH_KEYS)K[k]=false;TJ.x=TJ.y=0;TJ.run=false;TT.stick=TT.look=null;TT.btn.clear();
   if(TT.base)TT.base.classList.add('hide');if(TT.el)TT.el.querySelectorAll('.tb.on').forEach(b=>b.classList.remove('on'))}
 function touchSetup(){
@@ -4047,6 +4073,8 @@ function touchSetup(){
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&TOUCH.on&&GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop'))showPause()});
   addEventListener('resize',()=>{if(TT.vis)touchRelease()});
   // Settings: touch controls on/off, look speed, button size
+  // the screen sensitivity slider sits where the mouse one is
+  {const ms=$('sSens')&&$('sSens').closest('.row'),ts=$('sTsens')&&$('sTsens').closest('.row');if(ms&&ts)ms.after(ts)}
   const set=$('touchSet');
   if(set){$('sTouch').value=SET.touch||'auto';$('sTouch').onchange=()=>{SET.touch=$('sTouch').value;saveSet();touchDetect()};
     const sl=(id,key,fmt,ap)=>{const i=$(id),o=$('v'+id.slice(1));i.value=SET[key]||1;o.textContent=fmt(+i.value);i.oninput=()=>{SET[key]=+i.value;o.textContent=fmt(+i.value);saveSet();ap&&ap()}};
@@ -4095,6 +4123,35 @@ function touchTick(){const vis=TOUCH.on&&GAME.on&&!$('hud').classList.contains('
   hid('tLamp',dead||!(me.up&&me.up.red));hid('tShake',dead||!(me.up&&me.up.shake)||ME.driving);
   $('tLight').classList.toggle('lit',ME.lightOn());$('tLamp').classList.toggle('lit',!!ME.red)}
 touchSetup();
+
+// ===================================================================== full screen and the app
+// Two buttons in the bottom corners of the title screen and the break room: Full screen (any device that
+// allows it) and, on phones and tablets, Get the app (install it to the home screen; it then opens full screen).
+let INSTALL_EVT=null,INSTALL_BACK='menu';
+const isApp=()=>!!(matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches||navigator.standalone);
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+const fsOk=()=>{const d=document.documentElement;return!!(d.requestFullscreen||d.webkitRequestFullscreen)&&!matchMedia('(display-mode: fullscreen)').matches};
+function cornerSync(){const c=$('corner');if(!c)return;const on=['menu','pause'].some(s=>!$(s).classList.contains('hide'));c.classList.toggle('hide',!on);if(!on)return;
+  $('bFull').classList.toggle('hide',!fsOk());$('bFull').innerHTML=fsEl()?'&#x2716; Exit full screen':'&#x26F6; Full screen';
+  const mobile=TOUCH.on||matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  $('bApp').classList.toggle('hide',!mobile||isApp())}
+function toggleFull(){if(fsEl()){const x=document.exitFullscreen||document.webkitExitFullscreen;try{const p=x&&x.call(document);if(p&&p.catch)p.catch(()=>{})}catch(e){}}else goFull()}
+async function getApp(){
+  if(INSTALL_EVT){const e=INSTALL_EVT;INSTALL_EVT=null;try{await e.prompt();const r=await e.userChoice;if(r&&r.outcome==='accepted')$('bApp').classList.add('hide')}catch(err){}return}
+  // no install prompt from the browser: say how to do it by hand
+  const ios=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  $('installHow').innerHTML=!/^https?:/.test(location.protocol)?'The game has to be opened from its web address (not a saved file) to be installed.'
+    :ios?'In Safari, tap the <b>Share</b> button (the square with an arrow), then <b>Add to Home Screen</b>. Open it from the new icon and it plays full screen with no browser bars.'
+    :'Open the browser menu (<b>&#8942;</b>, top right) and choose <b>Install app</b> or <b>Add to Home screen</b>. Open it from the new icon and it plays full screen.';
+  INSTALL_BACK=$('pause').classList.contains('hide')?'menu':'pause';show('install')}
+(()=>{const c=document.createElement('div');c.id='corner';c.className='hide';
+  c.innerHTML='<button class="small" id="bApp">&#x2913; Get the app</button><button class="small" id="bFull">&#x26F6; Full screen</button>';document.body.appendChild(c);
+  $('bFull').onclick=()=>{toggleFull();setTimeout(cornerSync,300)};$('bApp').onclick=getApp;$('bInstallBack').onclick=()=>show(INSTALL_BACK);
+  document.addEventListener('fullscreenchange',cornerSync);document.addEventListener('webkitfullscreenchange',cornerSync);
+  addEventListener('beforeinstallprompt',e=>{e.preventDefault();INSTALL_EVT=e;cornerSync()});
+  addEventListener('appinstalled',()=>{INSTALL_EVT=null;cornerSync()});
+  if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  cornerSync()})();
 </script>
 </body>
 </html>
