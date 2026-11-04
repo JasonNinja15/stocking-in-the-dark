@@ -65,12 +65,12 @@ function reqLock(){try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch
 // ---- rebindable keys. The game reads every action by its default key; a rebinding turns the key you actually
 // pressed into the default key of the action it's bound to (and the action's old key into nothing).
 const BINDS=[['fwd','Move forward','KeyW'],['back','Move back','KeyS'],['left','Move left','KeyA'],['right','Move right','KeyD'],['run','Run','ShiftLeft'],
-  ['use','Use, pick up, shelve','KeyE'],['kick','Kick','KeyQ'],['drop','Set a box down','KeyG'],['light','Flashlight','KeyF'],['lamp','Red headlamp','KeyH'],['shake','Shake flashlight (hold)','KeyR']];
+  ['use','Use, pick up, shelve','KeyE'],['kick','Kick','KeyQ'],['drop','Set a box down','KeyG'],['light','Flashlight','KeyF'],['lamp','Red headlamp','KeyH'],['shake','Shake flashlight (hold)','KeyR'],['item','Use the picked item (hold for the scanner)','Space']];
 let KEYMAP={};
 const boundKey=id=>{const b=BINDS.find(x=>x[0]===id);return(SET.keys&&SET.keys[id])||b[2]};
 function buildKeymap(){KEYMAP={};
   for(const [id,,def] of BINDS){const k=boundKey(id);if(k===def)continue;KEYMAP[k]=def;if(!(def in KEYMAP))KEYMAP[def]=null;if(id==='run'&&!('ShiftRight' in KEYMAP))KEYMAP.ShiftRight=null}
-  const kh=$('keyhint');if(kh)kh.textContent=`${['fwd','left','back','right'].map(i=>keyName(boundKey(i))).join('')} move · ${keyName(boundKey('run'))} run · ${keyName(boundKey('light'))} flashlight · ${keyName(boundKey('use'))} use · ${keyName(boundKey('kick'))} kick · ${keyName(boundKey('drop'))} set down · scroll + right click items · Esc pause`}
+  const kh=$('keyhint');if(kh)kh.textContent=`${['fwd','left','back','right'].map(i=>keyName(boundKey(i))).join('')} move · ${keyName(boundKey('run'))} run · ${keyName(boundKey('light'))} flashlight · ${keyName(boundKey('use'))} use · ${keyName(boundKey('kick'))} kick · ${keyName(boundKey('drop'))} set down · scroll + right click or ${keyName(boundKey('item'))} items · Esc pause`}
 const mapKey=c=>c in KEYMAP?KEYMAP[c]:c;
 function keyName(c){if(!c)return'?';if(/^Key.$/.test(c))return c.slice(3);if(/^Digit.$/.test(c))return c.slice(5);
   return{ShiftLeft:'L-Shift',ShiftRight:'R-Shift',ControlLeft:'L-Ctrl',ControlRight:'R-Ctrl',AltLeft:'L-Alt',AltRight:'R-Alt',Space:'Space',Tab:'Tab',CapsLock:'Caps',
@@ -116,9 +116,14 @@ function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||
     else if(t.kind==='aid')doAct({a:'aid'});
     else if(t.kind==='exit'){SFX.locked();toast('Locked. Nobody leaves before 6:00 AM.')}
     return}
-  if(code==='KeyQ'){if(ME.kickCD>0)return;ME.kickCD=.8;ME.kickA=.35;const t=ME.target;if(t&&t.kind==='box')doAct({a:'kick',b:t.b.id});return}
+  if(code==='KeyQ'){if(ME.kickCD>0)return;ME.kickCD=.8;ME.kickA=.35;const t=ME.target;if(t&&t.kind==='box')doAct({a:'kick',b:t.b.id});else{const b=kickAim();if(b)doAct({a:'kick',b:b.id})}return}
   if(code==='KeyG'){if(me.carry<0)return;const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw);doAct({a:'drop',x:r2(ME.x+fx*.9),z:r2(ME.z+fz*.9),ry:r2(ME.yaw)});return}}
 
+// a kick with no box under the crosshair still hits the nearest loose box at your feet in front of you
+function kickAim(){const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw);let best=null,bs=1e9;
+  for(const b of S.boxes){if((b.st!==0&&b.st!==3)||b.amr)continue;const w=boxWorld(b);if(w.y>1.2)continue;const dx=w.x-ME.x,dz=w.z-ME.z,d=Math.hypot(dx,dz);if(d>1.9||d<.01)continue;
+    const c=(dx*fx+dz*fz)/d;if(c<.45)continue;const sc=d*(2-c);if(sc<bs){bs=sc;best=b}}
+  return best}
 const RC=new THREE.Raycaster();const _v=new THREE.Vector3(),_v2=new THREE.Vector3();
 function rayBox(ray,x0,y0,z0,x1,y1,z1){const o=ray.origin,d=ray.direction;let t0=0,t1=1e9;
   for(const [oo,dd,a,b] of[[o.x,d.x,x0,x1],[o.y,d.y,y0,y1],[o.z,d.z,z0,z1]]){if(Math.abs(dd)<1e-9){if(oo<a||oo>b)return null;continue}let ta=(a-oo)/dd,tb=(b-oo)/dd;if(ta>tb)[ta,tb]=[tb,ta];t0=Math.max(t0,ta);t1=Math.min(t1,tb);if(t0>t1)return null}return t0}
@@ -591,7 +596,7 @@ async function init(){
   applyQuality();bindUI();saveNote();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,relabel,toast,applyBoxes,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,
+  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,relabel,toast,applyBoxes,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,truckGone,spiderDoor,spawnAuditor,spFree,kickAim,MV,onKey,
 
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});

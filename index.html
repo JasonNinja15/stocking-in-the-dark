@@ -160,7 +160,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   </div>
   <div id="plist" class="panel"></div>
   <div id="spect" class="hide"></div>
-  <div id="keyhint">WASD move · Shift run · F flashlight · E use · Q kick · G set down · scroll + right click items · Esc pause</div>
+  <div id="keyhint">WASD move · Shift run · F flashlight · E use · Q kick · G set down · scroll + right click or Space items · Esc pause</div>
 </div>
 <div id="lockmsg" class="hide">Click to clock back in</div>
 
@@ -201,7 +201,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <p><b>Robots.</b> Two warehouse robots can be bought: the small one takes a box from its pad on the dock and shelves it for you, the big one takes a pallet you set on its pad with the forklift up to a top shelf. Both are slow, carry one load at a time, and stop for anyone in their way.</p>
   <p><b>Difficulty</b> is picked on the title screen: Easy has smaller quotas, softer monsters and rarer bad luck; Hard has bigger quotas, harder hits and much more bad luck. A crew plays on the host's setting.</p>
   <p><b>Power outages.</b> From night 3 the mains can fail at any moment and stay dead until morning: every lamp goes out and the charger works ten times slower, unless the generator has fuel. And something that lives in the dark comes out: it can't see you, but it hears you, and it feels footsteps close by. Stand still.</p>
-  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items sit on the hotbar at the bottom of the screen: <kbd>scroll</kbd> (or a number key) to pick one, <kbd>right click</kbd> to use it. The red headlamp is on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold right click with the thermal scanner picked to use it. The <b>THIS WAY</b> board on the dock wall points to the roof ladder and to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
+  <p><b>Between nights</b> your crew's pay buys warehouse additions (more work, more time, new things living in them) and equipment. Items sit on the hotbar at the bottom of the screen: <kbd>scroll</kbd> (or a number key) to pick one, <kbd>right click</kbd> or <kbd>Space</kbd> to use it. The red headlamp is on <kbd>H</kbd>, and the shake flashlight is held on <kbd>R</kbd>. Hold right click (or Space) with the thermal scanner picked to use it. The <b>THIS WAY</b> board on the dock wall points to the roof ladder and to everything you have bought. Press <b>Done</b> when you're finished shopping: the night starts once more than half the crew is done. The run saves after every night; <b>Continue</b> on the menu picks it up, and it's deleted when the run ends.</p>
   <p><kbd>W A S D</kbd> move &middot; <kbd>Shift</kbd> run &middot; <kbd>Mouse</kbd> look &middot; <kbd>F</kbd> flashlight &middot; <kbd>E</kbd> pick up / shelve / use (hold at the charger) &middot; <kbd>Q</kbd> kick &middot; <kbd>Scroll</kbd> pick item &middot; <kbd>Right click</kbd> use item &middot; <kbd>G</kbd> set box down &middot; <kbd>Esc</kbd> pause (these are the default keys: change them, and the crosshair, in Settings)</p>
   <p><b>Crews:</b> one person presses <i>Host a Crew</i> and shares the five-letter code. Up to ten people can work a shift together. In the crew room the host can make the crew public, and then anyone can find it under <i>Join Public</i> and join, even mid-shift. The quota grows with the crew. If you go down, you watch the others in third person until the night ends: move the mouse to look around, click or use the arrow keys to switch.</p>
   </div>
@@ -217,7 +217,7 @@ h2{font-weight:400;margin:0 0 4px;font-size:26px;letter-spacing:.08em}
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Show FPS</span><input type="checkbox" id="sFps"><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Forklift steering</span><select id="sForkInv"><option value="0">Normal</option><option value="1">Inverted</option></select><span style="width:40px"></span></div>
   <div class="row"><span class="lbl" style="width:130px;text-align:right">Crosshair</span><select id="sCross"><option value="dot">Dot</option><option value="plus">Cross</option><option value="circle">Circle</option><option value="dotring">Dot in a ring</option><option value="tee">Open cross</option><option value="none">None</option></select><span class="xprev"><i id="xPrev" class="xh x-dot"></i></span></div>
-  <h3 style="margin:6px 0 0">Controls</h3><div class="lbl">Click a key, then press the new one (Esc cancels). Mouse: left click uses, right click uses the picked item, the wheel picks items.</div>
+  <h3 style="margin:6px 0 0">Controls</h3><div class="lbl">Click a key, then press the new one (Esc cancels). Mouse: left click uses, right click (or the item key) uses the picked item, the wheel picks items.</div>
   <div id="binds"></div><button class="small" id="bKeysReset">Reset keys</button>
   <button id="bSetBack">Back</button>
 </div></div>
@@ -1524,7 +1524,7 @@ function startNight(){
   S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0}));
   HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)/diffEv()*(i===0?1.8:i===3?.6:1));
   HOST.nextTruck=6;HOST.nextStalker=(rand(42,55)-Math.min(20,(S.night-1)*6))/diffEv();HOST.trucksTonight=0;HOST.lastTruck=false;S.ot=false;
-  S.quota=calcQuota();nightSetup();
+  S.quota=calcQuota();nightSetup();nightSetup3();
   markSlots(); // again now last night's pallets are gone, or the slots they sat in stay marked full all night
   const pos={};Object.values(S.players).forEach((p,i)=>{const sp=spawnPoint(i);Object.assign(p,{x:sp.x,z:sp.z,yaw:0,pitch:0,hp:100,dead:false,carry:-1,lastHurt:-99,tpT:.8});pos[p.id]=[sp.x,sp.z]});
   emit({e:'night',n:S.night,q:S.quota,pos,ex:S.extra,df:S.diff});
@@ -1612,7 +1612,7 @@ function simUpdate(dt){
 
 // ---------------------------------------------------------------- trucks
 function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&HOST.trucksTonight===0;
-  Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0,due:0});
+  Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0,due:0,leaving:false});
   const n=Math.min(22,randi(6,9)+Math.min(5,S.night-1)+bigCrew());
   tr.lurk=!first&&Math.random()<Math.min(.85,Math.min(.55,.17+.09*(S.night-1))*diffEv());
   tr.crawl=!first&&!tr.lurk&&!S.mons.some(m=>m.ty===3)&&Math.random()<Math.min(.7,Math.min(.4,.14+.06*(S.night-1))*diffEv());
@@ -1634,10 +1634,11 @@ function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&
   S.bver++;emit({e:'truck',b:i,last})}
 function truckGone(i){const tr=S.trucks[i];let n=0;for(const b of S.boxes)if(b.st===0&&b.bay===i){b.st=4;if(!b.m&&!tr.reject)n++}
   for(const p of S.pallets||[])if(p.st===0&&p.bay===i){p.st=4;if(!tr.reject)n+=8}
-  S.lost+=n;S.mons=S.mons.filter(m=>!((m.ty===1||m.ty===3)&&m.bay===i));S.bver++;
+  S.lost+=n;S.mons=S.mons.filter(m=>!((m.ty===1||m.ty===3||(m.ty===15&&m.st==="inside"))&&m.bay===i));S.bver++;
   if(n)emit({e:'msg',m:`Bay ${BAYS[i].name} left with ${n} box${n>1?'es':''} still on board.`});
-  Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0,due:0});
+  Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0,due:0,leaving:false});
   // late in the run the door motor sticks after a truck leaves, and something out in the yard notices
+  if(spiderDoor(i))return;
   if(yardOn()){tr.door=1;tr.stuck=14;if(!S.yard)S.yard={bay:i,stage:0,look:0};emit({e:"stuck",b:i})}}
 const freeBays=()=>S.trucks.map((t,i)=>t.st===0&&!(t.stuck>0)&&t.door<=0&&bayOn(i)?i:-1).filter(i=>i>=0);
 function trucksUpdate(dt){
@@ -1650,10 +1651,11 @@ function trucksUpdate(dt){
   S.trucks.forEach((tr,i)=>{
     if(tr.st===0){if(tr.stuck>0){tr.stuck-=dt;tr.door=1}else if(tr.door>0){tr.door=Math.max(0,tr.door-dt/1.2);if(tr.door<=0)emit({e:'slam',x:BAYS[i].x,z:WH.z0})}}
     else if(tr.st===1){tr.t+=dt;const p=Math.min(1,tr.t/9.5);tr.z=lerp(TZ_FAR,TZ_DOCK,easeOut(p));if(p>=1){tr.st=2;tr.t=0;tr.z=TZ_DOCK;emit({e:'brake',b:i});spawnDriver(i)}}
-    else if(tr.st===2){tr.door=Math.min(1,tr.door+dt/2.6);tr.t+=dt;tr.left=S.boxes.filter(x=>x.st===0&&x.bay===i).length;
+    else if(tr.st===2){tr.leaving=false;tr.door=Math.min(1,tr.door+dt/2.6);tr.t+=dt;tr.left=S.boxes.filter(x=>x.st===0&&x.bay===i).length;
       if(tr.left===0&&!palletInTruck(i)&&tr.door>=1)tr.emptyT=(tr.emptyT===undefined?5:tr.emptyT)-dt;else tr.emptyT=undefined;
       if(tr.reject||(tr.emptyT!==undefined&&tr.emptyT<=0)||(tr.t>=DOCK_TIME&&!S.ot)){
-        const inside=alivePlayers().some(p=>inTrailer(p)===i);let lur=S.mons.find(m=>m.ty===1&&m.bay===i),cr=S.mons.find(m=>m.ty===3&&m.bay===i);
+        tr.leaving=true;const spw=S.mons.some(m=>m.ty===15&&m.go&&m.bay===i&&m.st!=="inside");
+        const inside=spw||alivePlayers().some(p=>inTrailer(p)===i);let lur=S.mons.find(m=>m.ty===1&&m.bay===i),cr=S.mons.find(m=>m.ty===3&&m.bay===i);
         // the truck won't wait on its monsters for long: after 8 s the sleeper hurries back whatever it was doing,
         // and after 16 s whatever still hasn't made it back is simply gone
         tr.due=(tr.due||0)+dt;
@@ -1663,7 +1665,7 @@ function trucksUpdate(dt){
           if(lur&&lur.st!=='sleep'){Object.assign(lur,{st:'sleep',lx:LURK_LX,lz:LURK_HOME,ry:Math.PI/2,litT:0,hurry:false});lur=null}
           if(cr&&cr.st!=='inside'&&cr.st!=='home'){cr.dead=true;emit({e:'vanish',x:cr.x,y:cr.y,z:cr.z});cr=null}}
         if(!inside&&(!lur||lur.st==='sleep')&&(!cr||cr.st==='inside'||cr.st==='home')){tr.st=3;tr.t=0;emit({e:'horn',b:i})}
-        else{tr.honk=(tr.honk||0)-dt;if(tr.honk<=0){tr.honk=5;emit({e:'horn',b:i});if(inside)emit({e:'msg',m:`Bay ${BAYS[i].name}: the truck is pulling out. Get out of the trailer!`})}}}}
+        else{tr.honk=(tr.honk||0)-dt;if(tr.honk<=0){tr.honk=5;emit({e:"horn",b:i});if(inside&&!spw)emit({e:"msg",m:`Bay ${BAYS[i].name}: the truck is pulling out. Get out of the trailer!`})}}}}
     else if(tr.st===3){tr.t+=dt;tr.door=Math.max(0,tr.door-dt/2.2);if(tr.door<=0){const p=clamp((tr.t-2.4)/8,0,1);tr.z=lerp(TZ_DOCK,TZ_FAR,easeIn(p));if(p>=1)truckGone(i)}}
   })}
 
@@ -1713,7 +1715,7 @@ function monstersUpdate(dt){
   HOST.nextStalker-=dt;
   if(HOST.nextStalker<=0){const n=S.mons.filter(m=>m.ty===2).length,max=(S.night>=4?2:1)+(S.ot?1:0);
     if(n<max){HOST.nextStalker=spawnStalker()?(S.ot?rand(8,14):Math.max(16,rand(30,52)-S.night*4)/diffEv()):4}else HOST.nextStalker=6}
-  for(const m of S.mons){const f=MON_UPD[m.ty];if(f)f(m,dt)}
+  update3(dt);for(const m of S.mons){const f=MON_UPD[m.ty];if(f)f(m,dt)}
   S.mons=S.mons.filter(m=>!m.dead)}
 
 function mimicUpdate(m,dt){m.t+=dt;
@@ -1856,7 +1858,7 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
     if(b.ret)return emit({e:'msg',m:'Damaged returns can\'t be shelved. They go in the basement shredder.',p:pid});
     if(top){b.x=under.x+rand(-.04,.04);b.y=under.y+BOX_KINDS[under.k].h;b.z=under.z+rand(-.04,.04);b.ry=under.ry+rand(-.1,.1);s.box2=b.id}
     else{b.x=s.x+rand(-.15,.15);b.y=s.y;b.z=s.z+rand(-.08,.08);b.ry=rand(-.12,.12)+(s.rot?Math.PI/2:0);s.box=b.id}
-    b.st=2;b.s=s.id;b.h='';b.m=false;nextCarry();S.shelved++;pay(b.pri?20:b.f?15:10);S.bver++;
+    b.st=2;b.s=s.id;b.h='';b.m=false;nextCarry();S.shelved++;if(!b.np)pay(b.pri?20:b.f?15:10);S.bver++;
     emit({e:'place',x:b.x,y:b.y,z:b.z});if(S.shelved===S.quota)emit({e:'quota'});break}
   case 'drop':{const b=B(p.carry);if(!b)return;let x=+a.x,z=+a.z;if(!isFinite(x)||!isFinite(z)||Math.hypot(x-p.x,z-p.z)>(drv?2.8:2.2)||insideAny(x,z,.15)){x=p.x;z=p.z}
     const tb=trailerAt(x,z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=x-BAYS[tb].x;b.z=z-S.trucks[tb].z;b.y=0;settleTruck(tb)}else{b.st=3;b.x=x;b.z=z;b.y=0}
@@ -1896,7 +1898,7 @@ const SHOP={
   flare:{name:'Flares',price:25,give:2,key:2,desc:'Two road flares. Each lights the floor for 35 s, and most things won\'t cross one.'},
   cutter:{name:'Box cutter',price:60,once:true,key:3,desc:'Cut open the box you\'re looking at. Kills a mimic; ruins a real box.'},
   strobe:{name:'Strobe',price:70,give:3,key:4,desc:'Three blinding flashes that drive off almost anything in front of you.'},
-  scanner:{name:'Thermal scanner',price:120,once:true,key:5,desc:'Pick it on the hotbar and hold right click to see warm bodies through walls nearby.'},
+  scanner:{name:'Thermal scanner',price:120,once:true,key:5,desc:'Pick it on the hotbar and hold right click (or Space) to see warm bodies through walls nearby.'},
   horn:{name:'Air horn',price:40,give:3,key:6,desc:'Three loud blasts. Things that hunt by sound go to it.'},
   drink:{name:'Energy drinks',price:15,give:2,key:7,desc:'Two cans. Twenty seconds of sprinting without getting tired.'},
   stam:{name:'Stamina upgrade',price:90,once:true,desc:'Sprint half again as long, and get your breath back faster.'},
@@ -2361,6 +2363,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
       else if(m.ty===0&&m.st!=='bolt'&&Math.hypot(m.x-p.x,m.z-p.z)<10)boltMimic(m);
       else if(m.ty===7&&Math.hypot(m.x-p.x,m.z-p.z)<12)m.stun=6;
       else if(m.ty===12&&Math.hypot(m.x-p.x,m.z-p.z)<12){m.st='leave';m.t=0}
+      else if(m.ty===16&&m.st!=='leave'&&inCone(m.x,m.z,12)){m.st='leave';m.path=null;m.t=0;emit({e:'audOff',x:r2(m.x),z:r2(m.z)})}
       else if(m.ty===2&&inCone(m.x,m.z,12)){m.dead=true;emit({e:'shriek',id:m.id,x:m.x,z:m.z})}}
     for(const b of S.boxes)if(b.roam&&b.st===3&&Math.hypot(b.x-p.x,b.z-p.z)<10)unboxMimic(b,'bolt',p.id);
     if(S.fork.pass&&Math.hypot(S.fork.x-p.x,S.fork.z-p.z)<8){S.fork.pass=null;const t=forkTip();emit({e:'passGone',x:t.x,z:t.z})}break}
@@ -2494,6 +2497,109 @@ function restoreRun(sv){Object.assign(S,{night:sv.night,diff:DIFFS[sv.diff]?sv.d
   S.boxes=(sv.boxes||[]).map(b=>Object.assign({id:boxSeq++,st:3,h:'',s:-1,tw:rand(2,4),near:0,nearMax:rand(1.4,2.8)},b,{f:!!b.f,m:!!b.m}));
   markSlots();
   S.bver++}
+// ===================================================================== two later creatures (host side)
+// Each one shows up on roughly every other night: a little over half the time after a night without it, and only a fifth
+// of the time straight after a night it came. The long-legged thing from night 6, the auditor from night 11.
+function rollVisit(last,from){if(S.night<from)return false;const p=(last===S.night-1?.2:.65)*Math.min(1.25,Math.sqrt(diffEv()));return Math.random()<p}
+function nightSetup3(){
+  HOST.spAt=rollVisit(S.spLast,6)?rand(SHIFT_END*.12,SHIFT_END*.55):1e9;HOST.spDone=false;
+  HOST.audAt=rollVisit(S.audLast,11)?rand(SHIFT_END*.15,SHIFT_END*.6):1e9;HOST.audDone=false}
+function update3(dt){if(!HOST.audDone&&S.t>=HOST.audAt&&S.t<SHIFT_END-90){HOST.audDone=true;spawnAuditor()}}
+
+// ---------------------------------------------------------------- the long-legged thing (ty 15)
+// Eight long legs round a flat body and a stubby head, taller than the racks, blackish purple, and completely blind.
+// When a door motor sticks open it sometimes climbs in through that bay instead of the thing in the yard showing up,
+// crouched low with its legs folded in. It walks straight over the racks (the legs over a rack fold up into the body),
+// and anything it hears it walks to and stomps, hurting whoever is under it. After two minutes it leaves in the next
+// truck that pulls out, crouching to fit in the trailer.
+const SP_H=4.6,SP_LOW=1.2,SP_LIFE=120;
+function spFree(x,z,pad=1.1){if(x<WH.x0+2.6||x>WH.x1-2.6||z<WH.z0+2.6||z>WH.z1-2.6)return false;
+  for(const c of COL)if(c.on&&!c.dyn&&!c.rack&&x>c.x0-pad&&x<c.x1+pad&&z>c.z0-pad&&z<c.z1+pad)return false;return true}
+// how far along a straight line it can walk before something other than a rack is in the way
+function spReach(ax,az,bx,bz){const d=Math.hypot(bx-ax,bz-az),n=Math.ceil(d/.5);let ok=0;for(let i=1;i<=n;i++){const t=i/n;if(!spFree(lerp(ax,bx,t),lerp(az,bz,t)))break;ok=t}return ok}
+function spiderDoor(i){if(HOST.spDone||S.t<HOST.spAt||S.ot||S.t>SHIFT_END-150||S.mons.some(m=>m.ty===15))return false;
+  const tr=S.trucks[i];HOST.spDone=true;S.spLast=S.night;tr.door=1;tr.stuck=16;emit({e:'stuck',b:i});
+  S.mons.push({id:monSeq++,ty:15,bay:i,x:BAYS[i].x,z:WH.z0-8,y:SP_LOW,ry:0,st:'enter',a:4,t:0,life:0,cd:0,hearT:0});return true}
+function spGo(m,tx,tz,sp,dt){const dx=tx-m.x,dz=tz-m.z,d=Math.hypot(dx,dz);if(d<.05)return 0;const s=Math.min(d,sp*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*2.5);return d-s}
+function spWanderTarget(m){for(let k=0;k<30;k++){const x=rand(WH.x0+4,WH.x1-4),z=rand(WH.z0+4,WH.z1-4);if(!spFree(x,z)||Math.hypot(x-m.x,z-m.z)<6)continue;if(spReach(m.x,m.z,x,z)<.98)continue;m.tx=x;m.tz=z;return true}return false}
+function spiderUpdate(m,dt){m.t+=dt;m.life+=dt;m.cd-=dt;m.hearT-=dt;const bx=BAYS[m.bay]?BAYS[m.bay].x:0,tr=S.trucks[m.bay];
+  const rise=(h,k)=>{m.y=damp(m.y,h,k,dt)};
+  if(m.st==='enter'){m.a=4;rise(SP_LOW,3);if(tr&&tr.st===0)tr.stuck=Math.max(tr.stuck,2);
+    if(spGo(m,bx,WH.z0+4,1.4,dt)<.1){m.st='rise';m.t=0}return}
+  if(m.st==='rise'){m.a=0;rise(SP_H,1.6);if(m.y>SP_H-.1){m.y=SP_H;m.st='wander';m.t=0;m.tx=undefined}return}
+  if(m.st==='inside'){m.a=0;m.y=SP_LOW;m.x=bx;if(tr)m.z=tr.z+m.lz;return}
+  if(m.st==='board'){m.a=4;rise(SP_LOW,3);if(m.y>SP_LOW+.3){return}
+    if(spGo(m,bx,TZ_DOCK-7,1.5,dt)<.1){m.st='inside';m.lz=m.z-tr.z}return}
+  if(m.st==='leave'){m.a=1;rise(SP_H,2);
+    // hold on to a truck that's pulling out; until one is, keep wandering slowly
+    if(!(tr&&tr.st===2&&m.go)){m.go=false;const i=S.trucks.findIndex((t,k)=>t.st===2&&t.leaving&&bayOn(k));if(i>=0){m.bay=i;m.go=true}}
+    if(m.go){if(spGo(m,BAYS[m.bay].x,WH.z0+4,1.8,dt)<.15){m.st='board';m.t=0}return}}
+  else if(m.life>=SP_LIFE&&m.st!=='stomp'){m.st='leave';m.go=false;return}
+  // hearing: anything louder than walking, a long way off
+  if(m.st!=='stomp'&&m.st!=='leave'){for(const n of HOST.noise||[]){if(Math.hypot(n.x-m.x,n.z-m.z)>n.r*1.8+3)continue;
+      if(m.st!=='hunt'||Math.hypot(n.x-m.tx,n.z-m.tz)>1.5){if(m.hearT<=0){m.hearT=6;emit({e:'spHear',x:r2(m.x),z:r2(m.z)})}m.st='hunt';m.t=0;
+        const f=spReach(m.x,m.z,n.x,n.z);m.tx=lerp(m.x,n.x,f);m.tz=lerp(m.z,n.z,f)}}}
+  if(m.st==='stomp'){m.a=3;rise(SP_H-.5,4);
+    // two stamps: the legs come down at .55 s and again at 1.25 s
+    for(const at of[.55,1.25])if(m.t>=at&&(m.hit||0)<at){m.hit=at;emit({e:'spStomp',x:r2(m.x),z:r2(m.z)});noise(m.x,m.z,8);
+      for(const p of alivePlayers()){if(!inWH(p)||onRoof(p))continue;const d=Math.hypot(p.x-m.x,p.z-m.z);if(d<3.4)damage(p,d<1.4?30:20)}}
+    if(m.t>1.9){m.st='listen';m.t=0;m.hit=0}return}
+  if(m.st==='listen'){m.a=0;rise(SP_H,2);if(m.t>2.6){m.st='wander';m.t=0;m.tx=undefined}return}
+  rise(SP_H,2);
+  if(m.st==='wander'){m.a=1;if(m.tx===undefined&&!spWanderTarget(m)){m.a=0;return}
+    if(spGo(m,m.tx,m.tz,1.25,dt)<.2){m.st='listen';m.t=0;m.tx=undefined}else if(!spFree(m.x,m.z,.6))m.tx=undefined;return}
+  if(m.st==='hunt'){m.a=2;const left=spGo(m,m.tx,m.tz,3.1,dt);if(left<.4||m.t>12){m.st='stomp';m.t=0;m.hit=0}}}
+
+// ---------------------------------------------------------------- the auditor (ty 16), night 11 and on
+// A very tall, thin figure in a grey day-shift coat, with a flat slab for a face split by one red scanning line. It walks
+// the aisles pulling boxes back off the shelves to "check" them: each one it pulls drops on the floor and comes off
+// the quota until someone shelves it again (no pay for shelving the same box twice). Its scan line reaches 9 m; stand
+// in it for more than a second and it marks you (34 damage, more on later nights). Racks block the line. A strobe sends it away, and it
+// leaves on its own after four boxes or about two minutes.
+const AUD_RANGE=9,AUD_COS=Math.cos(.36);
+function spawnAuditor(){if(S.mons.some(m=>m.ty===16))return;let best=null,bd=-1;
+  for(let k=0;k<60;k++){const i=randi(0,GRID.nx-1),j=randi(4,GRID.nz-1);if(GRID.blk[j*GRID.nx+i])continue;const x=GRID.x0+i+.5,z=GRID.z0+j+.5;if(Math.abs(x)>28||Math.abs(z)>18)continue;
+    const p=nearestPlayer(x,z,1e9,inWH),d=p?Math.hypot(p.x-x,p.z-z):30;if(d>bd){bd=d;best={x,z}}}
+  if(!best)return;S.audLast=S.night;S.mons.push({id:monSeq++,ty:16,x:best.x,z:best.z,y:0,ry:rand(-3,3),st:'pick',a:0,t:0,life:0,cd:2,pulled:0,exp:{},path:null,rep:0});
+  emit({e:'audIn',x:best.x,z:best.z})}
+function audPath(m,tx,tz){m.tx=tx;m.tz=tz;m.path=astar(m.x,m.z,tx,tz,()=>false);return !!m.path}
+function audWalk(m,sp,dt){if(!m.path)return 1e9;while(m.path.length&&Math.hypot(m.path[0].x-m.x,m.path[0].z-m.z)<.35)m.path.shift();
+  const px=m.path.length?m.path[0].x:m.tx,pz=m.path.length?m.path[0].z:m.tz,dx=px-m.x,dz=pz-m.z,d=Math.hypot(dx,dz);
+  if(d>.02){const s=Math.min(d,sp*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*4)}return Math.hypot(m.tx-m.x,m.tz-m.z)}
+function audUpdate(m,dt){m.t+=dt;m.life+=dt;m.cd-=dt;
+  // the scan line
+  const fx=Math.sin(m.ry),fz=Math.cos(m.ry);
+  for(const p of alivePlayers()){const dx=p.x-m.x,dz=p.z-m.z,d=Math.hypot(dx,dz);
+    const inBeam=m.st!=='leave'&&inWH(p)&&!onRoof(p)&&d<AUD_RANGE&&d>.2&&(dx*fx+dz*fz)/d>AUD_COS&&!segBlocked(m.x,m.z,p.x,p.z);
+    m.exp[p.id]=inBeam?(m.exp[p.id]||0)+dt:Math.max(0,(m.exp[p.id]||0)-dt*.6);
+    if(m.exp[p.id]>1.15&&m.cd<=0){m.exp[p.id]=0;m.cd=5;damage(p,34);emit({e:'audHit',p:p.id,x:r2(m.x),z:r2(m.z)})}}
+  if(m.st!=='leave'&&(m.life>125||m.pulled>=4)){m.st='leave';m.path=null}
+  if(m.st==='leave'){m.a=2;if(!m.path){let far=null,fd=-1;for(let k=0;k<30;k++){const i=randi(0,GRID.nx-1),j=randi(4,GRID.nz-1);if(GRID.blk[j*GRID.nx+i])continue;const x=GRID.x0+i+.5,z=GRID.z0+j+.5;
+        const p=nearestPlayer(x,z,1e9,inWH),d=p?Math.hypot(p.x-x,p.z-z):30;if(d>fd){fd=d;far={x,z}}}if(!far||!audPath(m,far.x,far.z)){m.dead=true;emit({e:'fade',id:m.id});return}}
+    if(audWalk(m,2.2,dt)<.5||m.t>40){m.dead=true;emit({e:'fade',id:m.id})}return}
+  if(m.st==='pick'){m.a=1;if(m.t<1.6)return;
+    // a shelved box on an ordinary rack, from the nearest handful
+    const cand=S.boxes.filter(b=>b.st===2&&b.s>=0&&SLOTS[b.s]&&!SLOTS[b.s].cold&&!SLOTS[b.s].add&&SLOTS[b.s].box2!==undefined&&(SLOTS[b.s].box2<0||SLOTS[b.s].box2===b.id)&&b.y<2.8)
+      .map(b=>({b,d:Math.hypot(b.x-m.x,b.z-m.z)})).sort((a,c)=>a.d-c.d).slice(0,5);
+    if(!cand.length){m.st='wander';m.t=0;m.path=null;return}
+    const b=pick(cand).b,s=SLOTS[b.s],side=m.z>s.z?1:-1;let sz=s.z+side*1.45;if(insideAny(s.x,sz,.2))sz=s.z-side*1.45;
+    if(!audPath(m,s.x,sz)){m.t=0;return}m.box=b.id;m.st='walk';m.t=0;return}
+  if(m.st==='wander'){m.a=2;if(!m.path){const i=randi(0,GRID.nx-1),j=randi(4,GRID.nz-1);if(!GRID.blk[j*GRID.nx+i])audPath(m,GRID.x0+i+.5,GRID.z0+j+.5)}
+    if(audWalk(m,1.2,dt)<.5||m.t>15){m.st='pick';m.t=0}return}
+  if(m.st==='walk'){m.a=2;const b=S.boxes.find(x=>x.id===m.box);if(!b||b.st!==2){m.st='pick';m.t=0;return}
+    m.rep-=dt;if(m.rep<=0){m.rep=1.5;audPath(m,m.tx,m.tz)}
+    if(audWalk(m,1.25,dt)<.6||m.t>30){m.st='scan';m.t=0}return}
+  if(m.st==='scan'){m.a=1;const b=S.boxes.find(x=>x.id===m.box);if(!b||b.st!==2){m.st='pick';m.t=0;return}
+    m.ry=angLerp(m.ry,Math.atan2(b.x-m.x,b.z-m.z),dt*4);if(m.t<3.2)return;
+    // it pulls the box and drops it at its feet
+    const s=SLOTS[b.s];if(s){if(s.box2===b.id)s.box2=-1;else if(s.box===b.id){s.box=s.box2>=0?s.box2:-1;s.box2=-1}}
+    let x=m.x+Math.sin(m.ry)*.5,z=m.z+Math.cos(m.ry)*.5;if(insideAny(x,z,.15)){x=m.x;z=m.z}
+    Object.assign(b,{st:3,s:-1,x,z,y:0,ry:rand(-.6,.6),np:true});S.shelved=Math.max(0,S.shelved-1);S.bver++;markSlots();m.pulled++;
+    emit({e:'audPull',x:r2(x),z:r2(z)});m.st='look';m.t=0;
+    // then it turns round and looks down the aisle for a while
+    m.lookRy=m.ry+Math.PI+rand(-.6,.6);return}
+  if(m.st==='look'){m.a=1;m.ry=angLerp(m.ry,m.lookRy,dt*2);if(m.t>3.5){m.st='pick';m.t=0}}}
+MON_UPD[15]=spiderUpdate;MON_UPD[16]=audUpdate;
 // ===================================================================== networking
 // Browser-to-browser over WebRTC (PeerJS). The host runs the simulation; clients send their own
 // position plus action requests, and get snapshots back 20 times a second.
@@ -2698,12 +2804,12 @@ function reqLock(){try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch
 // ---- rebindable keys. The game reads every action by its default key; a rebinding turns the key you actually
 // pressed into the default key of the action it's bound to (and the action's old key into nothing).
 const BINDS=[['fwd','Move forward','KeyW'],['back','Move back','KeyS'],['left','Move left','KeyA'],['right','Move right','KeyD'],['run','Run','ShiftLeft'],
-  ['use','Use, pick up, shelve','KeyE'],['kick','Kick','KeyQ'],['drop','Set a box down','KeyG'],['light','Flashlight','KeyF'],['lamp','Red headlamp','KeyH'],['shake','Shake flashlight (hold)','KeyR']];
+  ['use','Use, pick up, shelve','KeyE'],['kick','Kick','KeyQ'],['drop','Set a box down','KeyG'],['light','Flashlight','KeyF'],['lamp','Red headlamp','KeyH'],['shake','Shake flashlight (hold)','KeyR'],['item','Use the picked item (hold for the scanner)','Space']];
 let KEYMAP={};
 const boundKey=id=>{const b=BINDS.find(x=>x[0]===id);return(SET.keys&&SET.keys[id])||b[2]};
 function buildKeymap(){KEYMAP={};
   for(const [id,,def] of BINDS){const k=boundKey(id);if(k===def)continue;KEYMAP[k]=def;if(!(def in KEYMAP))KEYMAP[def]=null;if(id==='run'&&!('ShiftRight' in KEYMAP))KEYMAP.ShiftRight=null}
-  const kh=$('keyhint');if(kh)kh.textContent=`${['fwd','left','back','right'].map(i=>keyName(boundKey(i))).join('')} move · ${keyName(boundKey('run'))} run · ${keyName(boundKey('light'))} flashlight · ${keyName(boundKey('use'))} use · ${keyName(boundKey('kick'))} kick · ${keyName(boundKey('drop'))} set down · scroll + right click items · Esc pause`}
+  const kh=$('keyhint');if(kh)kh.textContent=`${['fwd','left','back','right'].map(i=>keyName(boundKey(i))).join('')} move · ${keyName(boundKey('run'))} run · ${keyName(boundKey('light'))} flashlight · ${keyName(boundKey('use'))} use · ${keyName(boundKey('kick'))} kick · ${keyName(boundKey('drop'))} set down · scroll + right click or ${keyName(boundKey('item'))} items · Esc pause`}
 const mapKey=c=>c in KEYMAP?KEYMAP[c]:c;
 function keyName(c){if(!c)return'?';if(/^Key.$/.test(c))return c.slice(3);if(/^Digit.$/.test(c))return c.slice(5);
   return{ShiftLeft:'L-Shift',ShiftRight:'R-Shift',ControlLeft:'L-Ctrl',ControlRight:'R-Ctrl',AltLeft:'L-Alt',AltRight:'R-Alt',Space:'Space',Tab:'Tab',CapsLock:'Caps',
@@ -2749,9 +2855,14 @@ function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||
     else if(t.kind==='aid')doAct({a:'aid'});
     else if(t.kind==='exit'){SFX.locked();toast('Locked. Nobody leaves before 6:00 AM.')}
     return}
-  if(code==='KeyQ'){if(ME.kickCD>0)return;ME.kickCD=.8;ME.kickA=.35;const t=ME.target;if(t&&t.kind==='box')doAct({a:'kick',b:t.b.id});return}
+  if(code==='KeyQ'){if(ME.kickCD>0)return;ME.kickCD=.8;ME.kickA=.35;const t=ME.target;if(t&&t.kind==='box')doAct({a:'kick',b:t.b.id});else{const b=kickAim();if(b)doAct({a:'kick',b:b.id})}return}
   if(code==='KeyG'){if(me.carry<0)return;const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw);doAct({a:'drop',x:r2(ME.x+fx*.9),z:r2(ME.z+fz*.9),ry:r2(ME.yaw)});return}}
 
+// a kick with no box under the crosshair still hits the nearest loose box at your feet in front of you
+function kickAim(){const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw);let best=null,bs=1e9;
+  for(const b of S.boxes){if((b.st!==0&&b.st!==3)||b.amr)continue;const w=boxWorld(b);if(w.y>1.2)continue;const dx=w.x-ME.x,dz=w.z-ME.z,d=Math.hypot(dx,dz);if(d>1.9||d<.01)continue;
+    const c=(dx*fx+dz*fz)/d;if(c<.45)continue;const sc=d*(2-c);if(sc<bs){bs=sc;best=b}}
+  return best}
 const RC=new THREE.Raycaster();const _v=new THREE.Vector3(),_v2=new THREE.Vector3();
 function rayBox(ray,x0,y0,z0,x1,y1,z1){const o=ray.origin,d=ray.direction;let t0=0,t1=1e9;
   for(const [oo,dd,a,b] of[[o.x,d.x,x0,x1],[o.y,d.y,y0,y1],[o.z,d.z,z0,z1]]){if(Math.abs(dd)<1e-9){if(oo<a||oo>b)return null;continue}let ta=(a-oo)/dd,tb=(b-oo)/dd;if(ta>tb)[ta,tb]=[tb,ta];t0=Math.max(t0,ta);t1=Math.min(t1,tb);if(t0>t1)return null}return t0}
@@ -3224,7 +3335,7 @@ async function init(){
   applyQuality();bindUI();saveNote();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,relabel,toast,applyBoxes,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,
+  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,relabel,toast,applyBoxes,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,truckGone,spiderDoor,spawnAuditor,spFree,kickAim,MV,onKey,
 
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});
@@ -3426,7 +3537,7 @@ function onKey2(code,me){
   const k=ITEM_KEYS[code];
   if(k){if(!haveItem(me,k)){SFX.deny();toast(`No ${SHOP[k].name.toLowerCase()}. They're sold between nights.`,2.5);return true}
     if(ME.sel!==k){ME.sel=k;SFX.click()}return true}
-  if(code==='UseItem'){useSel(me);return true}
+  if(code==='UseItem'||code==='Space'){useSel(me);return true}
   if(ME.driving){
     if(code==='KeyQ'){doAct({a:'fork'});return true}
     if(code==='KeyE'){const t=ME.target;if(t&&t.kind==='fslot'){if(t.ok)doAct({a:'fplace',s:t.s.id});else SFX.deny()}else if(t&&t.kind==='fpal')doAct({a:'fpick'});
@@ -3470,7 +3581,7 @@ function looseMimic(){let best=null,bd=2.9;const fx=-Math.sin(ME.yaw),fz=-Math.c
 function localUpdate2(dt,me){const t=ME.target;
   if(t&&t.kind==='vent'&&K.KeyE&&S.chill&&!ME.scare){ME.ventT=(ME.ventT||0)+dt;if(ME.ventT>2){ME.ventT=-99;doAct({a:'vent'})}}else if(!K.KeyE||!S.chill)ME.ventT=0;
   if(t&&t.kind==='jam'&&K.KeyE&&S.conv&&S.conv.jam&&!ME.scare){ME.holdT=(ME.holdT||0)+dt;if(ME.holdT>1.2){ME.holdT=-99;doAct({a:'jam'})}}else if(!K.KeyE)ME.holdT=0;
-  ME.drinkT=Math.max(0,(ME.drinkT||0)-dt);ME.scan=!!(K.Mouse2&&curSel(me)==='scanner'&&!ME.scare)}
+  ME.drinkT=Math.max(0,(ME.drinkT||0)-dt);ME.scan=!!((K.Mouse2||K.Space)&&curSel(me)==='scanner'&&!ME.scare)}
 function findTarget2(me,hit){const ud=hit.object.userData;
   if(ud.kind==='parcel'){ME.target={kind:'parcel',id:ud.id};return true}
   if(ud.kind==='pallet'){ME.target={kind:'pallet',id:ud.id};return true}
@@ -3482,7 +3593,7 @@ function findTarget2(me,hit){const ud=hit.object.userData;
 function syncScanner(){let i=0;const put=(x,y,z,s)=>{if(i>=SCAN.length)return;const sp=SCAN[i++];sp.visible=true;sp.position.set(x,y,z);sp.scale.set(s,s*1.6,1)};
   if(ME.scan&&S){const near=(x,z)=>Math.hypot(x-ME.x,z-ME.z)<15;
     for(const m of S.mons){if(!near(m.x,m.z))continue;
-      if(m.ty===1)put(m.x,1.1,m.z,1.6);else if(m.ty===3)put(m.x,m.y+(m.k===2?-.3:.4),m.z,1);else if(m.ty===0)put(m.x,m.y+.4,m.z,.7);else if(m.ty===11)put(m.x,.9,m.z,.9);else if(m.ty===13)put(m.x,1.6,m.z,1.5);else if(m.ty===14)put(m.x,.5,m.z,1.1)}
+      if(m.ty===1)put(m.x,1.1,m.z,1.6);else if(m.ty===3)put(m.x,m.y+(m.k===2?-.3:.4),m.z,1);else if(m.ty===0)put(m.x,m.y+.4,m.z,.7);else if(m.ty===11)put(m.x,.9,m.z,.9);else if(m.ty===13)put(m.x,1.6,m.z,1.5);else if(m.ty===14)put(m.x,.5,m.z,1.1);else if(m.ty===15)put(m.x,m.y,m.z,2.4)}
     for(const b of S.boxes)if(b.m&&(b.st===0||b.st===3)){const w=boxWorld(b);if(near(w.x,w.z))put(w.x,w.y+.3,w.z,.7)}
     for(const p of S.parcels||[])if(p.m&&near(p.x,CONV.z))put(p.x,CONV.y+.2,CONV.z,.6);
     for(const p of Object.values(S.players))if(p.id!==NET.myId&&!p.dead&&near(p.x,p.z))put(p.x,1.1,p.z,1.2);
@@ -3490,14 +3601,14 @@ function syncScanner(){let i=0;const put=(x,y,z,s)=>{if(i>=SCAN.length)return;co
   for(;i<SCAN.length;i++)SCAN[i].visible=false}
 
 // ---------------------------------------------------------------- monsters added later
-function makeMonster2(m){if(m.ty===13)return makeBlind();if(m.ty===14)return makeHunch();if(m.ty===4)return makeManager();if(m.ty===5)return makeShrink();if(m.ty===6)return makeFrost();if(m.ty===12)return makeMoth();
+function makeMonster2(m){if(m.ty===15)return makeSpider();if(m.ty===16)return makeAuditor();if(m.ty===13)return makeBlind();if(m.ty===14)return makeHunch();if(m.ty===4)return makeManager();if(m.ty===5)return makeShrink();if(m.ty===6)return makeFrost();if(m.ty===12)return makeMoth();
   if(m.ty===7){const g=makeDriver();const others=Object.values(S.players).filter(p=>p.id!==NET.myId);
     // in a crew it wears one of your crewmates' names
     if(others.length){const o=others[m.k%others.length],tag=makeTag(o.name,o.col||'#ccc');tag.position.y=2.1;g.add(tag)}return g}
   return null}
 function coldify(g){g.traverse(o=>{if(o.isMesh&&o.material===MAT.lurkSkin)o.material=MAT.coldSkin})}
 function loopFor(m){return m.ty===13?['breath',.9]:m.ty===14?['whisper',.5]:m.ty===5?['crinkle',1.2]:m.ty===6?['ice',1]:m.ty===12?['flutter',.6]:null}
-function animMonster2(v,dt,time){const u=v.g.userData,t=time+v.ph,a=v.a;
+function animMonster2(v,dt,time){if(v.ty>=15){animMonster3(v,dt,time);return}const u=v.g.userData,t=time+v.ph,a=v.a;
   if(v.ty===4){const mv=a===2||a===4,sp=a===4?7:4.2;const p0=v.gp||0;v.gp=p0+(mv?dt*sp:0);
     u.legs.forEach((l,i)=>l.rotation.x=mv?Math.sin(v.gp+i*Math.PI)*.4:0);
     u.arms[0].rotation.x=damp(u.arms[0].rotation.x,a===3?-1.1+Math.sin(t*14)*.15:-.2,8,dt);u.arms[1].rotation.x=damp(u.arms[1].rotation.x,a===4?-.2:-1.35,6,dt);
@@ -3521,7 +3632,7 @@ function animMonster2(v,dt,time){const u=v.g.userData,t=time+v.ph,a=v.a;
     u.legs.forEach((l,i)=>l.rotation.x=damp(l.rotation.x,k===0?-2.0:k===1?-1.2+Math.sin(v.gp+i*Math.PI)*.3:-.5,6,dt));u.knees.forEach(n=>n.rotation.x=damp(n.rotation.x,k===0?1.85:k===1?1.9:.9,6,dt));
     u.elbows.forEach(n=>n.rotation.x=damp(n.rotation.x,k===0?.15:k===1?-.2:-.3,6,dt));
     u.arms.forEach((s,i)=>s.rotation.x=damp(s.rotation.x,k===0?-.9+Math.sin(t*.5+i)*.04:k===1?-1.0+Math.sin(v.gp+i*Math.PI)*.45:-1.55+Math.sin(t*14)*.05,7,dt))}}
-function fearOf(v,d){if(v.ty===4)return v.a===4?clamp(1-d/9,0,1)*1.2:clamp(1-d/7,0,1)*.35;if(v.ty===5)return v.a===2?clamp(1-d/9,0,1)*.8:0;
+function fearOf(v,d){if(v.ty>=15)return fearOf3(v,d);if(v.ty===4)return v.a===4?clamp(1-d/9,0,1)*1.2:clamp(1-d/7,0,1)*.35;if(v.ty===5)return v.a===2?clamp(1-d/9,0,1)*.8:0;
   if(v.ty===13)return clamp(1-d/10,0,1)*(v.a===4?1.1:.6);if(v.ty===14)return v.a===0?clamp(1-d/4,0,1)*.2:clamp(1-d/8,0,1)*1.1;
   if(v.ty===6)return clamp(1-d/6,0,1)*(v.a===2?.9:.3);if(v.ty===7)return clamp(1-d/8,0,1)*.8;if(v.ty===12)return clamp(1-d/5,0,1)*.25;return null}
 
@@ -3538,7 +3649,7 @@ function updScare2(s,k,lunge){const g=s.g,u=g.userData;
   else if(s.ty===11){g.position.set(rand(-.01,.01),-.95,lerp(-1.2,-.5,lunge(.12)));g.rotation.y=Math.PI;u.head.rotation.x=-.35;u.torso.rotation.x=-.1}}
 
 // ---------------------------------------------------------------- events
-function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
+function onEvent2(e){if(onEvent3(e))return;const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   switch(e.e){
   case 'bought':SFX.buy();if(e.team)toast(`The crew voted to buy ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);else if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);renderShop(true);break;
   case 'stuck':toast(`Bay ${BAYS[e.b].name}'s door motor jammed. The door is stuck open.`,4.5);break;
@@ -3719,6 +3830,99 @@ function grabUpdate(dt,me){const m=grabber();if(!m){ME.grab=false;return false}
 function struggle(){ME.strug=(ME.strug||0)+1;ME.shake=Math.max(ME.shake,.25);doAct({a:'struggle'})}
 function grabNote(){if(!ME.grab)return'';const k=clamp((ME.strug||0)/STRUGGLE_N,0,1);
   return`<span class="warnline">IT HAS YOU</span><br>Mash <kbd>E</kbd> to break free <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}
+// ===================================================================== the two later creatures (models, animation, sound)
+Object.assign(SFX,{
+  // the long-legged thing hears something: one long, very deep voice, more chest than throat
+  spVoice(pos){if(!AU.ready)return;const d=dest(pos,{rev:.7,gain:1.5,ref:7,roll:.8});
+    voice(d,{dur:2.6,f0:46,f1:31,jit:.03,vib:.025,vibF:3,rasp:14,raspD:.55,v:'oo',v2:'aw',noise:.12,sub:1,drive:3,g:.85,a:.25,rel:1});
+    tone(d,{f:38,f2:27,dur:2.4,a:.3,g:.45});nz(d,{t:.1,dur:2.2,a:.4,g:.12,type:'lowpass',f:180,f2:90})},
+  // one leg tip touching down
+  spTap(pos){if(!AU.ready)return;const d=dest(pos,{rev:.35,gain:.6,ref:3});nz(d,{dur:.05,g:.35,f:1500,q:3});tone(d,{f:160,f2:90,dur:.08,g:.18})},
+  // the legs coming down hard
+  spStomp(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.5,ref:8,roll:.7});tone(d,{f:70,f2:30,dur:.55,a:.004,g:.8});nz(d,{dur:.3,a:.003,g:.55,type:'lowpass',f:500,f2:120});
+    for(let i=0;i<4;i++)nz(d,{t:i*.045,dur:.06,g:.3,f:1300,q:2})},
+  // the auditor's scanner: a short two-note beep
+  audBeep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:.7,ref:3});tone(d,{type:'square',f:1860,dur:.07,g:.12});tone(d,{type:'square',f:1240,t:.11,dur:.09,g:.12})},
+  // the error tone when it marks someone, loud and wrong
+  audHit(pos){if(!AU.ready)return;const d=dest(pos,{rev:.5,gain:1.3,ref:4,dist:true});tone(d,{type:'sawtooth',f:150,dur:.9,a:.005,g:.5});tone(d,{type:'square',f:420,f2:300,dur:.9,g:.25});
+    for(let i=0;i<3;i++)tone(d,{type:'square',f:2400,t:i*.16,dur:.08,g:.18})},
+  // a box dragged off a shelf and dropped
+  audPull(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:1,ref:3});nz(d,{dur:.35,g:.3,f:700,f2:300,q:1.2});nz(d,{t:.42,dur:.16,g:.6,type:'lowpass',f:400});tone(d,{t:.42,f:110,f2:60,dur:.18,g:.4})}});
+
+// ---------------------------------------------------------------- the long-legged thing: model
+const SP_HIPS=[.35,.95,1.65,2.4].flatMap(a=>[a,-a]); // the angle of each hip round the body (0 = straight ahead)
+function makeSpider(){const g=new THREE.Group(),sk=MAT.spSkin||(MAT.spSkin=toon(0x2c1638,{map:TEX.lskin})),dk=MAT.spDark||(MAT.spDark=toon(0x150a1c));
+  const body=pivot(0,0,0,g);part(GEO.sph,sk,1.2,.3,1.45,0,0,0,body);part(GEO.sph,dk,1.0,.22,1.2,0,-.12,0,body,{cast:false}); // a flat, wide body with a darker belly
+  for(let i=0;i<5;i++)part(GEO.box,dk,.8-Math.abs(i-2)*.12,.04,.08,0,.27,-.75+i*.38,body,{cast:false}); // ridges along the back
+  const head=pivot(0,-.02,1.38,body);part(GEO.sph,sk,.34,.24,.3,0,0,.08,head);part(GEO.sph,dk,.2,.12,.12,0,-.08,.3,head,{cast:false}); // a short, blunt head, no eyes at all
+  const legs=SP_HIPS.map(a=>{const hip={x:Math.sin(a)*.95,y:-.05,z:Math.cos(a)*1.1};part(GEO.sph,dk,.16,.14,.16,hip.x,hip.y,hip.z,body,{cast:false});
+    return{a,hip,fem:part(GEO.cyl,sk,.075,1,.075,0,0,0,g),tib:part(GEO.cyl,sk,.055,1,.055,0,0,0,g),knee:part(GEO.sph,dk,.1,.1,.1,0,0,0,g,{cast:false}),
+      foot:null,from:null,st:-1,r:0}});
+  g.userData={body,head,legs,ty:15};return g}
+const _spUp=new THREE.Vector3(0,1,0),_spQ=new THREE.Quaternion(),_spV=new THREE.Vector3();
+function boneBetween(m,a,b){_spV.set(b.x-a.x,b.y-a.y,b.z-a.z);const L=_spV.length()||1e-3;m.position.set((a.x+b.x)/2,(a.y+b.y)/2,(a.z+b.z)/2);_spQ.setFromUnitVectors(_spUp,_spV.multiplyScalar(1/L));m.quaternion.copy(_spQ);m.scale.y=L}
+// two-bone reach from hip to foot with the knee bent up and out
+function legIK(H,F,L1,L2,out){let dx=F.x-H.x,dy=F.y-H.y,dz=F.z-H.z,d=Math.hypot(dx,dy,dz);const dm=Math.min(L1+L2-.01,Math.max(Math.abs(L1-L2)+.01,d));
+  if(d<1e-4){dx=out.x;dy=0;dz=out.z;d=1}const ux=dx/d,uy=dy/d,uz=dz/d;const a=(L1*L1-L2*L2+dm*dm)/(2*dm),h=Math.sqrt(Math.max(0,L1*L1-a*a));
+  // the bend direction: up, tipped outward, made square to the hip-foot line
+  let bx=out.x*.15,by=1,bz=out.z*.15;const k=bx*ux+by*uy+bz*uz;bx-=ux*k;by-=uy*k;bz-=uz*k;const bl=Math.hypot(bx,by,bz)||1;
+  return{x:H.x+ux*a+bx/bl*h,y:H.y+uy*a+by/bl*h,z:H.z+uz*a+bz/bl*h}}
+function animSpider(v,dt,time){const g=v.g,u=g.userData,a=v.a,ry=g.rotation.y,c=Math.cos(ry),s=Math.sin(ry),gx=g.position.x,gy=g.position.y,gz=g.position.z;
+  const toL=(x,y,z)=>{const dx=x-gx,dz=z-gz;return{x:dx*c-dz*s,y:y-gy,z:dx*s+dz*c}};
+  const vx=(gx-(v.px??gx))/Math.max(dt,1e-3),vz=(gz-(v.pz??gz))/Math.max(dt,1e-3);v.px=gx;v.pz=gz;
+  const low=gy<2.6,stomp=a===3;v.stT=stomp?(v.stT||0)+dt:0;const near=Math.hypot(gx-ME.x,gz-ME.z)<22;
+  let stepping=u.legs.filter(l=>l.st>=0).length;
+  u.body.rotation.z=damp(u.body.rotation.z,stomp?Math.sin(v.stT*18)*.06:0,10,dt);u.body.position.y=stomp?Math.abs(Math.sin(v.stT*9))*-.15:damp(u.body.position.y,0,6,dt);
+  u.head.rotation.x=damp(u.head.rotation.x,a===0?Math.sin(time*.8)*.15:a===2?.2:.05,4,dt);u.head.rotation.y=a===0?Math.sin(time*.5+v.ph)*.3:damp(u.head.rotation.y,0,3,dt);
+  u.legs.forEach((l,i)=>{const R=low?2.6:4.1,lead=.32;
+    const ix=gx+(Math.sin(l.a)*R*c+Math.cos(l.a)*R*s)+vx*lead,iz=gz+(-Math.sin(l.a)*R*s+Math.cos(l.a)*R*c)+vz*lead;
+    if(!l.foot){l.foot={x:ix,z:iz}}
+    // a leg whose foot would come down on a rack (or anything else) folds up into the body, and they all fold in to crouch
+    const blocked=insideAny(ix,iz,.12)||insideAny(l.foot.x,l.foot.z,.05);l.r=damp(l.r,low?.72:blocked?1:0,blocked?7:4,dt);
+    if(l.st<0&&!stomp){const far=Math.hypot(ix-l.foot.x,iz-l.foot.z);if((far>1.25||(blocked&&far>.3))&&stepping<4&&(i%2)===((Math.floor(time*3.3)+(i>>1))%2)){l.st=0;l.from={...l.foot};stepping++}}
+    let fy=0;if(l.st>=0){l.st+=dt/(a===2?.2:.3);const k=Math.min(1,l.st);l.foot.x=lerp(l.from.x,ix,k);l.foot.z=lerp(l.from.z,iz,k);fy=Math.sin(k*Math.PI)*.9;
+      if(k>=1){l.st=-1;if(near&&l.r<.5&&Math.random()<.5)SFX.spTap({x:l.foot.x,y:0,z:l.foot.z})}}
+    if(stomp){fy=Math.max(0,Math.sin(v.stT*9+(i%2)*Math.PI))*1.5;l.foot.x=damp(l.foot.x,ix,6,dt);l.foot.z=damp(l.foot.z,iz,6,dt)}
+    const F=toL(l.foot.x,fy,l.foot.z),H=l.hip,out={x:Math.sin(l.a),z:Math.cos(l.a)};
+    // folded: the foot tucks up under the hip, and both bones shrink back into the body
+    const T={x:H.x*.55,y:H.y-.25,z:H.z*.55},r=l.r,P={x:lerp(F.x,T.x,r),y:lerp(F.y,T.y,r),z:lerp(F.z,T.z,r)},sc=1-.82*r;
+    const L1=3.5*sc,L2=4.4*sc,K=legIK(H,P,L1,L2,out);boneBetween(l.fem,H,K);boneBetween(l.tib,K,P);l.knee.position.set(K.x,K.y,K.z);l.knee.visible=r<.9;
+    const hide=r>.97;l.fem.visible=l.tib.visible=!hide})}
+
+// ---------------------------------------------------------------- the auditor: model
+function makeAuditor(){const g=new THREE.Group(),coat=MAT.audCoat||(MAT.audCoat=toon(0x6b6d68,{map:TEX.lskin})),sk=MAT.audSkin||(MAT.audSkin=toon(0xb9b2a4)),dk=MAT.lurkDark;
+  const body=pivot(0,0,0,g),legs=[];for(const s of[-1,1]){const hip=pivot(s*.1,1.5,0,body);part(GEO.cyl,dk,.05,1.5,.05,0,-.75,0,hip);part(GEO.box,dk,.09,.05,.22,0,-1.48,.05,hip);legs.push(hip)}
+  const torso=pivot(0,1.5,0,body);part(GEO.cyl,coat,.17,.95,.12,0,.47,0,torso);part(GEO.cyl,coat,.2,.75,.14,0,-.2,0,torso); // the long coat hangs below the hips
+  part(GEO.box,MAT.dark,.06,.08,.01,.1,.75,.125,torso,{cast:false}); // a name badge with nothing on it
+  const arms=[];for(const s of[-1,1]){const sh=pivot(s*.21,.9,0,torso);part(GEO.cyl,coat,.045,.8,.045,0,-.4,0,sh);const el=pivot(0,-.8,0,sh);part(GEO.cyl,sk,.03,.75,.03,0,-.37,0,el);
+    for(let f=-1;f<=1;f++)part(GEO.cyl,sk,.01,.2,.01,f*.018,-.82,0,el,{cast:false});arms.push({sh,el})}
+  const neck=pivot(0,.95,0,torso);part(GEO.cyl,sk,.04,.6,.04,0,.3,0,neck);
+  const head=pivot(0,.62,0,neck);part(GEO.box,sk,.46,.3,.07,0,.12,0,head);part(GEO.box,dk,.48,.03,.08,0,.12,0,head,{cast:false}); // a flat slab of a face
+  const slit=part(GEO.box,MAT.audRed||(MAT.audRed=basic(0xff2a1a)),.42,.018,.02,0,.12,.04,head,{cast:false});
+  // the scan line: a thin red fan out to 9 m
+  const fanG=new THREE.ConeGeometry(1,1,24,1,true).rotateX(-Math.PI/2).translate(0,0,.5);const fan=new THREE.Mesh(fanG,new THREE.MeshBasicMaterial({color:0xff2010,transparent:true,opacity:.11,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+  fan.scale.set(3.3,.025,9);fan.position.set(0,.12,.05);head.add(fan);
+  g.userData={body,torso,neck,head,legs,arms,slit,fan,ty:16};return g}
+function animAuditor(v,dt,time){const u=v.g.userData,a=v.a,t=time+v.ph,mv=a===2;v.gp=(v.gp||0)+(mv?dt*3.2:0);
+  u.legs.forEach((l,i)=>l.rotation.x=mv?Math.sin(v.gp+i*Math.PI)*.38:0);u.torso.rotation.x=damp(u.torso.rotation.x,mv?.08:.02,4,dt);
+  u.arms.forEach(({sh,el},i)=>{sh.rotation.x=damp(sh.rotation.x,a===1&&i===0?-1.1:mv?-Math.sin(v.gp+i*Math.PI)*.25:.05,4,dt);el.rotation.x=damp(el.rotation.x,a===1&&i===0?-.5:-.1,4,dt)});
+  // scanning, the head sweeps slowly up and down; walking it holds still and the line points ahead
+  u.neck.rotation.x=damp(u.neck.rotation.x,a===1?.15+Math.sin(t*2.1)*.22:.05,5,dt);u.head.rotation.z=a===1?Math.sin(t*1.3)*.05:0;
+  u.fan.material.opacity=.05+Math.sin(t*40)*.012;u.slit.scale.x=.42*(.9+Math.sin(t*30)*.1);
+  v.bt=(v.bt??rand(.5,1.5))-dt;if(v.bt<=0){v.bt=a===1?1.1:2.4;if(Math.hypot(v.g.position.x-ME.x,v.g.position.z-ME.z)<26)SFX.audBeep({x:v.g.position.x,y:2.7,z:v.g.position.z})}}
+
+// ---------------------------------------------------------------- hooks
+function animMonster3(v,dt,time){if(v.ty===15)animSpider(v,dt,time);else if(v.ty===16)animAuditor(v,dt,time)}
+function fearOf3(v,d){if(v.ty===15)return clamp(1-d/14,0,1)*(v.a===2||v.a===3?1.2:.55);if(v.ty===16)return clamp(1-d/10,0,1)*.7;return null}
+function onEvent3(e){const P=(x,z,y=1)=>({x,y,z});
+  switch(e.e){
+  case 'spHear':SFX.spVoice(P(e.x,e.z,4.4));return true;
+  case 'spStomp':{SFX.spStomp(P(e.x,e.z,.2));const d=Math.hypot(e.x-ME.x,e.z-ME.z);ME.shake=Math.max(ME.shake,clamp(1-d/16,0,1)*.6);return true}
+  case 'audIn':SFX.audBeep(P(e.x,e.z,2.7));return true;
+  case 'audPull':SFX.audPull(P(e.x,e.z,1));return true;
+  case 'audHit':SFX.audHit(P(e.x,e.z,2.7));return true;
+  case 'audOff':SFX.audHit(P(e.x,e.z,2.7));return true}
+  return false}
 </script>
 </body>
 </html>

@@ -19,7 +19,7 @@ const SHOP={
   flare:{name:'Flares',price:25,give:2,key:2,desc:'Two road flares. Each lights the floor for 35 s, and most things won\'t cross one.'},
   cutter:{name:'Box cutter',price:60,once:true,key:3,desc:'Cut open the box you\'re looking at. Kills a mimic; ruins a real box.'},
   strobe:{name:'Strobe',price:70,give:3,key:4,desc:'Three blinding flashes that drive off almost anything in front of you.'},
-  scanner:{name:'Thermal scanner',price:120,once:true,key:5,desc:'Pick it on the hotbar and hold right click to see warm bodies through walls nearby.'},
+  scanner:{name:'Thermal scanner',price:120,once:true,key:5,desc:'Pick it on the hotbar and hold right click (or Space) to see warm bodies through walls nearby.'},
   horn:{name:'Air horn',price:40,give:3,key:6,desc:'Three loud blasts. Things that hunt by sound go to it.'},
   drink:{name:'Energy drinks',price:15,give:2,key:7,desc:'Two cans. Twenty seconds of sprinting without getting tired.'},
   stam:{name:'Stamina upgrade',price:90,once:true,desc:'Sprint half again as long, and get your breath back faster.'},
@@ -484,6 +484,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
       else if(m.ty===0&&m.st!=='bolt'&&Math.hypot(m.x-p.x,m.z-p.z)<10)boltMimic(m);
       else if(m.ty===7&&Math.hypot(m.x-p.x,m.z-p.z)<12)m.stun=6;
       else if(m.ty===12&&Math.hypot(m.x-p.x,m.z-p.z)<12){m.st='leave';m.t=0}
+      else if(m.ty===16&&m.st!=='leave'&&inCone(m.x,m.z,12)){m.st='leave';m.path=null;m.t=0;emit({e:'audOff',x:r2(m.x),z:r2(m.z)})}
       else if(m.ty===2&&inCone(m.x,m.z,12)){m.dead=true;emit({e:'shriek',id:m.id,x:m.x,z:m.z})}}
     for(const b of S.boxes)if(b.roam&&b.st===3&&Math.hypot(b.x-p.x,b.z-p.z)<10)unboxMimic(b,'bolt',p.id);
     if(S.fork.pass&&Math.hypot(S.fork.x-p.x,S.fork.z-p.z)<8){S.fork.pass=null;const t=forkTip();emit({e:'passGone',x:t.x,z:t.z})}break}

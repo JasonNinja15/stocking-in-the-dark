@@ -30,7 +30,7 @@ function startNight(){
   S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0}));
   HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)/diffEv()*(i===0?1.8:i===3?.6:1));
   HOST.nextTruck=6;HOST.nextStalker=(rand(42,55)-Math.min(20,(S.night-1)*6))/diffEv();HOST.trucksTonight=0;HOST.lastTruck=false;S.ot=false;
-  S.quota=calcQuota();nightSetup();
+  S.quota=calcQuota();nightSetup();nightSetup3();
   markSlots(); // again now last night's pallets are gone, or the slots they sat in stay marked full all night
   const pos={};Object.values(S.players).forEach((p,i)=>{const sp=spawnPoint(i);Object.assign(p,{x:sp.x,z:sp.z,yaw:0,pitch:0,hp:100,dead:false,carry:-1,lastHurt:-99,tpT:.8});pos[p.id]=[sp.x,sp.z]});
   emit({e:'night',n:S.night,q:S.quota,pos,ex:S.extra,df:S.diff});
@@ -118,7 +118,7 @@ function simUpdate(dt){
 
 // ---------------------------------------------------------------- trucks
 function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&HOST.trucksTonight===0;
-  Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0,due:0});
+  Object.assign(tr,{st:1,t:0,z:TZ_FAR,door:0,emptyT:undefined,reject:false,honk:0,due:0,leaving:false});
   const n=Math.min(22,randi(6,9)+Math.min(5,S.night-1)+bigCrew());
   tr.lurk=!first&&Math.random()<Math.min(.85,Math.min(.55,.17+.09*(S.night-1))*diffEv());
   tr.crawl=!first&&!tr.lurk&&!S.mons.some(m=>m.ty===3)&&Math.random()<Math.min(.7,Math.min(.4,.14+.06*(S.night-1))*diffEv());
@@ -140,10 +140,11 @@ function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&
   S.bver++;emit({e:'truck',b:i,last})}
 function truckGone(i){const tr=S.trucks[i];let n=0;for(const b of S.boxes)if(b.st===0&&b.bay===i){b.st=4;if(!b.m&&!tr.reject)n++}
   for(const p of S.pallets||[])if(p.st===0&&p.bay===i){p.st=4;if(!tr.reject)n+=8}
-  S.lost+=n;S.mons=S.mons.filter(m=>!((m.ty===1||m.ty===3)&&m.bay===i));S.bver++;
+  S.lost+=n;S.mons=S.mons.filter(m=>!((m.ty===1||m.ty===3||(m.ty===15&&m.st==="inside"))&&m.bay===i));S.bver++;
   if(n)emit({e:'msg',m:`Bay ${BAYS[i].name} left with ${n} box${n>1?'es':''} still on board.`});
-  Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0,due:0});
+  Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0,due:0,leaving:false});
   // late in the run the door motor sticks after a truck leaves, and something out in the yard notices
+  if(spiderDoor(i))return;
   if(yardOn()){tr.door=1;tr.stuck=14;if(!S.yard)S.yard={bay:i,stage:0,look:0};emit({e:"stuck",b:i})}}
 const freeBays=()=>S.trucks.map((t,i)=>t.st===0&&!(t.stuck>0)&&t.door<=0&&bayOn(i)?i:-1).filter(i=>i>=0);
 function trucksUpdate(dt){
@@ -156,10 +157,11 @@ function trucksUpdate(dt){
   S.trucks.forEach((tr,i)=>{
     if(tr.st===0){if(tr.stuck>0){tr.stuck-=dt;tr.door=1}else if(tr.door>0){tr.door=Math.max(0,tr.door-dt/1.2);if(tr.door<=0)emit({e:'slam',x:BAYS[i].x,z:WH.z0})}}
     else if(tr.st===1){tr.t+=dt;const p=Math.min(1,tr.t/9.5);tr.z=lerp(TZ_FAR,TZ_DOCK,easeOut(p));if(p>=1){tr.st=2;tr.t=0;tr.z=TZ_DOCK;emit({e:'brake',b:i});spawnDriver(i)}}
-    else if(tr.st===2){tr.door=Math.min(1,tr.door+dt/2.6);tr.t+=dt;tr.left=S.boxes.filter(x=>x.st===0&&x.bay===i).length;
+    else if(tr.st===2){tr.leaving=false;tr.door=Math.min(1,tr.door+dt/2.6);tr.t+=dt;tr.left=S.boxes.filter(x=>x.st===0&&x.bay===i).length;
       if(tr.left===0&&!palletInTruck(i)&&tr.door>=1)tr.emptyT=(tr.emptyT===undefined?5:tr.emptyT)-dt;else tr.emptyT=undefined;
       if(tr.reject||(tr.emptyT!==undefined&&tr.emptyT<=0)||(tr.t>=DOCK_TIME&&!S.ot)){
-        const inside=alivePlayers().some(p=>inTrailer(p)===i);let lur=S.mons.find(m=>m.ty===1&&m.bay===i),cr=S.mons.find(m=>m.ty===3&&m.bay===i);
+        tr.leaving=true;const spw=S.mons.some(m=>m.ty===15&&m.go&&m.bay===i&&m.st!=="inside");
+        const inside=spw||alivePlayers().some(p=>inTrailer(p)===i);let lur=S.mons.find(m=>m.ty===1&&m.bay===i),cr=S.mons.find(m=>m.ty===3&&m.bay===i);
         // the truck won't wait on its monsters for long: after 8 s the sleeper hurries back whatever it was doing,
         // and after 16 s whatever still hasn't made it back is simply gone
         tr.due=(tr.due||0)+dt;
@@ -169,7 +171,7 @@ function trucksUpdate(dt){
           if(lur&&lur.st!=='sleep'){Object.assign(lur,{st:'sleep',lx:LURK_LX,lz:LURK_HOME,ry:Math.PI/2,litT:0,hurry:false});lur=null}
           if(cr&&cr.st!=='inside'&&cr.st!=='home'){cr.dead=true;emit({e:'vanish',x:cr.x,y:cr.y,z:cr.z});cr=null}}
         if(!inside&&(!lur||lur.st==='sleep')&&(!cr||cr.st==='inside'||cr.st==='home')){tr.st=3;tr.t=0;emit({e:'horn',b:i})}
-        else{tr.honk=(tr.honk||0)-dt;if(tr.honk<=0){tr.honk=5;emit({e:'horn',b:i});if(inside)emit({e:'msg',m:`Bay ${BAYS[i].name}: the truck is pulling out. Get out of the trailer!`})}}}}
+        else{tr.honk=(tr.honk||0)-dt;if(tr.honk<=0){tr.honk=5;emit({e:"horn",b:i});if(inside&&!spw)emit({e:"msg",m:`Bay ${BAYS[i].name}: the truck is pulling out. Get out of the trailer!`})}}}}
     else if(tr.st===3){tr.t+=dt;tr.door=Math.max(0,tr.door-dt/2.2);if(tr.door<=0){const p=clamp((tr.t-2.4)/8,0,1);tr.z=lerp(TZ_DOCK,TZ_FAR,easeIn(p));if(p>=1)truckGone(i)}}
   })}
 
@@ -219,7 +221,7 @@ function monstersUpdate(dt){
   HOST.nextStalker-=dt;
   if(HOST.nextStalker<=0){const n=S.mons.filter(m=>m.ty===2).length,max=(S.night>=4?2:1)+(S.ot?1:0);
     if(n<max){HOST.nextStalker=spawnStalker()?(S.ot?rand(8,14):Math.max(16,rand(30,52)-S.night*4)/diffEv()):4}else HOST.nextStalker=6}
-  for(const m of S.mons){const f=MON_UPD[m.ty];if(f)f(m,dt)}
+  update3(dt);for(const m of S.mons){const f=MON_UPD[m.ty];if(f)f(m,dt)}
   S.mons=S.mons.filter(m=>!m.dead)}
 
 function mimicUpdate(m,dt){m.t+=dt;
@@ -362,7 +364,7 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
     if(b.ret)return emit({e:'msg',m:'Damaged returns can\'t be shelved. They go in the basement shredder.',p:pid});
     if(top){b.x=under.x+rand(-.04,.04);b.y=under.y+BOX_KINDS[under.k].h;b.z=under.z+rand(-.04,.04);b.ry=under.ry+rand(-.1,.1);s.box2=b.id}
     else{b.x=s.x+rand(-.15,.15);b.y=s.y;b.z=s.z+rand(-.08,.08);b.ry=rand(-.12,.12)+(s.rot?Math.PI/2:0);s.box=b.id}
-    b.st=2;b.s=s.id;b.h='';b.m=false;nextCarry();S.shelved++;pay(b.pri?20:b.f?15:10);S.bver++;
+    b.st=2;b.s=s.id;b.h='';b.m=false;nextCarry();S.shelved++;if(!b.np)pay(b.pri?20:b.f?15:10);S.bver++;
     emit({e:'place',x:b.x,y:b.y,z:b.z});if(S.shelved===S.quota)emit({e:'quota'});break}
   case 'drop':{const b=B(p.carry);if(!b)return;let x=+a.x,z=+a.z;if(!isFinite(x)||!isFinite(z)||Math.hypot(x-p.x,z-p.z)>(drv?2.8:2.2)||insideAny(x,z,.15)){x=p.x;z=p.z}
     const tb=trailerAt(x,z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=x-BAYS[tb].x;b.z=z-S.trucks[tb].z;b.y=0;settleTruck(tb)}else{b.st=3;b.x=x;b.z=z;b.y=0}

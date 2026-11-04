@@ -46,6 +46,8 @@ Things that end your shift outright (the sleeper reaching you, the night manager
 | **The driver** | Night 5 | Sometimes a trucker climbs out of a cab. He looks like a crewmate (in a crew he even wears one of their names), his torch never flickers and he makes no footsteps. Within 8 m he follows you, at a slow, stiff walk. | Walk away from him (about 35 damage if he reaches you). An air horn or the strobe stuns him. The thermal scanner shows him cold. |
 | **The wrong voice** | Night 2 / 6 | From night 2 the loudspeaker sometimes calls out a priority parcel somewhere dark (double pay). From night 6, half of those calls use a chime played upside down and out of tune and a voice too slow and low. | There's no parcel at a wrong-voice location, only a stalker waiting in the dark. |
 | **The thing in the yard** | Night 7, and every overtime | Something twenty metres tall, white and starved-thin, that nothing lights but your flashlight, with arms that hang past its knees and a small head tipped to one side. When a truck leaves, its bay door jams open for 14 seconds and it stands out in the fog. Each time you stare at it, it steps closer and stoops lower, until at the fourth step its face is in the doorway and its fingers are round the frame. | Don't look out of an open bay. Close the door at its panel, or with the bay door remote. On the fourth look it lunges up to the doorway and its hand comes in through the door at you (80 damage). It is also out there whenever someone is on the roof (see below). |
+| **The long-legged thing** | Night 6, about every other night | Eight long legs round a flat, blackish-purple body with a stubby head, taller than the racks. Sometimes, when a bay door motor sticks open, this climbs in through the door instead of the thing in the yard showing up, crouched low with its legs folded in. It walks straight over the racks (a leg over a rack folds up into its body), and it is completely blind. When it hears something (running, kicking, dropped boxes, the forklift, the air horn) it gives a long, very deep call, walks over, and stamps its legs down twice, hurting anyone underneath (about 20 a stamp, 30 right under the body). | Keep quiet near it and walk, don't run. If it's coming, get out from under it. An air horn draws it away. After two minutes it leaves: it crouches into the next truck that pulls out and goes with it. There's no jumpscare. |
+| **The auditor** | Night 11, about every other night | A very tall, thin figure in a grey day-shift coat, with a flat slab for a face split by one red scanning line. It walks the aisles pulling boxes back off the shelves to check them. Each box it pulls drops on the floor and comes off the quota until someone shelves it again (shelving the same box a second time pays nothing). Its red scan line reaches 9 m: stand in it for more than a second and it marks you (about 34 damage, more on later nights). | Racks block the scan line, so keep one between you. A strobe sends it away. It leaves by itself after four boxes or about two minutes. |
 
 ## The roof
 
@@ -93,7 +95,7 @@ When you're finished, press **Done**. Once more than half the crew is done, the 
 | Autonomous Mobile Robot S | $2000 | 0 | 0 | A small white robot with its own pad on the dock, west of the charger. Put a box on the pad (E) and it drives it slowly to the nearest free bottom or middle shelf, lifts it in, shelves it (it counts and pays like any box) and comes back. One box at a time; one more can wait on the pad. It won't take returns or frozen crates, and it stops for anyone standing in front of it. | Nothing. |
 | Autonomous Mobile Robot L | $5000 | 0 | 0 | A big pallet robot with a scissor lift and its own pad on the dock, east of the charger. Set a pallet on the pad with the forklift (drive up and press G; the prompt says when you're lined up) and it carries it slowly to the nearest free top shelf, lifts it up and slides it on (eight boxes shelved). One pallet at a time. Trucks bring pallets more often once you own it. Needs the forklift to be useful. | Nothing. |
 
-**Equipment (yours).** Items you carry sit on the **hotbar** at the bottom of the screen. Scroll the mouse wheel to pick one (or press its number), and right click to use it.
+**Equipment (yours).** Items you carry sit on the **hotbar** at the bottom of the screen. Scroll the mouse wheel to pick one (or press its number), and right click or press Space to use it.
 
 | Item | Price | Hotbar key | What it does |
 |---|---|---|---|
@@ -102,7 +104,7 @@ When you're finished, press **Done**. Once more than half the crew is done, the 
 | Flares (2) | $25 | 2 | 35 s of red light on the floor. The stalker and the sleeper won't cross it, the crawler won't hang over it, and moths circle it. |
 | Box cutter | $60 | 3 | Cut into the box or parcel you're looking at. Kills a mimic for good; ruins a real box. |
 | Strobe (3) | $70 | 4 | Stops a charging sleeper, scatters the crawler, drives off mimics, moths and the passenger, stuns the driver, kills a stalker in its cone. |
-| Thermal scanner | $120 | 5 (hold right click) | Warm things glow through walls within 15 m: sleepers, crawlers, mimics, the passenger, your crew. The driver, the frost figures and the shrink-wrap stay dark. |
+| Thermal scanner | $120 | 5 (hold right click or Space) | Warm things glow through walls within 15 m: sleepers, crawlers, mimics, the passenger, the long-legged thing, your crew. The driver, the frost figures and the shrink-wrap stay dark. |
 | Air horn (3) | $40 | 6 | Lures the shrink-wrap to the sound and stuns the driver. |
 | Energy drinks (2) | $15 | 7 | 20 s of running without getting tired. |
 | Shake flashlight | $100 | hold R | Charges your battery about 7% a second, anywhere, even in an outage. Anything that hunts by sound hears it. |
@@ -125,11 +127,11 @@ When you're finished, press **Done**. Once more than half the crew is done, the 
 | Shift | Run (uses stamina) |
 | Mouse | Look |
 | E / left click | Pick up, shelve, use. Hold at the charger. |
-| Q | Kick |
+| Q | Kick (the box under the crosshair, or else the nearest loose box at your feet in front of you) |
 | G | Set the box down |
 | F | Flashlight on/off |
 | Mouse wheel | Pick an item on the hotbar (number keys 1 to 9 jump to one) |
-| Right click | Use the picked item (hold it for the thermal scanner) |
+| Right click or Space | Use the picked item (hold it for the thermal scanner). Space can be rebound in Settings. |
 | H | Red headlamp on/off |
 | R (hold) | Shake flashlight: charge the battery anywhere, loudly |
 | Esc | Pause (solo) / menu (crew) |

@@ -196,7 +196,7 @@ function onKey2(code,me){
   const k=ITEM_KEYS[code];
   if(k){if(!haveItem(me,k)){SFX.deny();toast(`No ${SHOP[k].name.toLowerCase()}. They're sold between nights.`,2.5);return true}
     if(ME.sel!==k){ME.sel=k;SFX.click()}return true}
-  if(code==='UseItem'){useSel(me);return true}
+  if(code==='UseItem'||code==='Space'){useSel(me);return true}
   if(ME.driving){
     if(code==='KeyQ'){doAct({a:'fork'});return true}
     if(code==='KeyE'){const t=ME.target;if(t&&t.kind==='fslot'){if(t.ok)doAct({a:'fplace',s:t.s.id});else SFX.deny()}else if(t&&t.kind==='fpal')doAct({a:'fpick'});
@@ -240,7 +240,7 @@ function looseMimic(){let best=null,bd=2.9;const fx=-Math.sin(ME.yaw),fz=-Math.c
 function localUpdate2(dt,me){const t=ME.target;
   if(t&&t.kind==='vent'&&K.KeyE&&S.chill&&!ME.scare){ME.ventT=(ME.ventT||0)+dt;if(ME.ventT>2){ME.ventT=-99;doAct({a:'vent'})}}else if(!K.KeyE||!S.chill)ME.ventT=0;
   if(t&&t.kind==='jam'&&K.KeyE&&S.conv&&S.conv.jam&&!ME.scare){ME.holdT=(ME.holdT||0)+dt;if(ME.holdT>1.2){ME.holdT=-99;doAct({a:'jam'})}}else if(!K.KeyE)ME.holdT=0;
-  ME.drinkT=Math.max(0,(ME.drinkT||0)-dt);ME.scan=!!(K.Mouse2&&curSel(me)==='scanner'&&!ME.scare)}
+  ME.drinkT=Math.max(0,(ME.drinkT||0)-dt);ME.scan=!!((K.Mouse2||K.Space)&&curSel(me)==='scanner'&&!ME.scare)}
 function findTarget2(me,hit){const ud=hit.object.userData;
   if(ud.kind==='parcel'){ME.target={kind:'parcel',id:ud.id};return true}
   if(ud.kind==='pallet'){ME.target={kind:'pallet',id:ud.id};return true}
@@ -252,7 +252,7 @@ function findTarget2(me,hit){const ud=hit.object.userData;
 function syncScanner(){let i=0;const put=(x,y,z,s)=>{if(i>=SCAN.length)return;const sp=SCAN[i++];sp.visible=true;sp.position.set(x,y,z);sp.scale.set(s,s*1.6,1)};
   if(ME.scan&&S){const near=(x,z)=>Math.hypot(x-ME.x,z-ME.z)<15;
     for(const m of S.mons){if(!near(m.x,m.z))continue;
-      if(m.ty===1)put(m.x,1.1,m.z,1.6);else if(m.ty===3)put(m.x,m.y+(m.k===2?-.3:.4),m.z,1);else if(m.ty===0)put(m.x,m.y+.4,m.z,.7);else if(m.ty===11)put(m.x,.9,m.z,.9);else if(m.ty===13)put(m.x,1.6,m.z,1.5);else if(m.ty===14)put(m.x,.5,m.z,1.1)}
+      if(m.ty===1)put(m.x,1.1,m.z,1.6);else if(m.ty===3)put(m.x,m.y+(m.k===2?-.3:.4),m.z,1);else if(m.ty===0)put(m.x,m.y+.4,m.z,.7);else if(m.ty===11)put(m.x,.9,m.z,.9);else if(m.ty===13)put(m.x,1.6,m.z,1.5);else if(m.ty===14)put(m.x,.5,m.z,1.1);else if(m.ty===15)put(m.x,m.y,m.z,2.4)}
     for(const b of S.boxes)if(b.m&&(b.st===0||b.st===3)){const w=boxWorld(b);if(near(w.x,w.z))put(w.x,w.y+.3,w.z,.7)}
     for(const p of S.parcels||[])if(p.m&&near(p.x,CONV.z))put(p.x,CONV.y+.2,CONV.z,.6);
     for(const p of Object.values(S.players))if(p.id!==NET.myId&&!p.dead&&near(p.x,p.z))put(p.x,1.1,p.z,1.2);
@@ -260,14 +260,14 @@ function syncScanner(){let i=0;const put=(x,y,z,s)=>{if(i>=SCAN.length)return;co
   for(;i<SCAN.length;i++)SCAN[i].visible=false}
 
 // ---------------------------------------------------------------- monsters added later
-function makeMonster2(m){if(m.ty===13)return makeBlind();if(m.ty===14)return makeHunch();if(m.ty===4)return makeManager();if(m.ty===5)return makeShrink();if(m.ty===6)return makeFrost();if(m.ty===12)return makeMoth();
+function makeMonster2(m){if(m.ty===15)return makeSpider();if(m.ty===16)return makeAuditor();if(m.ty===13)return makeBlind();if(m.ty===14)return makeHunch();if(m.ty===4)return makeManager();if(m.ty===5)return makeShrink();if(m.ty===6)return makeFrost();if(m.ty===12)return makeMoth();
   if(m.ty===7){const g=makeDriver();const others=Object.values(S.players).filter(p=>p.id!==NET.myId);
     // in a crew it wears one of your crewmates' names
     if(others.length){const o=others[m.k%others.length],tag=makeTag(o.name,o.col||'#ccc');tag.position.y=2.1;g.add(tag)}return g}
   return null}
 function coldify(g){g.traverse(o=>{if(o.isMesh&&o.material===MAT.lurkSkin)o.material=MAT.coldSkin})}
 function loopFor(m){return m.ty===13?['breath',.9]:m.ty===14?['whisper',.5]:m.ty===5?['crinkle',1.2]:m.ty===6?['ice',1]:m.ty===12?['flutter',.6]:null}
-function animMonster2(v,dt,time){const u=v.g.userData,t=time+v.ph,a=v.a;
+function animMonster2(v,dt,time){if(v.ty>=15){animMonster3(v,dt,time);return}const u=v.g.userData,t=time+v.ph,a=v.a;
   if(v.ty===4){const mv=a===2||a===4,sp=a===4?7:4.2;const p0=v.gp||0;v.gp=p0+(mv?dt*sp:0);
     u.legs.forEach((l,i)=>l.rotation.x=mv?Math.sin(v.gp+i*Math.PI)*.4:0);
     u.arms[0].rotation.x=damp(u.arms[0].rotation.x,a===3?-1.1+Math.sin(t*14)*.15:-.2,8,dt);u.arms[1].rotation.x=damp(u.arms[1].rotation.x,a===4?-.2:-1.35,6,dt);
@@ -291,7 +291,7 @@ function animMonster2(v,dt,time){const u=v.g.userData,t=time+v.ph,a=v.a;
     u.legs.forEach((l,i)=>l.rotation.x=damp(l.rotation.x,k===0?-2.0:k===1?-1.2+Math.sin(v.gp+i*Math.PI)*.3:-.5,6,dt));u.knees.forEach(n=>n.rotation.x=damp(n.rotation.x,k===0?1.85:k===1?1.9:.9,6,dt));
     u.elbows.forEach(n=>n.rotation.x=damp(n.rotation.x,k===0?.15:k===1?-.2:-.3,6,dt));
     u.arms.forEach((s,i)=>s.rotation.x=damp(s.rotation.x,k===0?-.9+Math.sin(t*.5+i)*.04:k===1?-1.0+Math.sin(v.gp+i*Math.PI)*.45:-1.55+Math.sin(t*14)*.05,7,dt))}}
-function fearOf(v,d){if(v.ty===4)return v.a===4?clamp(1-d/9,0,1)*1.2:clamp(1-d/7,0,1)*.35;if(v.ty===5)return v.a===2?clamp(1-d/9,0,1)*.8:0;
+function fearOf(v,d){if(v.ty>=15)return fearOf3(v,d);if(v.ty===4)return v.a===4?clamp(1-d/9,0,1)*1.2:clamp(1-d/7,0,1)*.35;if(v.ty===5)return v.a===2?clamp(1-d/9,0,1)*.8:0;
   if(v.ty===13)return clamp(1-d/10,0,1)*(v.a===4?1.1:.6);if(v.ty===14)return v.a===0?clamp(1-d/4,0,1)*.2:clamp(1-d/8,0,1)*1.1;
   if(v.ty===6)return clamp(1-d/6,0,1)*(v.a===2?.9:.3);if(v.ty===7)return clamp(1-d/8,0,1)*.8;if(v.ty===12)return clamp(1-d/5,0,1)*.25;return null}
 
@@ -308,7 +308,7 @@ function updScare2(s,k,lunge){const g=s.g,u=g.userData;
   else if(s.ty===11){g.position.set(rand(-.01,.01),-.95,lerp(-1.2,-.5,lunge(.12)));g.rotation.y=Math.PI;u.head.rotation.x=-.35;u.torso.rotation.x=-.1}}
 
 // ---------------------------------------------------------------- events
-function onEvent2(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
+function onEvent2(e){if(onEvent3(e))return;const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   switch(e.e){
   case 'bought':SFX.buy();if(e.team)toast(`The crew voted to buy ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);else if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);renderShop(true);break;
   case 'stuck':toast(`Bay ${BAYS[e.b].name}'s door motor jammed. The door is stuck open.`,4.5);break;
