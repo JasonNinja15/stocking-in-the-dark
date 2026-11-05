@@ -2473,6 +2473,8 @@ function driverUpdate(m,dt){m.life-=dt;m.stun-=dt;
   m.a=2;if(m.tx===undefined||walkTo(m.tx,m.tz,1.3)<.5){for(let k=0;k<30;k++){const i=randi(0,GRID.nx-1),j=randi(3,GRID.nz-1);if(GRID.blk[j*GRID.nx+i])continue;m.tx=GRID.x0+i+.5;m.tz=GRID.z0+j+.5;m.path=null;break}}}
 
 // ---------------------------------------------------------------- items
+// the dead light fixture (no bulb yet) nearest to (x,z), if one is overhead or close to it; -1 if none
+function deadLampAt(x,z){let fi=-1,bd=3;LAMPS.forEach((L,i)=>{const d=Math.hypot(x-L.x,z-L.z);if(L.dead&&!(S.fixed||[]).includes(i)&&d<bd){bd=d;fi=i}});return fi}
 function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,no=m=>toP(p,m);
   const take=()=>{if(!(inv[k]>0))return false;inv[k]--;return true};
   const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw);
@@ -2509,7 +2511,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
     inv.remote--;tr.reject=true;tr.st=3;tr.t=0;tr.door=0;
     for(const m of S.mons){if(m.bay!==bi)continue;if(m.ty===3&&m.st!=='inside'&&m.st!=='home'){m.dead=true;emit({e:'vanish',x:m.x,y:m.y,z:m.z})}if(m.ty===1){m.st='sleep';m.lx=LURK_LX;m.lz=LURK_HOME;m.ry=Math.PI/2}}
     emit({e:'slam',x:BAYS[bi].x,z:WH.z0});emit({e:'horn',b:bi});no(`Bay ${nm} slammed shut. The truck is leaving.`);break}
-  case 'bulb':{if(!(inv.bulb>0))return;let fi=-1;LAMPS.forEach((L,i)=>{if(L.dead&&!S.fixed.includes(i)&&Math.hypot(p.x-L.x,p.z-L.z)<2.2)fi=i});
+  case 'bulb':{if(!(inv.bulb>0))return;const fi=deadLampAt(p.x,p.z);
     if(fi<0)return no('Stand under a dead light fixture to put the bulb in.');if(S.fixed.length>=MAX_BULBS)return no('That\'s as many fixtures as the wiring will take.');
     inv.bulb--;S.fixed.push(fi);if(!S.ot&&!mainsDown())S.lamps[fi]=1;emit({e:'bulbOn',i:fi});break}
   }}
@@ -3393,6 +3395,10 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
       else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=!bayOn(t.bay)?`Bay ${BAYS[t.bay].name}: not in service`:tr.st===0&&tr.stuck>0?`<kbd>E</kbd> Close the Bay ${BAYS[t.bay].name} door`:tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
       else if(t.kind==='exit')pr='<kbd>E</kbd> Exit';}
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
+    // a bulb on you: under a dead light it's E; with the bulb picked anywhere else, point the way to the nearest one
+    if(!t&&!ME.driving&&me&&haveItem(me,'bulb')){if(deadLampAt(ME.x,ME.z)>=0)pr='<kbd>E</kbd> Put the new bulb in this light';
+      else if(curSel(me)==='bulb'&&ME.x<60&&!onRoof(ME)){let bi=-1,bd=1e9;LAMPS.forEach((L,i)=>{const d=Math.hypot(ME.x-L.x,ME.z-L.z);if(L.dead&&!(S.fixed||[]).includes(i)&&d<bd){bd=d;bi=i}});
+        if(bi>=0)pr=`Lamp bulb: nearest dark light ${dirTo(LAMPS[bi].x,LAMPS[bi].z)}`}}
     if(ME.cart>=0&&!t)pr='<kbd>Q</kbd> Let go of the cart'+(carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?(owned('amrl')&&Math.hypot(forkTip().x-AMR.l.x,forkTip().z-AMR.l.z)<1.7?' &nbsp; <kbd>G</kbd> Set the pallet on the robot pad':' &nbsp; <kbd>G</kbd> Set the pallet down'):carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
@@ -3790,6 +3796,8 @@ function onKey2(code,me){
       else if(t&&t.kind==='box')doAct({a:'pick',b:t.b.id});else if(t&&t.kind==='slot'){if(t.ok)doAct({a:'place',s:t.s.id});else SFX.deny()}else SFX.deny();return true}
     if(code==='KeyG'){const f=S.fork;if(f.pal>=0)doAct({a:'fdrop'});else if(me.carry>=0)doAct({a:'drop',x:r2(f.x+Math.sin(f.ry)*1.55),z:r2(f.z+Math.cos(f.ry)*1.55),ry:r2(f.ry)});return true}
     return true}
+  // E under a dead light, with a bulb on you, puts it in (as well as Space or right click with the bulb picked)
+  if(code==='KeyE'&&!ME.target&&haveItem(me,'bulb')&&deadLampAt(ME.x,ME.z)>=0){doAct({a:'use',k:'bulb'});return true}
   if(code==='KeyE'){const t=ME.target;if(!t)return false;
     switch(t.kind){
     case 'fork':if(ME.cart>=0)toast('Let go of the cart first.',2.5);else if(!owned('fork')){toast('The forklift is broken. It can be repaired between nights.',3);SFX.locked()}else if(me.carry>=0||me.can)toast('Put down what you\'re carrying first.',2.5);else doAct({a:'fork'});return true;
@@ -4050,12 +4058,14 @@ function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)retu
     const label=!tm||crew<2?'Buy':tv.length?`${voted?'Voted':'Vote'} · ${tv.length} of ${crew} (${tneed} needed)`:'Vote to buy',cls=tm&&crew>1?(voted?'voted':tv.length?'votes':''):'';
     return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+pr}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" class="${cls}" ${can?'':'disabled'}>${label}</button>`}</div>`};
   const nCart=(S.carts||[]).length,maxCart=crew>1?2:1;
-  const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>k==='cart'?card(k,it,nCart>=maxCart,`<div class="tag">${crew>1?'the crew has':'you have'} ${nCart} of ${maxCart}${crew>1?'':' (two in a crew)'}</div>`)
-    :card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)).join('');
-  $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)).join('')+teamShop;
-  $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.team&&(!it.needs||me.up[it.needs])).map(([k,it])=>{const have=it.once?!!me.up[k]:(me.inv[k]||0);
+  // both columns run cheapest first; on the right, the permanent upgrades come before the things that get used up
+  const byPrice=list=>list.sort((a,b)=>a.g-b.g||priceOf(a.k)-priceOf(b.k)).map(x=>x.h).join('');
+  const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>({k,g:0,h:k==='cart'?card(k,it,nCart>=maxCart,`<div class="tag">${crew>1?'the crew has':'you have'} ${nCart} of ${maxCart}${crew>1?'':' (two in a crew)'}</div>`)
+    :card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)}));
+  $('shopAdds').innerHTML=byPrice(Object.entries(ADDS).map(([k,it])=>({k,g:0,h:card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)})).concat(teamShop));
+  $('shopItems').innerHTML=byPrice(Object.entries(SHOP).filter(([k,it])=>!it.team&&(!it.needs||me.up[it.needs])).map(([k,it])=>{const have=it.once?!!me.up[k]:(me.inv[k]||0);
     const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
-    return card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${where?` · ${where}`:''}</div>`:where?`<div class="tag">${where}</div>`:'')}).join('');
+    return{k,g:it.once?0:1,h:card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${where?` · ${where}`:''}</div>`:where?`<div class="tag">${where}</div>`:'')}}));
   // the crew votes: more than half ready and the next night starts
   const n=Object.keys(S.players).length,v=(S.votes||[]).length,need=Math.floor(n/2)+1,mine=(S.votes||[]).includes(NET.myId);
   $('bShopGo').textContent=n<2?`Start night ${S.night+1}`:mine?'Not done yet':`Done: start night ${S.night+1}`;$('bShopGo').classList.toggle('on',mine);$('bShopGo').classList.remove('hide');

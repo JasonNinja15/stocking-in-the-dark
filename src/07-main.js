@@ -432,6 +432,10 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
       else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=!bayOn(t.bay)?`Bay ${BAYS[t.bay].name}: not in service`:tr.st===0&&tr.stuck>0?`<kbd>E</kbd> Close the Bay ${BAYS[t.bay].name} door`:tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
       else if(t.kind==='exit')pr='<kbd>E</kbd> Exit';}
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
+    // a bulb on you: under a dead light it's E; with the bulb picked anywhere else, point the way to the nearest one
+    if(!t&&!ME.driving&&me&&haveItem(me,'bulb')){if(deadLampAt(ME.x,ME.z)>=0)pr='<kbd>E</kbd> Put the new bulb in this light';
+      else if(curSel(me)==='bulb'&&ME.x<60&&!onRoof(ME)){let bi=-1,bd=1e9;LAMPS.forEach((L,i)=>{const d=Math.hypot(ME.x-L.x,ME.z-L.z);if(L.dead&&!(S.fixed||[]).includes(i)&&d<bd){bd=d;bi=i}});
+        if(bi>=0)pr=`Lamp bulb: nearest dark light ${dirTo(LAMPS[bi].x,LAMPS[bi].z)}`}}
     if(ME.cart>=0&&!t)pr='<kbd>Q</kbd> Let go of the cart'+(carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?(owned('amrl')&&Math.hypot(forkTip().x-AMR.l.x,forkTip().z-AMR.l.z)<1.7?' &nbsp; <kbd>G</kbd> Set the pallet on the robot pad':' &nbsp; <kbd>G</kbd> Set the pallet down'):carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;

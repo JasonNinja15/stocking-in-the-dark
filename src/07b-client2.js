@@ -207,6 +207,8 @@ function onKey2(code,me){
       else if(t&&t.kind==='box')doAct({a:'pick',b:t.b.id});else if(t&&t.kind==='slot'){if(t.ok)doAct({a:'place',s:t.s.id});else SFX.deny()}else SFX.deny();return true}
     if(code==='KeyG'){const f=S.fork;if(f.pal>=0)doAct({a:'fdrop'});else if(me.carry>=0)doAct({a:'drop',x:r2(f.x+Math.sin(f.ry)*1.55),z:r2(f.z+Math.cos(f.ry)*1.55),ry:r2(f.ry)});return true}
     return true}
+  // E under a dead light, with a bulb on you, puts it in (as well as Space or right click with the bulb picked)
+  if(code==='KeyE'&&!ME.target&&haveItem(me,'bulb')&&deadLampAt(ME.x,ME.z)>=0){doAct({a:'use',k:'bulb'});return true}
   if(code==='KeyE'){const t=ME.target;if(!t)return false;
     switch(t.kind){
     case 'fork':if(ME.cart>=0)toast('Let go of the cart first.',2.5);else if(!owned('fork')){toast('The forklift is broken. It can be repaired between nights.',3);SFX.locked()}else if(me.carry>=0||me.can)toast('Put down what you\'re carrying first.',2.5);else doAct({a:'fork'});return true;
@@ -467,12 +469,14 @@ function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)retu
     const label=!tm||crew<2?'Buy':tv.length?`${voted?'Voted':'Vote'} · ${tv.length} of ${crew} (${tneed} needed)`:'Vote to buy',cls=tm&&crew>1?(voted?'voted':tv.length?'votes':''):'';
     return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+pr}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" class="${cls}" ${can?'':'disabled'}>${label}</button>`}</div>`};
   const nCart=(S.carts||[]).length,maxCart=crew>1?2:1;
-  const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>k==='cart'?card(k,it,nCart>=maxCart,`<div class="tag">${crew>1?'the crew has':'you have'} ${nCart} of ${maxCart}${crew>1?'':' (two in a crew)'}</div>`)
-    :card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)).join('');
-  $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)).join('')+teamShop;
-  $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.team&&(!it.needs||me.up[it.needs])).map(([k,it])=>{const have=it.once?!!me.up[k]:(me.inv[k]||0);
+  // both columns run cheapest first; on the right, the permanent upgrades come before the things that get used up
+  const byPrice=list=>list.sort((a,b)=>a.g-b.g||priceOf(a.k)-priceOf(b.k)).map(x=>x.h).join('');
+  const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>({k,g:0,h:k==='cart'?card(k,it,nCart>=maxCart,`<div class="tag">${crew>1?'the crew has':'you have'} ${nCart} of ${maxCart}${crew>1?'':' (two in a crew)'}</div>`)
+    :card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)}));
+  $('shopAdds').innerHTML=byPrice(Object.entries(ADDS).map(([k,it])=>({k,g:0,h:card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)})).concat(teamShop));
+  $('shopItems').innerHTML=byPrice(Object.entries(SHOP).filter(([k,it])=>!it.team&&(!it.needs||me.up[it.needs])).map(([k,it])=>{const have=it.once?!!me.up[k]:(me.inv[k]||0);
     const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
-    return card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${where?` · ${where}`:''}</div>`:where?`<div class="tag">${where}</div>`:'')}).join('');
+    return{k,g:it.once?0:1,h:card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${where?` · ${where}`:''}</div>`:where?`<div class="tag">${where}</div>`:'')}}));
   // the crew votes: more than half ready and the next night starts
   const n=Object.keys(S.players).length,v=(S.votes||[]).length,need=Math.floor(n/2)+1,mine=(S.votes||[]).includes(NET.myId);
   $('bShopGo').textContent=n<2?`Start night ${S.night+1}`:mine?'Not done yet':`Done: start night ${S.night+1}`;$('bShopGo').classList.toggle('on',mine);$('bShopGo').classList.remove('hide');

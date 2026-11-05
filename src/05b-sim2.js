@@ -470,6 +470,8 @@ function driverUpdate(m,dt){m.life-=dt;m.stun-=dt;
   m.a=2;if(m.tx===undefined||walkTo(m.tx,m.tz,1.3)<.5){for(let k=0;k<30;k++){const i=randi(0,GRID.nx-1),j=randi(3,GRID.nz-1);if(GRID.blk[j*GRID.nx+i])continue;m.tx=GRID.x0+i+.5;m.tz=GRID.z0+j+.5;m.path=null;break}}}
 
 // ---------------------------------------------------------------- items
+// the dead light fixture (no bulb yet) nearest to (x,z), if one is overhead or close to it; -1 if none
+function deadLampAt(x,z){let fi=-1,bd=3;LAMPS.forEach((L,i)=>{const d=Math.hypot(x-L.x,z-L.z);if(L.dead&&!(S.fixed||[]).includes(i)&&d<bd){bd=d;fi=i}});return fi}
 function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,no=m=>toP(p,m);
   const take=()=>{if(!(inv[k]>0))return false;inv[k]--;return true};
   const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw);
@@ -506,7 +508,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
     inv.remote--;tr.reject=true;tr.st=3;tr.t=0;tr.door=0;
     for(const m of S.mons){if(m.bay!==bi)continue;if(m.ty===3&&m.st!=='inside'&&m.st!=='home'){m.dead=true;emit({e:'vanish',x:m.x,y:m.y,z:m.z})}if(m.ty===1){m.st='sleep';m.lx=LURK_LX;m.lz=LURK_HOME;m.ry=Math.PI/2}}
     emit({e:'slam',x:BAYS[bi].x,z:WH.z0});emit({e:'horn',b:bi});no(`Bay ${nm} slammed shut. The truck is leaving.`);break}
-  case 'bulb':{if(!(inv.bulb>0))return;let fi=-1;LAMPS.forEach((L,i)=>{if(L.dead&&!S.fixed.includes(i)&&Math.hypot(p.x-L.x,p.z-L.z)<2.2)fi=i});
+  case 'bulb':{if(!(inv.bulb>0))return;const fi=deadLampAt(p.x,p.z);
     if(fi<0)return no('Stand under a dead light fixture to put the bulb in.');if(S.fixed.length>=MAX_BULBS)return no('That\'s as many fixtures as the wiring will take.');
     inv.bulb--;S.fixed.push(fi);if(!S.ot&&!mainsDown())S.lamps[fi]=1;emit({e:'bulbOn',i:fi});break}
   }}
