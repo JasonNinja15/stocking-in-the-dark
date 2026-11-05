@@ -579,6 +579,8 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
   if(GAME.on&&S){
     if(NET.mode!=='client'&&!GAME.paused)simUpdate(dt);
     ME.driving=!!(S.fork&&S.fork.drv===NET.myId);
+    // (the reverse beep is only turned down while driving, so silence it here once you're out or paused)
+    if(ME.beep&&(!ME.driving||GAME.paused)){ME.beep.set(0,.05);if(!ME.driving)ME.fv=0}
     if(!GAME.paused)localUpdate(dt);
     drainEvents();syncWorld(dt,time);netTick(dt);hud(dt);touchTick();near=updFear(dt);checkOver(dt);shopTick();syncScanner();
     const me=S.players[NET.myId];

@@ -23,6 +23,15 @@ function spiderDoor(i){if(HOST.spDone||S.t<HOST.spAt||S.ot||S.t>SHIFT_END-150||S
   S.mons.push({id:monSeq++,ty:15,bay:i,x:BAYS[i].x,z:WH.z0-8,y:SP_LOW,ry:0,st:'enter',a:4,t:0,life:0,cd:0,hearT:0});return true}
 function spGo(m,tx,tz,sp,dt){const dx=tx-m.x,dz=tz-m.z,d=Math.hypot(dx,dz);if(d<.05)return 0;const s=Math.min(d,sp*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*2.5);return d-s}
 function spWanderTarget(m){for(let k=0;k<30;k++){const x=rand(WH.x0+4,WH.x1-4),z=rand(WH.z0+4,WH.z1-4);if(!spFree(x,z)||Math.hypot(x-m.x,z-m.z)<6)continue;if(spReach(m.x,m.z,x,z)<.98)continue;m.tx=x;m.tz=z;return true}return false}
+// how far off it hears a sound: anything louder than walking from a long way, the reverse beeper and the air horn from across the floor
+const spHearR=n=>n.k==='loud'?200:n.k==='beep'?60:n.r*2.6+6;
+// head for the last sound it heard: straight there if nothing but racks is in the way, else via a free spot that gets it nearer
+function spAim(m){const f=spReach(m.x,m.z,m.nx,m.nz);if(f>.97){m.tx=m.nx;m.tz=m.nz;return true}
+  let best=null,bd=Math.hypot(m.nx-m.x,m.nz-m.z)-1;for(let k=0;k<40;k++){const a=rand(0,6.283),r=rand(2,10),x=m.x+Math.cos(a)*r,z=m.z+Math.sin(a)*r;
+    if(!spFree(x,z)||spReach(m.x,m.z,x,z)<.98)continue;const d=Math.hypot(m.nx-x,m.nz-z);if(d<bd){bd=d;best={x,z}}}
+  if(best){m.tx=best.x;m.tz=best.z;return true}if(f>.05){m.tx=lerp(m.x,m.nx,f);m.tz=lerp(m.z,m.nz,f);return true}
+  // (boxed in where it stands, which only happens if it got pushed somewhere odd: just walk straight for it)
+  if(!spFree(m.x,m.z)){m.tx=m.nx;m.tz=m.nz;return true}m.tx=m.x;m.tz=m.z;return false}
 function spiderUpdate(m,dt){m.t+=dt;m.life+=dt;m.cd-=dt;m.hearT-=dt;const bx=BAYS[m.bay]?BAYS[m.bay].x:0,tr=S.trucks[m.bay];
   const rise=(h,k)=>{m.y=damp(m.y,h,k,dt)};
   if(m.st==='enter'){m.a=4;rise(SP_LOW,3);if(tr&&tr.st===0)tr.stuck=Math.max(tr.stuck,2);
@@ -37,19 +46,21 @@ function spiderUpdate(m,dt){m.t+=dt;m.life+=dt;m.cd-=dt;m.hearT-=dt;const bx=BAY
     if(m.go){if(spGo(m,BAYS[m.bay].x,WH.z0+4,1.8,dt)<.15){m.st='board';m.t=0}return}}
   else if(m.life>=SP_LIFE&&m.st!=='stomp'){m.st='leave';m.go=false;return}
   // hearing: anything louder than walking, a long way off
-  if(m.st!=='stomp'&&m.st!=='leave'){for(const n of HOST.noise||[]){if(Math.hypot(n.x-m.x,n.z-m.z)>n.r*1.8+3)continue;
-      if(m.st!=='hunt'||Math.hypot(n.x-m.tx,n.z-m.tz)>1.5){if(m.hearT<=0){m.hearT=6;emit({e:'spHear',x:r2(m.x),z:r2(m.z)})}m.st='hunt';m.t=0;
-        const f=spReach(m.x,m.z,n.x,n.z);m.tx=lerp(m.x,n.x,f);m.tz=lerp(m.z,n.z,f)}}}
+  if(m.st!=='stomp'&&m.st!=='leave'){for(const n of HOST.noise||[]){if(n.k==='sp'||Math.hypot(n.x-m.x,n.z-m.z)>spHearR(n))continue;
+      if(m.st!=='hunt'||Math.hypot(n.x-m.nx,n.z-m.nz)>1){if(m.hearT<=0){m.hearT=6;emit({e:'spHear',x:r2(m.x),z:r2(m.z)})}if(m.st!=='hunt')m.t=0;m.st='hunt';m.nx=n.x;m.nz=n.z;spAim(m)}}}
   if(m.st==='stomp'){m.a=3;rise(SP_H-.5,4);
     // two stamps: the legs come down at .55 s and again at 1.25 s
-    for(const at of[.55,1.25])if(m.t>=at&&(m.hit||0)<at){m.hit=at;emit({e:'spStomp',x:r2(m.x),z:r2(m.z)});noise(m.x,m.z,8);
+    for(const at of[.55,1.25])if(m.t>=at&&(m.hit||0)<at){m.hit=at;emit({e:'spStomp',x:r2(m.x),z:r2(m.z)});noise(m.x,m.z,8,'sp');
       for(const p of alivePlayers()){if(!inWH(p)||onRoof(p))continue;const d=Math.hypot(p.x-m.x,p.z-m.z);if(d<3.4)damage(p,d<1.4?30:20)}}
     if(m.t>1.9){m.st='listen';m.t=0;m.hit=0}return}
   if(m.st==='listen'){m.a=0;rise(SP_H,2);if(m.t>2.6){m.st='wander';m.t=0;m.tx=undefined}return}
   rise(SP_H,2);
   if(m.st==='wander'){m.a=1;if(m.tx===undefined&&!spWanderTarget(m)){m.a=0;return}
     if(spGo(m,m.tx,m.tz,1.25,dt)<.2){m.st='listen';m.t=0;m.tx=undefined}else if(!spFree(m.x,m.z,.6))m.tx=undefined;return}
-  if(m.st==='hunt'){m.a=2;const left=spGo(m,m.tx,m.tz,3.1,dt);if(left<.4||m.t>12){m.st='stomp';m.t=0;m.hit=0}}}
+  if(m.st==='hunt'){m.a=2;const left=spGo(m,m.tx,m.tz,3.6,dt);
+    // stopped short by a wall: once it gets there, take the way round toward the sound
+    if(left<.4&&Math.hypot(m.nx-m.x,m.nz-m.z)>2.5&&m.t<14&&spAim(m))return;
+    if(left<.4||m.t>14){m.st='stomp';m.t=0;m.hit=0}}}
 
 // ---------------------------------------------------------------- the auditor (ty 16), night 11 and on
 // A very tall, thin figure in a grey day-shift coat, with a flat slab for a face split by one red scanning line. It walks

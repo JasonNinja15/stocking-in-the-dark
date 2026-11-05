@@ -1659,15 +1659,18 @@ function applyColliders(){if(!S)return;S.trucks.forEach((tr,i)=>{const v=BAYV[i]
   if(S.fork){const f=S.fork,P=NET.mode==='client'&&FORK3D?FORK3D.position:f;Object.assign(FORKCOL,{x0:P.x-.75,x1:P.x+.75,z0:P.z-.75,z1:P.z+.75,on:!(f.drv&&f.drv===NET.myId)})}}
 // is (x,y,z) inside someone's flashlight beam with nothing solid in the way?
 // (anything up near the ceiling is above the racks, so only floor-level targets can be hidden behind them)
-function litByP(p,x,y,z){if(p.dead||!p.light)return false;const up=p.up&&p.up.fl2,dx=x-p.x,dy=y-1.6,dz=z-p.z,d=Math.hypot(dx,dy,dz);if(d>(up?20:17)||d<.05)return false;
+// (someone driving the forklift sits higher, and the forklift's own body never blocks their light)
+const drives=p=>!!(S.fork&&S.fork.drv&&S.fork.drv===p.id),eyeY=p=>drives(p)?2.1:1.6;
+function segFrom(p,x,z){if(!drives(p))return segBlocked(p.x,p.z,x,z);const o=FORKCOL.on;FORKCOL.on=false;const r=segBlocked(p.x,p.z,x,z);FORKCOL.on=o;return r}
+function litByP(p,x,y,z){if(p.dead||!p.light)return false;const up=p.up&&p.up.fl2,dx=x-p.x,dy=y-eyeY(p),dz=z-p.z,d=Math.hypot(dx,dy,dz);if(d>(up?20:17)||d<.05)return false;
   const cp=Math.cos(p.pitch),fx=-Math.sin(p.yaw)*cp,fy=Math.sin(p.pitch),fz=-Math.cos(p.yaw)*cp;
   const ang=Math.acos(clamp((dx*fx+dy*fy+dz*fz)/d,-1,1));if(ang>(up?.53:.43)+Math.atan(.5/d))return false;
-  return !(y<4&&segBlocked(p.x,p.z,x,z))}
+  return !(y<4&&segFrom(p,x,z))}
 function litBy(x,y,z){for(const p of Object.values(S.players))if(litByP(p,x,y,z))return p;return null}
 // is anyone looking toward (x,y,z), light or no light?
-function watched(x,y,z){for(const p of alivePlayers()){const dx=x-p.x,dy=y-1.6,dz=z-p.z,d=Math.hypot(dx,dy,dz);if(d<.05)return true;if(d>40)continue;
+function watched(x,y,z){for(const p of alivePlayers()){const dx=x-p.x,dy=y-eyeY(p),dz=z-p.z,d=Math.hypot(dx,dy,dz);if(d<.05)return true;if(d>40)continue;
   const cp=Math.cos(p.pitch),fx=-Math.sin(p.yaw)*cp,fy=Math.sin(p.pitch),fz=-Math.cos(p.yaw)*cp;
-  if((dx*fx+dy*fy+dz*fz)/d<.68)continue;if(segBlocked(p.x,p.z,x,z))continue;return true}return false}
+  if((dx*fx+dy*fy+dz*fz)/d<.68)continue;if(segFrom(p,x,z))continue;return true}return false}
 // a flashlight clicked off and on again while pointed at (x,y,z)
 function flashedBy(x,y,z){for(const p of alivePlayers())if(p.togs&&p.togs.length>=2&&litByP(p,x,y,z))return p;return null}
 // floor: the least health this hit can leave you with. Instant kills (999) stay instant kills on every difficulty.
@@ -2008,7 +2011,7 @@ const nearPos=(p,x,z,r)=>Math.hypot(p.x-x,p.z-z)<=r;
 const inCold=p=>p.x>COLD.x0&&p.x<COLD.x1&&p.z>COLD.z0&&p.z<COLD.z1;
 const inCar=(p,C)=>p.x>C.x0&&p.x<C.x1&&p.z>C.z0&&p.z<C.z1;
 const lightZone=(x,z,pad=0)=>lampZone(x,z,pad)>=0||(S.flares&&S.flares.some(f=>Math.hypot(f.x-x,f.z-z)<3+pad));
-function noise(x,z,r){(HOST.noise||(HOST.noise=[])).push({x,z,r,t:S.t})}
+function noise(x,z,r,k){(HOST.noise||(HOST.noise=[])).push({x,z,r,t:S.t,k})}
 function toP(p,m){if(!p)return;emit({e:'msg',m,p:p.id})}
 
 // ---------------------------------------------------------------- night set-up
@@ -2126,7 +2129,7 @@ function monWalk(m,tx,tz,sp,dt){m.rep=(m.rep||0)-dt;if(m.rep<=0||!m.path){m.rep=
 // ---------------------------------------------------------------- sorting conveyor
 function convUpdate(dt){if(!owned('conv'))return;const c=S.conv;
   c.next-=dt;if(c.next<=0&&S.parcels.length<6&&!c.jam){c.next=rand(13,19);
-    S.parcels.push({id:parSeq++,x:CONV.x0+.4,c:randi(0,2),m:S.night>=2&&Math.random()<.14*diffEv(),jam:Math.random()<.13*diffEv(),tw:rand(1,3)});emit({e:'parcel'})}
+    S.parcels.push({id:parSeq++,x:CONV.x0+.4,c:randi(0,2),m:false, /* mimics stay in boxes; they don't ride the belt */jam:Math.random()<.13*diffEv(),tw:rand(1,3)});emit({e:'parcel'})}
   const ps=S.parcels.sort((a,b)=>b.x-a.x);let front=CONV.x1-.25;
   for(const p of ps){if(!c.jam)p.x=Math.min(p.x+.75*dt,front);front=p.x-.55;
     const np=nearestPlayer(p.x,CONV.z,3.5,inWH);if(p.m&&np){p.tw-=dt;if(p.tw<=0){p.tw=rand(1.6,3.5);emit({e:'ptw',id:p.id})}}}
@@ -2202,11 +2205,15 @@ function mothUpdate(m,dt){m.t+=dt;const L=LAMPS[m.li];
 
 // ---------------------------------------------------------------- forklift, pallets, the passenger
 const forkTip=()=>({x:S.fork.x+Math.sin(S.fork.ry)*1.55,z:S.fork.z+Math.cos(S.fork.ry)*1.55});
+// where the passenger sits (a little nearer the mast than the fork tips), and how long a light has to stay on it
+const passAt=()=>({x:S.fork.x+Math.sin(S.fork.ry)*1.35,z:S.fork.z+Math.cos(S.fork.ry)*1.35}),PASS_LIT=1.2;
 function forkUpdate(dt){const f=S.fork;if(!f)return;FORKCOL.x0=f.x-.8;FORKCOL.x1=f.x+.8;FORKCOL.z0=f.z-.8;FORKCOL.z1=f.z+.8;
   if(!f.drv)return;const p=S.players[f.drv];if(!p||p.dead){f.drv='';return}
-  f.nT=(f.nT||0)-dt;if(f.nT<=0){f.nT=.5;if(p.spd>.4){noise(f.x,f.z,14);HOST.nextStalker-=.3}}  // the engine carries
-  if(f.pass){const t=forkTip(),y=.5+f.lift;if(litByP(p,t.x,y,t.z))f.pass.lit+=dt;else f.pass.dark+=dt;
-    if(f.pass.lit>=3){f.pass=null;emit({e:'passGone',x:t.x,z:t.z})}
+  // the engine carries, and the reverse beeper carries further
+  const mv=f.mx===undefined?0:((f.x-f.mx)*Math.sin(f.ry)+(f.z-f.mz)*Math.cos(f.ry))/Math.max(dt,1e-3);f.mx=f.x;f.mz=f.z;f.rev=damp(f.rev||0,mv<-.3?1:0,6,dt);
+  f.nT=(f.nT||0)-dt;if(f.nT<=0){f.nT=.5;if(f.rev>.5)noise(f.x,f.z,24,'beep');else if(p.spd>.4)noise(f.x,f.z,14);if(p.spd>.4)HOST.nextStalker-=.3}
+  if(f.pass){const t=passAt(),y=.5+f.lift;if(litByP(p,t.x,y,t.z)||litByP(p,t.x,y+.4,t.z))f.pass.lit+=dt;else f.pass.dark+=dt;
+    if(f.pass.lit>=PASS_LIT){f.pass=null;emit({e:'passGone',x:t.x,z:t.z})}
     else if(f.pass.dark>=7){f.pass=null;emit({e:'scare',p:p.id,ty:11});damage(p,40)}}
   const pal=S.pallets.find(x=>x.id===f.pal);if(pal){const t=forkTip();pal.x=t.x;pal.z=t.z;pal.ry=f.ry}}
 // getting out (or 6 AM) sets any loose boxes on the forks down on the floor in front of them
@@ -2454,7 +2461,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
       else if(m.ty===2&&inCone(m.x,m.z,12)){m.dead=true;emit({e:'shriek',id:m.id,x:m.x,z:m.z})}}
     for(const b of S.boxes)if(b.roam&&b.st===3&&Math.hypot(b.x-p.x,b.z-p.z)<10)unboxMimic(b,'bolt',p.id);
     if(S.fork.pass&&Math.hypot(S.fork.x-p.x,S.fork.z-p.z)<8){S.fork.pass=null;const t=forkTip();emit({e:'passGone',x:t.x,z:t.z})}break}
-  case 'horn':{if(!take())return;noise(p.x,p.z,45);emit({e:'airhorn',x:p.x,z:p.z});for(const m of S.mons)if(m.ty===7&&Math.hypot(m.x-p.x,m.z-p.z)<14)m.stun=6;break}
+  case 'horn':{if(!take())return;noise(p.x,p.z,45,'loud');emit({e:'airhorn',x:p.x,z:p.z});for(const m of S.mons)if(m.ty===7&&Math.hypot(m.x-p.x,m.z-p.z)<14)m.stun=6;break}
   case 'remote':{if(!(inv.remote>0))return;let bi=-1,bd=1e9;BAYS.forEach((b,i)=>{if(!bayOn(i))return;const d=Math.abs(p.x-b.x)+(p.x>60?1e6:0);if(d<bd){bd=d;bi=i}});if(bi<0)return;
     const tr=S.trucks[bi],nm=BAYS[bi].name;
     if(tr.st===0&&tr.stuck>0){inv.remote--;tr.stuck=0;tr.door=0;S.yard=null;emit({e:'slam',x:BAYS[bi].x,z:WH.z0});no(`Bay ${nm} door closed.`);break}
@@ -2609,6 +2616,15 @@ function spiderDoor(i){if(HOST.spDone||S.t<HOST.spAt||S.ot||S.t>SHIFT_END-150||S
   S.mons.push({id:monSeq++,ty:15,bay:i,x:BAYS[i].x,z:WH.z0-8,y:SP_LOW,ry:0,st:'enter',a:4,t:0,life:0,cd:0,hearT:0});return true}
 function spGo(m,tx,tz,sp,dt){const dx=tx-m.x,dz=tz-m.z,d=Math.hypot(dx,dz);if(d<.05)return 0;const s=Math.min(d,sp*dt);m.x+=dx/d*s;m.z+=dz/d*s;m.ry=angLerp(m.ry,Math.atan2(dx,dz),dt*2.5);return d-s}
 function spWanderTarget(m){for(let k=0;k<30;k++){const x=rand(WH.x0+4,WH.x1-4),z=rand(WH.z0+4,WH.z1-4);if(!spFree(x,z)||Math.hypot(x-m.x,z-m.z)<6)continue;if(spReach(m.x,m.z,x,z)<.98)continue;m.tx=x;m.tz=z;return true}return false}
+// how far off it hears a sound: anything louder than walking from a long way, the reverse beeper and the air horn from across the floor
+const spHearR=n=>n.k==='loud'?200:n.k==='beep'?60:n.r*2.6+6;
+// head for the last sound it heard: straight there if nothing but racks is in the way, else via a free spot that gets it nearer
+function spAim(m){const f=spReach(m.x,m.z,m.nx,m.nz);if(f>.97){m.tx=m.nx;m.tz=m.nz;return true}
+  let best=null,bd=Math.hypot(m.nx-m.x,m.nz-m.z)-1;for(let k=0;k<40;k++){const a=rand(0,6.283),r=rand(2,10),x=m.x+Math.cos(a)*r,z=m.z+Math.sin(a)*r;
+    if(!spFree(x,z)||spReach(m.x,m.z,x,z)<.98)continue;const d=Math.hypot(m.nx-x,m.nz-z);if(d<bd){bd=d;best={x,z}}}
+  if(best){m.tx=best.x;m.tz=best.z;return true}if(f>.05){m.tx=lerp(m.x,m.nx,f);m.tz=lerp(m.z,m.nz,f);return true}
+  // (boxed in where it stands, which only happens if it got pushed somewhere odd: just walk straight for it)
+  if(!spFree(m.x,m.z)){m.tx=m.nx;m.tz=m.nz;return true}m.tx=m.x;m.tz=m.z;return false}
 function spiderUpdate(m,dt){m.t+=dt;m.life+=dt;m.cd-=dt;m.hearT-=dt;const bx=BAYS[m.bay]?BAYS[m.bay].x:0,tr=S.trucks[m.bay];
   const rise=(h,k)=>{m.y=damp(m.y,h,k,dt)};
   if(m.st==='enter'){m.a=4;rise(SP_LOW,3);if(tr&&tr.st===0)tr.stuck=Math.max(tr.stuck,2);
@@ -2623,19 +2639,21 @@ function spiderUpdate(m,dt){m.t+=dt;m.life+=dt;m.cd-=dt;m.hearT-=dt;const bx=BAY
     if(m.go){if(spGo(m,BAYS[m.bay].x,WH.z0+4,1.8,dt)<.15){m.st='board';m.t=0}return}}
   else if(m.life>=SP_LIFE&&m.st!=='stomp'){m.st='leave';m.go=false;return}
   // hearing: anything louder than walking, a long way off
-  if(m.st!=='stomp'&&m.st!=='leave'){for(const n of HOST.noise||[]){if(Math.hypot(n.x-m.x,n.z-m.z)>n.r*1.8+3)continue;
-      if(m.st!=='hunt'||Math.hypot(n.x-m.tx,n.z-m.tz)>1.5){if(m.hearT<=0){m.hearT=6;emit({e:'spHear',x:r2(m.x),z:r2(m.z)})}m.st='hunt';m.t=0;
-        const f=spReach(m.x,m.z,n.x,n.z);m.tx=lerp(m.x,n.x,f);m.tz=lerp(m.z,n.z,f)}}}
+  if(m.st!=='stomp'&&m.st!=='leave'){for(const n of HOST.noise||[]){if(n.k==='sp'||Math.hypot(n.x-m.x,n.z-m.z)>spHearR(n))continue;
+      if(m.st!=='hunt'||Math.hypot(n.x-m.nx,n.z-m.nz)>1){if(m.hearT<=0){m.hearT=6;emit({e:'spHear',x:r2(m.x),z:r2(m.z)})}if(m.st!=='hunt')m.t=0;m.st='hunt';m.nx=n.x;m.nz=n.z;spAim(m)}}}
   if(m.st==='stomp'){m.a=3;rise(SP_H-.5,4);
     // two stamps: the legs come down at .55 s and again at 1.25 s
-    for(const at of[.55,1.25])if(m.t>=at&&(m.hit||0)<at){m.hit=at;emit({e:'spStomp',x:r2(m.x),z:r2(m.z)});noise(m.x,m.z,8);
+    for(const at of[.55,1.25])if(m.t>=at&&(m.hit||0)<at){m.hit=at;emit({e:'spStomp',x:r2(m.x),z:r2(m.z)});noise(m.x,m.z,8,'sp');
       for(const p of alivePlayers()){if(!inWH(p)||onRoof(p))continue;const d=Math.hypot(p.x-m.x,p.z-m.z);if(d<3.4)damage(p,d<1.4?30:20)}}
     if(m.t>1.9){m.st='listen';m.t=0;m.hit=0}return}
   if(m.st==='listen'){m.a=0;rise(SP_H,2);if(m.t>2.6){m.st='wander';m.t=0;m.tx=undefined}return}
   rise(SP_H,2);
   if(m.st==='wander'){m.a=1;if(m.tx===undefined&&!spWanderTarget(m)){m.a=0;return}
     if(spGo(m,m.tx,m.tz,1.25,dt)<.2){m.st='listen';m.t=0;m.tx=undefined}else if(!spFree(m.x,m.z,.6))m.tx=undefined;return}
-  if(m.st==='hunt'){m.a=2;const left=spGo(m,m.tx,m.tz,3.1,dt);if(left<.4||m.t>12){m.st='stomp';m.t=0;m.hit=0}}}
+  if(m.st==='hunt'){m.a=2;const left=spGo(m,m.tx,m.tz,3.6,dt);
+    // stopped short by a wall: once it gets there, take the way round toward the sound
+    if(left<.4&&Math.hypot(m.nx-m.x,m.nz-m.z)>2.5&&m.t<14&&spAim(m))return;
+    if(left<.4||m.t>14){m.st='stomp';m.t=0;m.hit=0}}}
 
 // ---------------------------------------------------------------- the auditor (ty 16), night 11 and on
 // A very tall, thin figure in a grey day-shift coat, with a flat slab for a face split by one red scanning line. It walks
@@ -3415,6 +3433,8 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
   if(GAME.on&&S){
     if(NET.mode!=='client'&&!GAME.paused)simUpdate(dt);
     ME.driving=!!(S.fork&&S.fork.drv===NET.myId);
+    // (the reverse beep is only turned down while driving, so silence it here once you're out or paused)
+    if(ME.beep&&(!ME.driving||GAME.paused)){ME.beep.set(0,.05);if(!ME.driving)ME.fv=0}
     if(!GAME.paused)localUpdate(dt);
     drainEvents();syncWorld(dt,time);netTick(dt);hud(dt);touchTick();near=updFear(dt);checkOver(dt);shopTick();syncScanner();
     const me=S.players[NET.myId];
@@ -4136,7 +4156,7 @@ function touchTick(){const vis=TOUCH.on&&GAME.on&&!$('hud').classList.contains('
   const sel=dead?'':curSel(me);
   lab('tUse',dead?'NEXT':ME.grab?'PULL':'USE');lab('tKick',dead?'BACK':ME.grab?'PULL':ME.driving?'GET OUT':'KICK');
   lab('tItem',sel?(ITEM_ICON[sel]||'ITEM').toUpperCase():'ITEM');hid('tItem',dead||!sel);
-  hid('tLight',dead||ME.driving);hid('tDrop',dead||(me.carry<0&&!(ME.driving&&S.fork&&S.fork.pal>=0)));
+  hid('tLight',dead);hid('tDrop',dead||(me.carry<0&&!(ME.driving&&S.fork&&S.fork.pal>=0)));
   hid('tLamp',dead||!(me.up&&me.up.red));hid('tShake',dead||!(me.up&&me.up.shake)||ME.driving);
   $('tLight').classList.toggle('lit',ME.lightOn());$('tLamp').classList.toggle('lit',!!ME.red)}
 touchSetup();

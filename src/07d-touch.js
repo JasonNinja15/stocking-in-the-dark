@@ -96,7 +96,7 @@ function touchTick(){const vis=TOUCH.on&&GAME.on&&!$('hud').classList.contains('
   const sel=dead?'':curSel(me);
   lab('tUse',dead?'NEXT':ME.grab?'PULL':'USE');lab('tKick',dead?'BACK':ME.grab?'PULL':ME.driving?'GET OUT':'KICK');
   lab('tItem',sel?(ITEM_ICON[sel]||'ITEM').toUpperCase():'ITEM');hid('tItem',dead||!sel);
-  hid('tLight',dead||ME.driving);hid('tDrop',dead||(me.carry<0&&!(ME.driving&&S.fork&&S.fork.pal>=0)));
+  hid('tLight',dead);hid('tDrop',dead||(me.carry<0&&!(ME.driving&&S.fork&&S.fork.pal>=0)));
   hid('tLamp',dead||!(me.up&&me.up.red));hid('tShake',dead||!(me.up&&me.up.shake)||ME.driving);
   $('tLight').classList.toggle('lit',ME.lightOn());$('tLamp').classList.toggle('lit',!!ME.red)}
 touchSetup();

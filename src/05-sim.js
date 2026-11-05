@@ -83,15 +83,18 @@ function applyColliders(){if(!S)return;S.trucks.forEach((tr,i)=>{const v=BAYV[i]
   if(S.fork){const f=S.fork,P=NET.mode==='client'&&FORK3D?FORK3D.position:f;Object.assign(FORKCOL,{x0:P.x-.75,x1:P.x+.75,z0:P.z-.75,z1:P.z+.75,on:!(f.drv&&f.drv===NET.myId)})}}
 // is (x,y,z) inside someone's flashlight beam with nothing solid in the way?
 // (anything up near the ceiling is above the racks, so only floor-level targets can be hidden behind them)
-function litByP(p,x,y,z){if(p.dead||!p.light)return false;const up=p.up&&p.up.fl2,dx=x-p.x,dy=y-1.6,dz=z-p.z,d=Math.hypot(dx,dy,dz);if(d>(up?20:17)||d<.05)return false;
+// (someone driving the forklift sits higher, and the forklift's own body never blocks their light)
+const drives=p=>!!(S.fork&&S.fork.drv&&S.fork.drv===p.id),eyeY=p=>drives(p)?2.1:1.6;
+function segFrom(p,x,z){if(!drives(p))return segBlocked(p.x,p.z,x,z);const o=FORKCOL.on;FORKCOL.on=false;const r=segBlocked(p.x,p.z,x,z);FORKCOL.on=o;return r}
+function litByP(p,x,y,z){if(p.dead||!p.light)return false;const up=p.up&&p.up.fl2,dx=x-p.x,dy=y-eyeY(p),dz=z-p.z,d=Math.hypot(dx,dy,dz);if(d>(up?20:17)||d<.05)return false;
   const cp=Math.cos(p.pitch),fx=-Math.sin(p.yaw)*cp,fy=Math.sin(p.pitch),fz=-Math.cos(p.yaw)*cp;
   const ang=Math.acos(clamp((dx*fx+dy*fy+dz*fz)/d,-1,1));if(ang>(up?.53:.43)+Math.atan(.5/d))return false;
-  return !(y<4&&segBlocked(p.x,p.z,x,z))}
+  return !(y<4&&segFrom(p,x,z))}
 function litBy(x,y,z){for(const p of Object.values(S.players))if(litByP(p,x,y,z))return p;return null}
 // is anyone looking toward (x,y,z), light or no light?
-function watched(x,y,z){for(const p of alivePlayers()){const dx=x-p.x,dy=y-1.6,dz=z-p.z,d=Math.hypot(dx,dy,dz);if(d<.05)return true;if(d>40)continue;
+function watched(x,y,z){for(const p of alivePlayers()){const dx=x-p.x,dy=y-eyeY(p),dz=z-p.z,d=Math.hypot(dx,dy,dz);if(d<.05)return true;if(d>40)continue;
   const cp=Math.cos(p.pitch),fx=-Math.sin(p.yaw)*cp,fy=Math.sin(p.pitch),fz=-Math.cos(p.yaw)*cp;
-  if((dx*fx+dy*fy+dz*fz)/d<.68)continue;if(segBlocked(p.x,p.z,x,z))continue;return true}return false}
+  if((dx*fx+dy*fy+dz*fz)/d<.68)continue;if(segFrom(p,x,z))continue;return true}return false}
 // a flashlight clicked off and on again while pointed at (x,y,z)
 function flashedBy(x,y,z){for(const p of alivePlayers())if(p.togs&&p.togs.length>=2&&litByP(p,x,y,z))return p;return null}
 // floor: the least health this hit can leave you with. Instant kills (999) stay instant kills on every difficulty.

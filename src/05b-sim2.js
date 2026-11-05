@@ -45,7 +45,7 @@ const nearPos=(p,x,z,r)=>Math.hypot(p.x-x,p.z-z)<=r;
 const inCold=p=>p.x>COLD.x0&&p.x<COLD.x1&&p.z>COLD.z0&&p.z<COLD.z1;
 const inCar=(p,C)=>p.x>C.x0&&p.x<C.x1&&p.z>C.z0&&p.z<C.z1;
 const lightZone=(x,z,pad=0)=>lampZone(x,z,pad)>=0||(S.flares&&S.flares.some(f=>Math.hypot(f.x-x,f.z-z)<3+pad));
-function noise(x,z,r){(HOST.noise||(HOST.noise=[])).push({x,z,r,t:S.t})}
+function noise(x,z,r,k){(HOST.noise||(HOST.noise=[])).push({x,z,r,t:S.t,k})}
 function toP(p,m){if(!p)return;emit({e:'msg',m,p:p.id})}
 
 // ---------------------------------------------------------------- night set-up
@@ -163,7 +163,7 @@ function monWalk(m,tx,tz,sp,dt){m.rep=(m.rep||0)-dt;if(m.rep<=0||!m.path){m.rep=
 // ---------------------------------------------------------------- sorting conveyor
 function convUpdate(dt){if(!owned('conv'))return;const c=S.conv;
   c.next-=dt;if(c.next<=0&&S.parcels.length<6&&!c.jam){c.next=rand(13,19);
-    S.parcels.push({id:parSeq++,x:CONV.x0+.4,c:randi(0,2),m:S.night>=2&&Math.random()<.14*diffEv(),jam:Math.random()<.13*diffEv(),tw:rand(1,3)});emit({e:'parcel'})}
+    S.parcels.push({id:parSeq++,x:CONV.x0+.4,c:randi(0,2),m:false, /* mimics stay in boxes; they don't ride the belt */jam:Math.random()<.13*diffEv(),tw:rand(1,3)});emit({e:'parcel'})}
   const ps=S.parcels.sort((a,b)=>b.x-a.x);let front=CONV.x1-.25;
   for(const p of ps){if(!c.jam)p.x=Math.min(p.x+.75*dt,front);front=p.x-.55;
     const np=nearestPlayer(p.x,CONV.z,3.5,inWH);if(p.m&&np){p.tw-=dt;if(p.tw<=0){p.tw=rand(1.6,3.5);emit({e:'ptw',id:p.id})}}}
@@ -239,11 +239,15 @@ function mothUpdate(m,dt){m.t+=dt;const L=LAMPS[m.li];
 
 // ---------------------------------------------------------------- forklift, pallets, the passenger
 const forkTip=()=>({x:S.fork.x+Math.sin(S.fork.ry)*1.55,z:S.fork.z+Math.cos(S.fork.ry)*1.55});
+// where the passenger sits (a little nearer the mast than the fork tips), and how long a light has to stay on it
+const passAt=()=>({x:S.fork.x+Math.sin(S.fork.ry)*1.35,z:S.fork.z+Math.cos(S.fork.ry)*1.35}),PASS_LIT=1.2;
 function forkUpdate(dt){const f=S.fork;if(!f)return;FORKCOL.x0=f.x-.8;FORKCOL.x1=f.x+.8;FORKCOL.z0=f.z-.8;FORKCOL.z1=f.z+.8;
   if(!f.drv)return;const p=S.players[f.drv];if(!p||p.dead){f.drv='';return}
-  f.nT=(f.nT||0)-dt;if(f.nT<=0){f.nT=.5;if(p.spd>.4){noise(f.x,f.z,14);HOST.nextStalker-=.3}}  // the engine carries
-  if(f.pass){const t=forkTip(),y=.5+f.lift;if(litByP(p,t.x,y,t.z))f.pass.lit+=dt;else f.pass.dark+=dt;
-    if(f.pass.lit>=3){f.pass=null;emit({e:'passGone',x:t.x,z:t.z})}
+  // the engine carries, and the reverse beeper carries further
+  const mv=f.mx===undefined?0:((f.x-f.mx)*Math.sin(f.ry)+(f.z-f.mz)*Math.cos(f.ry))/Math.max(dt,1e-3);f.mx=f.x;f.mz=f.z;f.rev=damp(f.rev||0,mv<-.3?1:0,6,dt);
+  f.nT=(f.nT||0)-dt;if(f.nT<=0){f.nT=.5;if(f.rev>.5)noise(f.x,f.z,24,'beep');else if(p.spd>.4)noise(f.x,f.z,14);if(p.spd>.4)HOST.nextStalker-=.3}
+  if(f.pass){const t=passAt(),y=.5+f.lift;if(litByP(p,t.x,y,t.z)||litByP(p,t.x,y+.4,t.z))f.pass.lit+=dt;else f.pass.dark+=dt;
+    if(f.pass.lit>=PASS_LIT){f.pass=null;emit({e:'passGone',x:t.x,z:t.z})}
     else if(f.pass.dark>=7){f.pass=null;emit({e:'scare',p:p.id,ty:11});damage(p,40)}}
   const pal=S.pallets.find(x=>x.id===f.pal);if(pal){const t=forkTip();pal.x=t.x;pal.z=t.z;pal.ry=f.ry}}
 // getting out (or 6 AM) sets any loose boxes on the forks down on the floor in front of them
@@ -491,7 +495,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
       else if(m.ty===2&&inCone(m.x,m.z,12)){m.dead=true;emit({e:'shriek',id:m.id,x:m.x,z:m.z})}}
     for(const b of S.boxes)if(b.roam&&b.st===3&&Math.hypot(b.x-p.x,b.z-p.z)<10)unboxMimic(b,'bolt',p.id);
     if(S.fork.pass&&Math.hypot(S.fork.x-p.x,S.fork.z-p.z)<8){S.fork.pass=null;const t=forkTip();emit({e:'passGone',x:t.x,z:t.z})}break}
-  case 'horn':{if(!take())return;noise(p.x,p.z,45);emit({e:'airhorn',x:p.x,z:p.z});for(const m of S.mons)if(m.ty===7&&Math.hypot(m.x-p.x,m.z-p.z)<14)m.stun=6;break}
+  case 'horn':{if(!take())return;noise(p.x,p.z,45,'loud');emit({e:'airhorn',x:p.x,z:p.z});for(const m of S.mons)if(m.ty===7&&Math.hypot(m.x-p.x,m.z-p.z)<14)m.stun=6;break}
   case 'remote':{if(!(inv.remote>0))return;let bi=-1,bd=1e9;BAYS.forEach((b,i)=>{if(!bayOn(i))return;const d=Math.abs(p.x-b.x)+(p.x>60?1e6:0);if(d<bd){bd=d;bi=i}});if(bi<0)return;
     const tr=S.trucks[bi],nm=BAYS[bi].name;
     if(tr.st===0&&tr.stuck>0){inv.remote--;tr.stuck=0;tr.door=0;S.yard=null;emit({e:'slam',x:BAYS[bi].x,z:WH.z0});no(`Bay ${nm} door closed.`);break}
