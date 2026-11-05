@@ -433,7 +433,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
       else if(t.kind==='exit')pr='<kbd>E</kbd> Exit';}
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
     // a bulb on you: under a dead light it's E; with the bulb picked anywhere else, point the way to the nearest one
-    if(!t&&!ME.driving&&me&&haveItem(me,'bulb')){if(deadLampAt(ME.x,ME.z)>=0)pr='<kbd>E</kbd> Put the new bulb in this light';
+    if(!t&&!ME.driving&&me&&haveItem(me,'bulb')){if(deadLampAt(ME.x,ME.z)>=0)pr='<kbd>E</kbd> or <kbd>Right click</kbd> Put the new bulb in this light';
       else if(curSel(me)==='bulb'&&ME.x<60&&!onRoof(ME)){let bi=-1,bd=1e9;LAMPS.forEach((L,i)=>{const d=Math.hypot(ME.x-L.x,ME.z-L.z);if(L.dead&&!(S.fixed||[]).includes(i)&&d<bd){bd=d;bi=i}});
         if(bi>=0)pr=`Lamp bulb: nearest dark light ${dirTo(LAMPS[bi].x,LAMPS[bi].z)}`}}
     if(ME.cart>=0&&!t)pr='<kbd>Q</kbd> Let go of the cart'+(carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');

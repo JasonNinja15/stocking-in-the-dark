@@ -235,6 +235,9 @@ function curSel(me){const h=heldItems(me);if(!h.includes(ME.sel))ME.sel=h[0]||''
 function scrollItem(dir){const me=S&&S.players[NET.myId];if(!me||me.dead||S.phase!=='play')return;const h=heldItems(me);if(h.length<2)return;
   const i=h.indexOf(curSel(me));ME.sel=h[(i+dir+h.length)%h.length];SFX.click()}
 function useSel(me){const k=curSel(me);if(!k){SFX.deny();toast('No items. They\'re sold between nights.',2.5);return}
+  // under a dark light with a bulb on you, right click (or Space) puts it in whatever is picked, unless it's
+  // something you might need in a hurry (the strobe, the air horn, a flare)
+  if(k!=='bulb'&&!['strobe','horn','flare'].includes(k)&&haveItem(me,'bulb')&&deadLampAt(ME.x,ME.z)>=0){doAct({a:'use',k:'bulb'});return}
   if(k==='scanner')return; // held, see localUpdate2
   if(k==='cutter'){const t=ME.target;if(t&&t.kind==='box')doAct({a:'use',k,b:t.b.id});else if(t&&t.kind==='parcel')doAct({a:'use',k,pc:t.id});
     else{const m=looseMimic();if(m)doAct({a:'use',k,m:m.id});else toast('Look at a box to cut it open.',2)}return}
