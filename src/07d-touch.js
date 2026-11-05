@@ -64,6 +64,7 @@ function goFull(){const d=document.documentElement;if(document.fullscreenElement
 function touchDown(t){const b=t.target&&t.target.closest&&t.target.closest('.tb');
   if(b){const k=b.dataset.k;TT.btn.set(t.identifier,b);b.classList.add('on');
     if(k==='pause'){if(GAME.on&&!GAME.overShown)showPause();return}
+    if(k==='dev'){devToggle();return}
     if(navigator.vibrate&&(!navigator.userActivation||navigator.userActivation.hasBeenActive))try{navigator.vibrate(8)}catch(e){}
     K[k]=true;keyPress(k);return}
   if(t.clientX<innerWidth*.42&&!TT.stick){ // the stick comes up under your thumb

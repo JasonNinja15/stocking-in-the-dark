@@ -92,7 +92,7 @@ let REBIND=null; // the action waiting for a key in Settings
 addEventListener('keydown',e=>{if(!REBIND)return;e.preventDefault();e.stopImmediatePropagation();
   if(e.code!=='Escape'){const id=REBIND,old=boundKey(id),other=BINDS.find(b=>b[0]!==id&&boundKey(b[0])===e.code);SET.keys=SET.keys||{};SET.keys[id]=e.code;if(other)SET.keys[other[0]]=old;saveSet();buildKeymap()}
   REBIND=null;renderBinds()},true);
-addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;const code=mapKey(e.code);if(code===null)return;K[code]=true;
+addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;if(e.code==='KeyX'&&!e.repeat&&devKey())return;const code=mapKey(e.code);if(code===null)return;K[code]=true;
   if(!e.repeat)keyPress(code);
   if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(code))e.preventDefault()});
 // a key (or touch button) going down: spectating, it switches whose view you watch
@@ -119,7 +119,7 @@ canvas.addEventListener('contextmenu',e=>e.preventDefault());
 // hide the shop and leave nothing on screen, with no way to move
 document.addEventListener('pointerlockchange',()=>{if(locked()&&S&&S.phase==='shop'&&GAME.on){if(document.pointerLockElement)document.exitPointerLock();return}
   if(locked()){lookSkip=3;GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
-  else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')){showPause()}});
+  else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')&&!DEV.open){showPause()}});
 
 function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||S.phase!=='play')return;
   if(ME.grab){if(['KeyE','KeyQ','Space'].includes(code))struggle();return}
@@ -480,7 +480,7 @@ const SCREENS=['menu','how','settings','lobby','pause','over','shop','pubs','ins
 function hideScreens(){for(const s of SCREENS)$(s).classList.add('hide');cornerSync()}
 function show(id){hideScreens();$(id).classList.remove('hide');cornerSync()}
 let settingsBack='menu';
-function showMenu(err){GAME.on=false;$('hud').classList.add('hide');$('lockmsg').classList.add('hide');show('menu');$('menuErr').textContent=err?String(err):'';saveNote();if(document.pointerLockElement)document.exitPointerLock()}
+function showMenu(err){GAME.on=false;gameSound(false);$('hud').classList.add('hide');$('lockmsg').classList.add('hide');show('menu');$('menuErr').textContent=err?String(err):'';saveNote();if(document.pointerLockElement)document.exitPointerLock()}
 function showPause(){if(!GAME.on)return;if(NET.mode==='solo')GAME.paused=true;$('pauseNote').textContent=NET.mode==='solo'?'The clock is stopped.':`Crew ${NET.code}: the night keeps going without you.`;show('pause')}
 function renderLobby(){show('lobby');$('code').textContent=NET.code||'-----';
   $('lobbyList').innerHTML=NET.lobby.map(p=>`<li><span class="dot" style="background:${p.col}"></span>${esc(p.name)}${p.id===NET.myId?' <span class="lbl">(you)</span>':''}</li>`).join('');
@@ -507,7 +507,7 @@ async function joinCode(code){auInit();NET.code=code;NET.lobby=[];NET.mode='clie
 function saveNote(){const sv=loadSave();$('bCont').classList.toggle('hide',!sv);$('contNote').classList.toggle('hide',!sv);if(!sv)return;
   $('bCont').textContent=`Continue: night ${sv.night+1}`;
   $('contNote').textContent=`${DIFFS[sv.diff]?DIFFS[sv.diff].name:'Normal'}, ${sv.night} night${sv.night>1?'s':''} survived, $${Math.round(sv.cash||0)} in the kitty${sv.crew>1?' (a crew run: host a crew to carry on together)':''}. A new run replaces it once it gets through a night.`}
-function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
+function showOver(o){GAME.overShown=true;gameSound(false);if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
   const crew=S&&Object.keys(S.players).length>1;
   const T={dead:[crew?'THE CREW IS GONE':'YOU DIDN\'T MAKE IT',crew?'Nobody clocked out this morning.':'Something in the dark got you.'],quota:['FIRED',`You missed the quota${o.ot?', even on overtime':''}: ${o.shelved} of ${o.quota} boxes shelved.`],host:['DISCONNECTED','The host left the crew room.']}[o.why]||['SHIFT OVER',''];
   $('overTitle').textContent=T[0];$('overWhy').textContent=T[1];
@@ -517,7 +517,7 @@ function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document
   show('over');if(NET.mode==='client'&&o.why!=='host')$('overWhy').textContent+=' Waiting for the host to start another shift…'}
 function checkOver(dt){if(!S.over||GAME.overShown)return;if(ME.scare)return;GAME.overT+=dt;if(GAME.overT>1.8)showOver(S.over)}
 
-function enterGame(){clearVisuals();applyAdds();markSlots();hideScreens();$('hud').classList.remove('hide');GAME.on=true;GAME.paused=false;GAME.overShown=false;GAME.overT=0;GAME.lastPr=null;
+function enterGame(){clearVisuals();applyAdds();markSlots();hideScreens();$('hud').classList.remove('hide');GAME.on=true;gameSound(true);GAME.paused=false;GAME.overShown=false;GAME.overT=0;GAME.lastPr=null;
   Object.assign(ME,{vx:0,vz:0,stam:100,exh:false,bat:100,light:true,kickCD:0,scare:null,shake:0,hurt:0,flash:0,fear:0,deathT:0,lastHp:100,specId:'',red:false,drinkT:0,driving:false,scan:false});shopShown=false;
   const me=S.players[NET.myId];if(me){ME.x=me.x;ME.z=me.z;ME.yaw=me.yaw||0;ME.pitch=0}
   auInit();if(S.phase!=='shop'){reqLock();setTimeout(()=>{if(GAME.on&&!locked()&&!GAME.overShown&&S&&S.phase!=='shop')$('lockmsg').classList.remove('hide')},600)}}
@@ -525,7 +525,7 @@ function enterGame(){clearVisuals();applyAdds();markSlots();hideScreens();$('hud
 function startSolo(sv){netClose();NET.mode='solo';NET.myId='me';S=newState();addPlayer('me',myName(),VEST[0]);if(sv)restoreRun(sv);else startNight();enterGame()}
 function hostStartGame(sv){S=newState();for(const p of NET.lobby)addPlayer(p.id,p.name,p.col);NET.started=true;NET.sentBver=-1;NETEV.length=0;if(sv)restoreRun(sv);else startNight();hostSend({t:'start'});lobbyBroadcast();enterGame()}
 function clientStart(){S=newState();S.players={};EVQ.length=0;ME.ready=false;enterGame()}
-function quitToMenu(){GAME.on=false;netClose();S=null;clearVisuals();EVQ.length=0;NETEV.length=0;showMenu()}
+function quitToMenu(){GAME.on=false;gameSound(false);netClose();S=null;clearVisuals();EVQ.length=0;NETEV.length=0;showMenu()}
 
 function bindUI(){
   // difficulty: the host's (or a solo player's) choice runs the whole crew's night

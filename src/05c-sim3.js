@@ -122,3 +122,39 @@ const elevSafe=p=>!!p&&!p.dead&&owned('base')&&(inCar(p,CAR_UP)||inCar(p,CAR_DN)
 function elevGuard(){if(!owned('base'))return;
   for(const m of S.mons)for(const C of [CAR_UP,CAR_DN])
     if(m.x>C.x0-ELEV_PAD&&m.x<C.x1+ELEV_PAD&&m.z>C.z0-ELEV_PAD&&m.z<C.z1+ELEV_PAD){m.x=C.x1+ELEV_PAD;if(m.path)m.path=null}}
+
+// ---------------------------------------------------------------- the dev console (host side)
+// Only a player named "Flingus Dingus" can use it. The host checks the name on every command, so it works the same
+// for the host and for a crewmate who joined.
+const DEV_NAME='flingus dingus',isDevName=n=>String(n||'').toLowerCase().replace(/\s+/g,' ').trim()===DEV_NAME;
+const DEV_MONS=[[0,'Mimic'],[1,'Sleeper'],[3,'Crawler'],[2,'Stalker'],[4,'Night manager'],[5,'Shrink-wrap'],[13,'Blind one'],[7,'Driver'],[12,'Moth'],[15,'Long-legged thing'],[16,'Auditor']];
+// a free floor spot a few metres in front of you (or as near as there is one)
+function devSpot(p){const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw),ok=(x,z)=>{if(x<WH.x0+1||x>WH.x1-1||z<WH.z0+1||z>WH.z1-1)return false;const [i,j]=cellOf(x,z);return !GRID.blk[j*GRID.nx+i]};
+  for(const d of[5,4,6,3,7,8,2.5])for(const s of[0,.5,-.5,1,-1]){const x=p.x+(fx*Math.cos(s)-fz*Math.sin(s))*d,z=p.z+(fz*Math.cos(s)+fx*Math.sin(s))*d;if(ok(x,z))return{x,z}}
+  for(let k=0;k<200;k++){const x=rand(WH.x0+2,WH.x1-2),z=rand(WH.z0+2,WH.z1-2);if(ok(x,z))return{x,z}}return{x:0,z:0}}
+// sleepers and crawlers live in trailers, so ask for a truck with one in it
+function devTruck(kind,p){const i=S.trucks.findIndex((t,k)=>bayOn(k)&&t.st===0&&!(t.stuck>0));HOST.devNext=kind;
+  if(i<0)return toP(p,'Every bay is busy. The next truck in will bring it.');spawnTruck(i);toP(p,`A truck is backing into Bay ${BAYS[i].name} with one inside.`)}
+function devAct(p,a){if(!p||!isDevName(p.name)||!S||S.over)return;
+  if(a.k==='skip'){if(S.phase!=='play')return toP(p,'There is no night running to skip.');S.shelved=Math.max(S.shelved,S.quota);endNight();return}
+  if(a.k==='cash'){const n=Math.round(clamp(+a.n||0,0,1e6));if(!n)return;const solo=Object.keys(S.players).length<2;S.cash=(S.cash||0)+n;if(!solo)p.cash=(p.cash||0)+n;
+    return toP(p,solo?`+$${n}.`:`+$${n} to you and +$${n} to the team fund.`)}
+  if(a.k!=='mon')return;if(S.phase!=='play')return toP(p,'Monsters can only be spawned during a night.');
+  const ty=+a.ty,sp=devSpot(p),name=(DEV_MONS.find(d=>d[0]===ty)||[0,'?'])[1],has=t=>S.mons.some(m=>m.ty===t&&!m.dead),here=n=>toP(p,`The ${n} is already here.`);
+  switch(ty){
+  case 0:S.boxes.push({id:boxSeq++,st:3,x:sp.x,y:0,z:sp.z,ry:rand(-.4,.4),k:randi(0,2),f:false,v:randi(0,3),h:'',s:-1,m:true,tw:rand(1,3)});S.bver++;break;
+  case 1:return devTruck('lurk',p);
+  case 3:return devTruck('crawl',p);
+  case 2:spawnStalkerAt(sp.x,sp.z);break;
+  case 4:if(has(4))return here('night manager');HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:MGR_SPOT.x,z:MGR_SPOT.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0});break;
+  case 5:if(has(5))return here('shrink-wrap');S.mons.push({id:monSeq++,ty:5,x:SHRINK_HOME.x,z:SHRINK_HOME.z,y:0,ry:-2.4,st:'home',a:0,heard:-99,cd:0,path:null,rep:0});break;
+  case 13:if(has(13))return here('blind one');S.mons.push({id:monSeq++,ty:13,x:sp.x,z:sp.z,y:0,ry:rand(-3,3),st:'look',a:0,t:0,lookT:3,cd:3,path:null,rep:0,hearT:0});break;
+  case 7:{if(has(7))return here('driver');const i=S.trucks.findIndex((t,k)=>bayOn(k)&&t.st===2),b=Math.max(0,i);
+    S.mons.push({id:monSeq++,ty:7,bay:b,x:i>=0?BAYS[b].x+2.4:sp.x,z:i>=0?WH.z0+1.2:sp.z,y:0,ry:0,st:'wander',a:2,life:75,stun:0,path:null,rep:0,k:randi(0,9)});break}
+  case 12:{const n0=S.mons.filter(m=>m.ty===12).length;spawnMoth();if(S.mons.filter(m=>m.ty===12).length===n0)return toP(p,'Moths need a working light, and only two come at once.');break}
+  case 15:{if(has(15))return here('long-legged thing');let i=S.trucks.findIndex((t,k)=>bayOn(k)&&t.st===0);if(i<0)i=Math.max(0,S.trucks.findIndex((t,k)=>bayOn(k)));
+    const tr=S.trucks[i];if(tr.st===0){tr.door=1;tr.stuck=16;emit({e:'stuck',b:i})}
+    S.mons.push({id:monSeq++,ty:15,bay:i,x:BAYS[i].x,z:WH.z0-8,y:SP_LOW,ry:0,st:'enter',a:4,t:0,life:0,cd:0,hearT:0});break}
+  case 16:{if(has(16))return here('auditor');S.mons.push({id:monSeq++,ty:16,x:sp.x,z:sp.z,y:0,ry:rand(-3,3),st:'pick',a:0,t:0,life:0,cd:2,pulled:0,exp:{},path:null,rep:0});break}
+  default:return}
+  toP(p,`Spawned: ${name}.`)}

@@ -127,6 +127,7 @@ function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&
   const n=Math.min(22,randi(6,9)+Math.min(5,S.night-1)+bigCrew());
   tr.lurk=!first&&Math.random()<Math.min(.85,Math.min(.55,.17+.09*(S.night-1))*diffEv());
   tr.crawl=!first&&!tr.lurk&&!S.mons.some(m=>m.ty===3)&&Math.random()<Math.min(.7,Math.min(.4,.14+.06*(S.night-1))*diffEv());
+  if(HOST.devNext){tr.lurk=HOST.devNext==='lurk';tr.crawl=HOST.devNext==='crawl';HOST.devNext=null} // (the dev console asked for one)
   tr.warn=tr.lurk||tr.crawl?Math.random()<.75:!first&&Math.random()<.1;tr.claw=tr.lurk&&Math.random()<.7;tr.n=n;tr.left=n;tr.kg=n*randi(18,30);tr.extra=randi(280,460);
   HOST.trucksTonight++;
   const mimP=first?0:Math.min(.24,.06+.035*(S.night-1))*diffEv();

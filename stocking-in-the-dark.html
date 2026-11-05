@@ -1326,20 +1326,24 @@ function auInit(){
   const C=new AC();AU.ctx=C;
   const comp=C.createDynamicsCompressor();comp.threshold.value=-12;comp.knee.value=8;comp.ratio.value=5;comp.attack.value=.003;comp.release.value=.25;comp.connect(C.destination);
   AU.out=C.createGain();AU.out.gain.value=SET.vol;AU.out.connect(comp);
+  // everything the shift makes goes through AU.game, so leaving a match can silence it all at once (menu clicks and the
+  // background drone go straight to AU.out)
+  AU.game=C.createGain();AU.game.gain.value=GAME.on?1:0;AU.game.connect(AU.out);
   const len=C.sampleRate*2,buf=C.createBuffer(1,len,C.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;AU.noise=buf;
   // big empty-building reverb
   const rl=C.sampleRate*2.6,ir=C.createBuffer(2,rl,C.sampleRate);for(let ch=0;ch<2;ch++){const a=ir.getChannelData(ch);for(let i=0;i<rl;i++){const t=i/rl;a[i]=(Math.random()*2-1)*Math.pow(1-t,3.2)*(i<C.sampleRate*.012?0:1)}}
-  const cv=C.createConvolver();cv.buffer=ir;AU.rev=C.createGain();AU.rev.gain.value=.55;AU.rev.connect(cv);cv.connect(AU.out);
-  AU.dist=C.createWaveShaper();const n=1024,cu=new Float32Array(n);for(let i=0;i<n;i++){const x=i/n*2-1;cu[i]=Math.tanh(x*6)}AU.dist.curve=cu;AU.dist.connect(AU.out);
+  const cv=C.createConvolver();cv.buffer=ir;AU.rev=C.createGain();AU.rev.gain.value=.55;AU.rev.connect(cv);cv.connect(AU.game);
+  AU.dist=C.createWaveShaper();const n=1024,cu=new Float32Array(n);for(let i=0;i<n;i++){const x=i/n*2-1;cu[i]=Math.tanh(x*6)}AU.dist.curve=cu;AU.dist.connect(AU.game);
   AU.ready=true;startAmbience();
 }
+function gameSound(on){if(AU.game)AU.game.gain.setTargetAtTime(on?1:0,AU.ctx.currentTime,on?.05:.08)}
 function auVol(v){if(AU.out)AU.out.gain.setTargetAtTime(v,AU.ctx.currentTime,.05)}
 function setP(P,p){if(P.positionX){P.positionX.value=p.x;P.positionY.value=p.y;P.positionZ.value=p.z}else P.setPosition(p.x,p.y,p.z)}
 function mkPan(p,ref=2,roll=1.3){const P=AU.ctx.createPanner();P.panningModel='HRTF';P.distanceModel='inverse';P.refDistance=ref;P.rolloffFactor=roll;P.maxDistance=80;setP(P,p);return P}
 // a destination for one sound: optional 3D position, reverb send, optional distortion
-function dest(pos,{rev=.25,gain=1,dist=false,ref=2,roll=1.3}={}){const C=AU.ctx,g=C.createGain();g.gain.value=gain;
+function dest(pos,{rev=.25,gain=1,dist=false,ref=2,roll=1.3,ui=false}={}){const C=AU.ctx,g=C.createGain();g.gain.value=gain;
   let head=g;if(pos){const P=mkPan(pos,ref,roll);g.connect(P);head=P}
-  head.connect(dist?AU.dist:AU.out);if(rev){const s=C.createGain();s.gain.value=rev;head.connect(s);s.connect(AU.rev)}
+  head.connect(dist?AU.dist:ui?AU.out:AU.game);if(rev){const s=C.createGain();s.gain.value=rev;head.connect(s);s.connect(AU.rev)}
   setTimeout(()=>{try{g.disconnect();head.disconnect()}catch(e){}},6000);return g}
 function tone(d,{type='sine',f=440,f2=0,t=0,dur=.2,a=.005,g=.3}){const C=AU.ctx,t0=C.currentTime+t,o=C.createOscillator(),e=C.createGain();o.type=type;o.frequency.setValueAtTime(f,t0);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+dur);
   e.gain.setValueAtTime(1e-4,t0);e.gain.exponentialRampToValueAtTime(g,t0+a);e.gain.exponentialRampToValueAtTime(1e-4,t0+dur);o.connect(e);e.connect(d);o.start(t0);o.stop(t0+dur+.05);return o}
@@ -1392,7 +1396,7 @@ const SFX={
   place(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3});tone(d,{f:95,f2:48,dur:.22,g:.55});nz(d,{dur:.14,g:.3,type:'lowpass',f:700});tone(d,{type:'triangle',f:420,dur:.08,g:.05,t:.01})},
   kick(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3});tone(d,{f:130,f2:40,dur:.24,g:.6});nz(d,{dur:.12,g:.4,f:900,q:.6})},
   smash(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4});for(let i=0;i<7;i++){tone(d,{type:'triangle',f:rand(1800,4200),dur:rand(.08,.3),g:.12,t:rand(0,.12)})}nz(d,{dur:.3,g:.35,type:'highpass',f:2500})},
-  click(){if(!AU.ready)return;const d=dest(null,{rev:0});tone(d,{type:'square',f:2400,dur:.025,g:.05});tone(d,{type:'square',f:900,dur:.02,g:.03,t:.03})},
+  click(){if(!AU.ready)return;const d=dest(null,{rev:0,ui:true});tone(d,{type:'square',f:2400,dur:.025,g:.05});tone(d,{type:'square',f:900,dur:.02,g:.03,t:.03})},
   scratch(pos){if(!AU.ready)return;const d=dest(pos,{rev:.2,gain:1.4,ref:1.2,roll:1.6});const n=randi(5,10);for(let i=0;i<n;i++)nz(d,{t:i*rand(.03,.07),dur:.04,g:.25,type:'highpass',f:rand(2000,4000),q:2});if(Math.random()<.5)tone(d,{type:'sawtooth',f:rand(300,500),f2:rand(200,300),dur:.25,g:.04,t:.1})},
   // mimic tearing out of its box: cardboard rip, insect chitter, a small wet snarl
   burst(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:1});nz(d,{dur:.22,a:.003,g:.5,f:1800,f2:900,q:1.2});chitter(d,{t:.05,n:10,g:.2});
@@ -1528,14 +1532,14 @@ const SFX={
     else if(r<.75)nz(d,{dur:.7,g:.35,f:rand(200,400),q:4});
     else{for(let i=0;i<3;i++)tone(d,{type:'triangle',f:rand(600,1400),dur:1.2,g:.04,t:i*.08})}},
   locked(){if(!AU.ready)return;const d=dest(null,{rev:.2});for(let i=0;i<3;i++)nz(d,{t:i*.09,dur:.06,g:.3,f:700,q:3})},
-  deny(){if(!AU.ready)return;const d=dest(null,{rev:0});tone(d,{type:'square',f:160,dur:.15,g:.08})},
+  deny(){if(!AU.ready)return;const d=dest(null,{rev:0,ui:true});tone(d,{type:'square',f:160,dur:.15,g:.08})},
   ok(){if(!AU.ready)return;const d=dest(null,{rev:0});tone(d,{type:'triangle',f:660,dur:.1,g:.1});tone(d,{type:'triangle',f:990,dur:.15,g:.1,t:.08})},
   charge(){if(!AU.ready)return;const d=dest(null,{rev:0});tone(d,{type:'sine',f:1200,dur:.05,g:.04})},
   scream(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1,ref:4});tone(d,{type:'sawtooth',f:420,f2:260,dur:.9,a:.03,g:.2});nz(d,{dur:.8,g:.2,f:1300,q:3})},
 };
 
 // looping 3D sources
-function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.createGain();g.gain.value=0;const P=mkPan(pos||{x:0,y:0,z:0},kind==='engine'?5:2,kind==='hum'?2:1.2);g.connect(P);P.connect(AU.out);
+function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.createGain();g.gain.value=0;const P=mkPan(pos||{x:0,y:0,z:0},kind==='engine'?5:2,kind==='hum'?2:1.2);g.connect(P);P.connect(kind==='amb'?AU.out:AU.game);
   const rs=C.createGain();rs.gain.value=.25;P.connect(rs);rs.connect(AU.rev);
   const nodes=[];const osc=(type,f)=>{const o=C.createOscillator();o.type=type;o.frequency.value=f;o.start();nodes.push(o);return o};
   const ns=()=>{const s=C.createBufferSource();s.buffer=AU.noise;s.loop=true;s.start(0,Math.random());nodes.push(s);return s};
@@ -1703,6 +1707,7 @@ function spawnTruck(i,last=false){const tr=S.trucks[i];const first=S.night===1&&
   const n=Math.min(22,randi(6,9)+Math.min(5,S.night-1)+bigCrew());
   tr.lurk=!first&&Math.random()<Math.min(.85,Math.min(.55,.17+.09*(S.night-1))*diffEv());
   tr.crawl=!first&&!tr.lurk&&!S.mons.some(m=>m.ty===3)&&Math.random()<Math.min(.7,Math.min(.4,.14+.06*(S.night-1))*diffEv());
+  if(HOST.devNext){tr.lurk=HOST.devNext==='lurk';tr.crawl=HOST.devNext==='crawl';HOST.devNext=null} // (the dev console asked for one)
   tr.warn=tr.lurk||tr.crawl?Math.random()<.75:!first&&Math.random()<.1;tr.claw=tr.lurk&&Math.random()<.7;tr.n=n;tr.left=n;tr.kg=n*randi(18,30);tr.extra=randi(280,460);
   HOST.trucksTonight++;
   const mimP=first?0:Math.min(.24,.06+.035*(S.night-1))*diffEv();
@@ -2478,6 +2483,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
 // ---------------------------------------------------------------- the actions additions add (returns true if handled)
 function act2(pid,p,a){
   switch(a.a){
+  case 'dev':devAct(p,a);return true;
   case 'use':useItem(p,a);return true;
   case 'cold':{if(!owned('cold'))return true;const c=S.cold;if(c.open){c.open=false}else{c.open=true;c.t=6}emit({e:'coldDoor',o:c.open?1:0});return true}
   case 'lever':{if(!owned('conv')||!nearPos(p,CONV.lever.x,CONV.lever.z,3))return true;S.conv.sel=(S.conv.sel+1)%3;emit({e:'lever',x:CONV.lever.x,z:CONV.lever.z});return true}
@@ -2715,6 +2721,42 @@ const elevSafe=p=>!!p&&!p.dead&&owned('base')&&(inCar(p,CAR_UP)||inCar(p,CAR_DN)
 function elevGuard(){if(!owned('base'))return;
   for(const m of S.mons)for(const C of [CAR_UP,CAR_DN])
     if(m.x>C.x0-ELEV_PAD&&m.x<C.x1+ELEV_PAD&&m.z>C.z0-ELEV_PAD&&m.z<C.z1+ELEV_PAD){m.x=C.x1+ELEV_PAD;if(m.path)m.path=null}}
+
+// ---------------------------------------------------------------- the dev console (host side)
+// Only a player named "Flingus Dingus" can use it. The host checks the name on every command, so it works the same
+// for the host and for a crewmate who joined.
+const DEV_NAME='flingus dingus',isDevName=n=>String(n||'').toLowerCase().replace(/\s+/g,' ').trim()===DEV_NAME;
+const DEV_MONS=[[0,'Mimic'],[1,'Sleeper'],[3,'Crawler'],[2,'Stalker'],[4,'Night manager'],[5,'Shrink-wrap'],[13,'Blind one'],[7,'Driver'],[12,'Moth'],[15,'Long-legged thing'],[16,'Auditor']];
+// a free floor spot a few metres in front of you (or as near as there is one)
+function devSpot(p){const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw),ok=(x,z)=>{if(x<WH.x0+1||x>WH.x1-1||z<WH.z0+1||z>WH.z1-1)return false;const [i,j]=cellOf(x,z);return !GRID.blk[j*GRID.nx+i]};
+  for(const d of[5,4,6,3,7,8,2.5])for(const s of[0,.5,-.5,1,-1]){const x=p.x+(fx*Math.cos(s)-fz*Math.sin(s))*d,z=p.z+(fz*Math.cos(s)+fx*Math.sin(s))*d;if(ok(x,z))return{x,z}}
+  for(let k=0;k<200;k++){const x=rand(WH.x0+2,WH.x1-2),z=rand(WH.z0+2,WH.z1-2);if(ok(x,z))return{x,z}}return{x:0,z:0}}
+// sleepers and crawlers live in trailers, so ask for a truck with one in it
+function devTruck(kind,p){const i=S.trucks.findIndex((t,k)=>bayOn(k)&&t.st===0&&!(t.stuck>0));HOST.devNext=kind;
+  if(i<0)return toP(p,'Every bay is busy. The next truck in will bring it.');spawnTruck(i);toP(p,`A truck is backing into Bay ${BAYS[i].name} with one inside.`)}
+function devAct(p,a){if(!p||!isDevName(p.name)||!S||S.over)return;
+  if(a.k==='skip'){if(S.phase!=='play')return toP(p,'There is no night running to skip.');S.shelved=Math.max(S.shelved,S.quota);endNight();return}
+  if(a.k==='cash'){const n=Math.round(clamp(+a.n||0,0,1e6));if(!n)return;const solo=Object.keys(S.players).length<2;S.cash=(S.cash||0)+n;if(!solo)p.cash=(p.cash||0)+n;
+    return toP(p,solo?`+$${n}.`:`+$${n} to you and +$${n} to the team fund.`)}
+  if(a.k!=='mon')return;if(S.phase!=='play')return toP(p,'Monsters can only be spawned during a night.');
+  const ty=+a.ty,sp=devSpot(p),name=(DEV_MONS.find(d=>d[0]===ty)||[0,'?'])[1],has=t=>S.mons.some(m=>m.ty===t&&!m.dead),here=n=>toP(p,`The ${n} is already here.`);
+  switch(ty){
+  case 0:S.boxes.push({id:boxSeq++,st:3,x:sp.x,y:0,z:sp.z,ry:rand(-.4,.4),k:randi(0,2),f:false,v:randi(0,3),h:'',s:-1,m:true,tw:rand(1,3)});S.bver++;break;
+  case 1:return devTruck('lurk',p);
+  case 3:return devTruck('crawl',p);
+  case 2:spawnStalkerAt(sp.x,sp.z);break;
+  case 4:if(has(4))return here('night manager');HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:MGR_SPOT.x,z:MGR_SPOT.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0});break;
+  case 5:if(has(5))return here('shrink-wrap');S.mons.push({id:monSeq++,ty:5,x:SHRINK_HOME.x,z:SHRINK_HOME.z,y:0,ry:-2.4,st:'home',a:0,heard:-99,cd:0,path:null,rep:0});break;
+  case 13:if(has(13))return here('blind one');S.mons.push({id:monSeq++,ty:13,x:sp.x,z:sp.z,y:0,ry:rand(-3,3),st:'look',a:0,t:0,lookT:3,cd:3,path:null,rep:0,hearT:0});break;
+  case 7:{if(has(7))return here('driver');const i=S.trucks.findIndex((t,k)=>bayOn(k)&&t.st===2),b=Math.max(0,i);
+    S.mons.push({id:monSeq++,ty:7,bay:b,x:i>=0?BAYS[b].x+2.4:sp.x,z:i>=0?WH.z0+1.2:sp.z,y:0,ry:0,st:'wander',a:2,life:75,stun:0,path:null,rep:0,k:randi(0,9)});break}
+  case 12:{const n0=S.mons.filter(m=>m.ty===12).length;spawnMoth();if(S.mons.filter(m=>m.ty===12).length===n0)return toP(p,'Moths need a working light, and only two come at once.');break}
+  case 15:{if(has(15))return here('long-legged thing');let i=S.trucks.findIndex((t,k)=>bayOn(k)&&t.st===0);if(i<0)i=Math.max(0,S.trucks.findIndex((t,k)=>bayOn(k)));
+    const tr=S.trucks[i];if(tr.st===0){tr.door=1;tr.stuck=16;emit({e:'stuck',b:i})}
+    S.mons.push({id:monSeq++,ty:15,bay:i,x:BAYS[i].x,z:WH.z0-8,y:SP_LOW,ry:0,st:'enter',a:4,t:0,life:0,cd:0,hearT:0});break}
+  case 16:{if(has(16))return here('auditor');S.mons.push({id:monSeq++,ty:16,x:sp.x,z:sp.z,y:0,ry:rand(-3,3),st:'pick',a:0,t:0,life:0,cd:2,pulled:0,exp:{},path:null,rep:0});break}
+  default:return}
+  toP(p,`Spawned: ${name}.`)}
 // ===================================================================== networking
 // Browser-to-browser over WebRTC (PeerJS). The host runs the simulation; clients send their own
 // position plus action requests, and get snapshots back 20 times a second.
@@ -2946,7 +2988,7 @@ let REBIND=null; // the action waiting for a key in Settings
 addEventListener('keydown',e=>{if(!REBIND)return;e.preventDefault();e.stopImmediatePropagation();
   if(e.code!=='Escape'){const id=REBIND,old=boundKey(id),other=BINDS.find(b=>b[0]!==id&&boundKey(b[0])===e.code);SET.keys=SET.keys||{};SET.keys[id]=e.code;if(other)SET.keys[other[0]]=old;saveSet();buildKeymap()}
   REBIND=null;renderBinds()},true);
-addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;const code=mapKey(e.code);if(code===null)return;K[code]=true;
+addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;if(e.code==='KeyX'&&!e.repeat&&devKey())return;const code=mapKey(e.code);if(code===null)return;K[code]=true;
   if(!e.repeat)keyPress(code);
   if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(code))e.preventDefault()});
 // a key (or touch button) going down: spectating, it switches whose view you watch
@@ -2973,7 +3015,7 @@ canvas.addEventListener('contextmenu',e=>e.preventDefault());
 // hide the shop and leave nothing on screen, with no way to move
 document.addEventListener('pointerlockchange',()=>{if(locked()&&S&&S.phase==='shop'&&GAME.on){if(document.pointerLockElement)document.exitPointerLock();return}
   if(locked()){lookSkip=3;GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
-  else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')){showPause()}});
+  else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')&&!DEV.open){showPause()}});
 
 function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||S.phase!=='play')return;
   if(ME.grab){if(['KeyE','KeyQ','Space'].includes(code))struggle();return}
@@ -3334,7 +3376,7 @@ const SCREENS=['menu','how','settings','lobby','pause','over','shop','pubs','ins
 function hideScreens(){for(const s of SCREENS)$(s).classList.add('hide');cornerSync()}
 function show(id){hideScreens();$(id).classList.remove('hide');cornerSync()}
 let settingsBack='menu';
-function showMenu(err){GAME.on=false;$('hud').classList.add('hide');$('lockmsg').classList.add('hide');show('menu');$('menuErr').textContent=err?String(err):'';saveNote();if(document.pointerLockElement)document.exitPointerLock()}
+function showMenu(err){GAME.on=false;gameSound(false);$('hud').classList.add('hide');$('lockmsg').classList.add('hide');show('menu');$('menuErr').textContent=err?String(err):'';saveNote();if(document.pointerLockElement)document.exitPointerLock()}
 function showPause(){if(!GAME.on)return;if(NET.mode==='solo')GAME.paused=true;$('pauseNote').textContent=NET.mode==='solo'?'The clock is stopped.':`Crew ${NET.code}: the night keeps going without you.`;show('pause')}
 function renderLobby(){show('lobby');$('code').textContent=NET.code||'-----';
   $('lobbyList').innerHTML=NET.lobby.map(p=>`<li><span class="dot" style="background:${p.col}"></span>${esc(p.name)}${p.id===NET.myId?' <span class="lbl">(you)</span>':''}</li>`).join('');
@@ -3361,7 +3403,7 @@ async function joinCode(code){auInit();NET.code=code;NET.lobby=[];NET.mode='clie
 function saveNote(){const sv=loadSave();$('bCont').classList.toggle('hide',!sv);$('contNote').classList.toggle('hide',!sv);if(!sv)return;
   $('bCont').textContent=`Continue: night ${sv.night+1}`;
   $('contNote').textContent=`${DIFFS[sv.diff]?DIFFS[sv.diff].name:'Normal'}, ${sv.night} night${sv.night>1?'s':''} survived, $${Math.round(sv.cash||0)} in the kitty${sv.crew>1?' (a crew run: host a crew to carry on together)':''}. A new run replaces it once it gets through a night.`}
-function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
+function showOver(o){GAME.overShown=true;gameSound(false);if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
   const crew=S&&Object.keys(S.players).length>1;
   const T={dead:[crew?'THE CREW IS GONE':'YOU DIDN\'T MAKE IT',crew?'Nobody clocked out this morning.':'Something in the dark got you.'],quota:['FIRED',`You missed the quota${o.ot?', even on overtime':''}: ${o.shelved} of ${o.quota} boxes shelved.`],host:['DISCONNECTED','The host left the crew room.']}[o.why]||['SHIFT OVER',''];
   $('overTitle').textContent=T[0];$('overWhy').textContent=T[1];
@@ -3371,7 +3413,7 @@ function showOver(o){GAME.overShown=true;if(document.pointerLockElement)document
   show('over');if(NET.mode==='client'&&o.why!=='host')$('overWhy').textContent+=' Waiting for the host to start another shift…'}
 function checkOver(dt){if(!S.over||GAME.overShown)return;if(ME.scare)return;GAME.overT+=dt;if(GAME.overT>1.8)showOver(S.over)}
 
-function enterGame(){clearVisuals();applyAdds();markSlots();hideScreens();$('hud').classList.remove('hide');GAME.on=true;GAME.paused=false;GAME.overShown=false;GAME.overT=0;GAME.lastPr=null;
+function enterGame(){clearVisuals();applyAdds();markSlots();hideScreens();$('hud').classList.remove('hide');GAME.on=true;gameSound(true);GAME.paused=false;GAME.overShown=false;GAME.overT=0;GAME.lastPr=null;
   Object.assign(ME,{vx:0,vz:0,stam:100,exh:false,bat:100,light:true,kickCD:0,scare:null,shake:0,hurt:0,flash:0,fear:0,deathT:0,lastHp:100,specId:'',red:false,drinkT:0,driving:false,scan:false});shopShown=false;
   const me=S.players[NET.myId];if(me){ME.x=me.x;ME.z=me.z;ME.yaw=me.yaw||0;ME.pitch=0}
   auInit();if(S.phase!=='shop'){reqLock();setTimeout(()=>{if(GAME.on&&!locked()&&!GAME.overShown&&S&&S.phase!=='shop')$('lockmsg').classList.remove('hide')},600)}}
@@ -3379,7 +3421,7 @@ function enterGame(){clearVisuals();applyAdds();markSlots();hideScreens();$('hud
 function startSolo(sv){netClose();NET.mode='solo';NET.myId='me';S=newState();addPlayer('me',myName(),VEST[0]);if(sv)restoreRun(sv);else startNight();enterGame()}
 function hostStartGame(sv){S=newState();for(const p of NET.lobby)addPlayer(p.id,p.name,p.col);NET.started=true;NET.sentBver=-1;NETEV.length=0;if(sv)restoreRun(sv);else startNight();hostSend({t:'start'});lobbyBroadcast();enterGame()}
 function clientStart(){S=newState();S.players={};EVQ.length=0;ME.ready=false;enterGame()}
-function quitToMenu(){GAME.on=false;netClose();S=null;clearVisuals();EVQ.length=0;NETEV.length=0;showMenu()}
+function quitToMenu(){GAME.on=false;gameSound(false);netClose();S=null;clearVisuals();EVQ.length=0;NETEV.length=0;showMenu()}
 
 function bindUI(){
   // difficulty: the host's (or a solo player's) choice runs the whole crew's night
@@ -4124,6 +4166,7 @@ function goFull(){const d=document.documentElement;if(document.fullscreenElement
 function touchDown(t){const b=t.target&&t.target.closest&&t.target.closest('.tb');
   if(b){const k=b.dataset.k;TT.btn.set(t.identifier,b);b.classList.add('on');
     if(k==='pause'){if(GAME.on&&!GAME.overShown)showPause();return}
+    if(k==='dev'){devToggle();return}
     if(navigator.vibrate&&(!navigator.userActivation||navigator.userActivation.hasBeenActive))try{navigator.vibrate(8)}catch(e){}
     K[k]=true;keyPress(k);return}
   if(t.clientX<innerWidth*.42&&!TT.stick){ // the stick comes up under your thumb
@@ -4189,6 +4232,41 @@ async function getApp(){
   addEventListener('appinstalled',()=>{INSTALL_EVT=null;cornerSync()});
   if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
   cornerSync()})();
+// ===================================================================== the dev console (client side)
+// A player named "Flingus Dingus" presses X in a match (or taps DEV on a touch screen) to open it. The buttons send
+// commands to the host, which checks the name again before doing anything (see devAct).
+const DEV={open:false,el:null};
+function devOk(){if(!GAME.on||!S)return false;const me=S.players[NET.myId];return isDevName(me?me.name:myName())}
+function devKey(){if(!devOk())return false;devToggle();return true}
+function devBuild(){if(DEV.el)return;const el=document.createElement('div');el.id='dev';el.className='hide';
+  const b=(k,label,extra='')=>`<button class="small" data-dev="${k}"${extra}>${label}</button>`;
+  el.innerHTML=`<div class="devHead"><b>DEV CONSOLE</b><button class="small" data-dev="close" aria-label="Close">&#10005;</button></div>
+    <div class="devNote">Only you can see this. Press <kbd>X</kbd> to close.</div>
+    <div class="devLbl">Nights</div><div class="devRow">${b('skip','Skip this night')}</div>
+    <div class="devLbl">Money</div><div class="devRow">${[100,1000,10000].map(n=>b('cash',`+$${n.toLocaleString()}`,` data-n="${n}"`)).join('')}</div>
+    <div class="devLbl">Spawn a monster</div><div class="devRow">${DEV_MONS.map(([ty,nm])=>b('mon',nm,` data-ty="${ty}"`)).join('')}</div>
+    <div class="devNote" id="devMsg"></div>`;
+  const css=document.createElement('style');
+  css.textContent=`#dev{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:40;width:min(380px,calc(100vw - 32px));max-height:calc(100vh - 24px);overflow:auto;
+      background:rgba(12,10,9,.94);border:1px solid #ffb84a;padding:12px 14px;font-size:14px;color:var(--ink);box-shadow:0 6px 30px rgba(0,0,0,.6)}
+    #dev.hide{display:none}#dev .devHead{display:flex;justify-content:space-between;align-items:center;color:#ffd890;letter-spacing:.12em}
+    #dev .devHead button{padding:2px 9px}#dev .devLbl{margin:10px 0 5px;color:#c4b99f;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+    #dev .devRow{display:flex;flex-wrap:wrap;gap:6px}#dev .devRow button{padding:6px 10px;font-size:13px}
+    #dev .devNote{color:#a99f88;font-size:12px;margin-top:6px}#dev #devMsg{color:#8fd48a;min-height:1em}
+    #touch #tDev{left:calc(50% + var(--u)*.52);top:max(6px,env(safe-area-inset-top));width:calc(var(--u)*.66);height:calc(var(--u)*.66);font-size:calc(var(--u)*.16);border-radius:8px;border-color:#ffb84a;color:#ffd890}`;
+  document.head.appendChild(css);document.body.appendChild(el);DEV.el=el;
+  el.addEventListener('click',e=>{const t=e.target.closest('[data-dev]');if(!t)return;const k=t.dataset.dev;SFX.click();
+    if(k==='close')return devToggle(false);
+    if(k==='skip')doAct({a:'dev',k:'skip'});else if(k==='cash')doAct({a:'dev',k:'cash',n:+t.dataset.n});else if(k==='mon')doAct({a:'dev',k:'mon',ty:+t.dataset.ty});
+    $('devMsg').textContent='Sent: '+t.textContent})}
+function devToggle(on=!DEV.open){devBuild();DEV.open=on&&devOk();DEV.el.classList.toggle('hide',!DEV.open);$('devMsg').textContent='';
+  // the mouse has to be free to click the buttons; closing the console goes straight back to the game
+  if(DEV.open){if(document.pointerLockElement)document.exitPointerLock();return}
+  if(GAME.on&&S&&S.phase==='play'&&!GAME.overShown&&!GAME.paused&&!TOUCH.on&&!locked()){reqLock();setTimeout(()=>{if(GAME.on&&!locked()&&!DEV.open&&!GAME.overShown&&S&&S.phase==='play')$('lockmsg').classList.remove('hide')},400)}}
+addEventListener('keydown',e=>{if(DEV.open&&e.code==='Escape')devToggle(false)});
+// a DEV button next to pause on touch screens, for the dev only; and the console shuts when the match ends
+(function(){const tp=$('tPause');if(tp){const d=document.createElement('button');d.className='tb hide';d.id='tDev';d.dataset.k='dev';d.textContent='DEV';tp.after(d)}})();
+setInterval(()=>{const ok=devOk();if(DEV.open&&!ok)devToggle(false);const d=$('tDev');if(d)d.classList.toggle('hide',!ok)},300);
 </script>
 </body>
 </html>

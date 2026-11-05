@@ -512,6 +512,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
 // ---------------------------------------------------------------- the actions additions add (returns true if handled)
 function act2(pid,p,a){
   switch(a.a){
+  case 'dev':devAct(p,a);return true;
   case 'use':useItem(p,a);return true;
   case 'cold':{if(!owned('cold'))return true;const c=S.cold;if(c.open){c.open=false}else{c.open=true;c.t=6}emit({e:'coldDoor',o:c.open?1:0});return true}
   case 'lever':{if(!owned('conv')||!nearPos(p,CONV.lever.x,CONV.lever.z,3))return true;S.conv.sel=(S.conv.sel+1)%3;emit({e:'lever',x:CONV.lever.x,z:CONV.lever.z});return true}

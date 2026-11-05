@@ -6,20 +6,24 @@ function auInit(){
   const C=new AC();AU.ctx=C;
   const comp=C.createDynamicsCompressor();comp.threshold.value=-12;comp.knee.value=8;comp.ratio.value=5;comp.attack.value=.003;comp.release.value=.25;comp.connect(C.destination);
   AU.out=C.createGain();AU.out.gain.value=SET.vol;AU.out.connect(comp);
+  // everything the shift makes goes through AU.game, so leaving a match can silence it all at once (menu clicks and the
+  // background drone go straight to AU.out)
+  AU.game=C.createGain();AU.game.gain.value=GAME.on?1:0;AU.game.connect(AU.out);
   const len=C.sampleRate*2,buf=C.createBuffer(1,len,C.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;AU.noise=buf;
   // big empty-building reverb
   const rl=C.sampleRate*2.6,ir=C.createBuffer(2,rl,C.sampleRate);for(let ch=0;ch<2;ch++){const a=ir.getChannelData(ch);for(let i=0;i<rl;i++){const t=i/rl;a[i]=(Math.random()*2-1)*Math.pow(1-t,3.2)*(i<C.sampleRate*.012?0:1)}}
-  const cv=C.createConvolver();cv.buffer=ir;AU.rev=C.createGain();AU.rev.gain.value=.55;AU.rev.connect(cv);cv.connect(AU.out);
-  AU.dist=C.createWaveShaper();const n=1024,cu=new Float32Array(n);for(let i=0;i<n;i++){const x=i/n*2-1;cu[i]=Math.tanh(x*6)}AU.dist.curve=cu;AU.dist.connect(AU.out);
+  const cv=C.createConvolver();cv.buffer=ir;AU.rev=C.createGain();AU.rev.gain.value=.55;AU.rev.connect(cv);cv.connect(AU.game);
+  AU.dist=C.createWaveShaper();const n=1024,cu=new Float32Array(n);for(let i=0;i<n;i++){const x=i/n*2-1;cu[i]=Math.tanh(x*6)}AU.dist.curve=cu;AU.dist.connect(AU.game);
   AU.ready=true;startAmbience();
 }
+function gameSound(on){if(AU.game)AU.game.gain.setTargetAtTime(on?1:0,AU.ctx.currentTime,on?.05:.08)}
 function auVol(v){if(AU.out)AU.out.gain.setTargetAtTime(v,AU.ctx.currentTime,.05)}
 function setP(P,p){if(P.positionX){P.positionX.value=p.x;P.positionY.value=p.y;P.positionZ.value=p.z}else P.setPosition(p.x,p.y,p.z)}
 function mkPan(p,ref=2,roll=1.3){const P=AU.ctx.createPanner();P.panningModel='HRTF';P.distanceModel='inverse';P.refDistance=ref;P.rolloffFactor=roll;P.maxDistance=80;setP(P,p);return P}
 // a destination for one sound: optional 3D position, reverb send, optional distortion
-function dest(pos,{rev=.25,gain=1,dist=false,ref=2,roll=1.3}={}){const C=AU.ctx,g=C.createGain();g.gain.value=gain;
+function dest(pos,{rev=.25,gain=1,dist=false,ref=2,roll=1.3,ui=false}={}){const C=AU.ctx,g=C.createGain();g.gain.value=gain;
   let head=g;if(pos){const P=mkPan(pos,ref,roll);g.connect(P);head=P}
-  head.connect(dist?AU.dist:AU.out);if(rev){const s=C.createGain();s.gain.value=rev;head.connect(s);s.connect(AU.rev)}
+  head.connect(dist?AU.dist:ui?AU.out:AU.game);if(rev){const s=C.createGain();s.gain.value=rev;head.connect(s);s.connect(AU.rev)}
   setTimeout(()=>{try{g.disconnect();head.disconnect()}catch(e){}},6000);return g}
 function tone(d,{type='sine',f=440,f2=0,t=0,dur=.2,a=.005,g=.3}){const C=AU.ctx,t0=C.currentTime+t,o=C.createOscillator(),e=C.createGain();o.type=type;o.frequency.setValueAtTime(f,t0);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+dur);
   e.gain.setValueAtTime(1e-4,t0);e.gain.exponentialRampToValueAtTime(g,t0+a);e.gain.exponentialRampToValueAtTime(1e-4,t0+dur);o.connect(e);e.connect(d);o.start(t0);o.stop(t0+dur+.05);return o}
@@ -72,7 +76,7 @@ const SFX={
   place(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3});tone(d,{f:95,f2:48,dur:.22,g:.55});nz(d,{dur:.14,g:.3,type:'lowpass',f:700});tone(d,{type:'triangle',f:420,dur:.08,g:.05,t:.01})},
   kick(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3});tone(d,{f:130,f2:40,dur:.24,g:.6});nz(d,{dur:.12,g:.4,f:900,q:.6})},
   smash(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4});for(let i=0;i<7;i++){tone(d,{type:'triangle',f:rand(1800,4200),dur:rand(.08,.3),g:.12,t:rand(0,.12)})}nz(d,{dur:.3,g:.35,type:'highpass',f:2500})},
-  click(){if(!AU.ready)return;const d=dest(null,{rev:0});tone(d,{type:'square',f:2400,dur:.025,g:.05});tone(d,{type:'square',f:900,dur:.02,g:.03,t:.03})},
+  click(){if(!AU.ready)return;const d=dest(null,{rev:0,ui:true});tone(d,{type:'square',f:2400,dur:.025,g:.05});tone(d,{type:'square',f:900,dur:.02,g:.03,t:.03})},
   scratch(pos){if(!AU.ready)return;const d=dest(pos,{rev:.2,gain:1.4,ref:1.2,roll:1.6});const n=randi(5,10);for(let i=0;i<n;i++)nz(d,{t:i*rand(.03,.07),dur:.04,g:.25,type:'highpass',f:rand(2000,4000),q:2});if(Math.random()<.5)tone(d,{type:'sawtooth',f:rand(300,500),f2:rand(200,300),dur:.25,g:.04,t:.1})},
   // mimic tearing out of its box: cardboard rip, insect chitter, a small wet snarl
   burst(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:1});nz(d,{dur:.22,a:.003,g:.5,f:1800,f2:900,q:1.2});chitter(d,{t:.05,n:10,g:.2});
@@ -208,14 +212,14 @@ const SFX={
     else if(r<.75)nz(d,{dur:.7,g:.35,f:rand(200,400),q:4});
     else{for(let i=0;i<3;i++)tone(d,{type:'triangle',f:rand(600,1400),dur:1.2,g:.04,t:i*.08})}},
   locked(){if(!AU.ready)return;const d=dest(null,{rev:.2});for(let i=0;i<3;i++)nz(d,{t:i*.09,dur:.06,g:.3,f:700,q:3})},
-  deny(){if(!AU.ready)return;const d=dest(null,{rev:0});tone(d,{type:'square',f:160,dur:.15,g:.08})},
+  deny(){if(!AU.ready)return;const d=dest(null,{rev:0,ui:true});tone(d,{type:'square',f:160,dur:.15,g:.08})},
   ok(){if(!AU.ready)return;const d=dest(null,{rev:0});tone(d,{type:'triangle',f:660,dur:.1,g:.1});tone(d,{type:'triangle',f:990,dur:.15,g:.1,t:.08})},
   charge(){if(!AU.ready)return;const d=dest(null,{rev:0});tone(d,{type:'sine',f:1200,dur:.05,g:.04})},
   scream(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1,ref:4});tone(d,{type:'sawtooth',f:420,f2:260,dur:.9,a:.03,g:.2});nz(d,{dur:.8,g:.2,f:1300,q:3})},
 };
 
 // looping 3D sources
-function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.createGain();g.gain.value=0;const P=mkPan(pos||{x:0,y:0,z:0},kind==='engine'?5:2,kind==='hum'?2:1.2);g.connect(P);P.connect(AU.out);
+function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.createGain();g.gain.value=0;const P=mkPan(pos||{x:0,y:0,z:0},kind==='engine'?5:2,kind==='hum'?2:1.2);g.connect(P);P.connect(kind==='amb'?AU.out:AU.game);
   const rs=C.createGain();rs.gain.value=.25;P.connect(rs);rs.connect(AU.rev);
   const nodes=[];const osc=(type,f)=>{const o=C.createOscillator();o.type=type;o.frequency.value=f;o.start();nodes.push(o);return o};
   const ns=()=>{const s=C.createBufferSource();s.buffer=AU.noise;s.loop=true;s.start(0,Math.random());nodes.push(s);return s};
