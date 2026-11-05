@@ -1951,12 +1951,12 @@ function stalkerUpdate(m,dt){m.life-=dt;if(m.life<=0){m.dead=true;emit({e:'fade'
 // Dead fixtures stay dark unless someone has put a bulb in. While the generator has fuel the lamps don't fail
 // on their own (moths and the stalker can still put them out). In a power outage nothing comes on unless the
 // generator has fuel.
-// (a light with a new bulb in it doesn't go out: not by itself, not for moths, not for the stalker. Only the power.)
-function lampOut(i,dur){if(!S.lamps[i]||(S.fixed||[]).includes(i))return;S.lamps[i]=0;HOST.lampT[i]=dur;emit({e:'lamp',i})}
+// (a light with a new bulb in it never goes out by itself; moths and the stalker can still put it out for a while)
+function lampOut(i,dur){if(!S.lamps[i])return;S.lamps[i]=0;HOST.lampT[i]=dur;emit({e:'lamp',i})}
 function lampsUpdate(dt){if(S.ot)return;if(mainsDown()){if(S.lamps.some(x=>x))S.lamps=S.lamps.map(()=>0);return}const steady=owned('gen');for(let i=0;i<LAMPS.length;i++){
   if(LAMPS[i].dead&&!S.fixed.includes(i))continue;
   if(!S.lamps[i]){HOST.lampT[i]-=dt;if(HOST.lampT[i]<=0){S.lamps[i]=1;emit({e:'lampOn',i})}continue}
-  HOST.lampNext[i]-=dt;if(HOST.lampNext[i]<=0){HOST.lampNext[i]=rand(25,50)/diffEv()*(i===0?1.8:i===3?.6:1);if(!steady)lampOut(i,rand(1.5,4.5))}}}
+  HOST.lampNext[i]-=dt;if(HOST.lampNext[i]<=0){HOST.lampNext[i]=rand(25,50)/diffEv()*(i===0?1.8:i===3?.6:1);if(!steady&&!(S.fixed||[]).includes(i))lampOut(i,rand(1.5,4.5))}}}
 
 // ---------------------------------------------------------------- player actions
 function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
@@ -2222,7 +2222,7 @@ function genUpdate(dt){if(!owned('gen')||S.ot||!S.outage)return;const g=S.gen;
 const genPowered=()=>owned('gen')&&S.gen&&S.gen.fuel>0;
 const mainsDown=()=>!!S.outage&&!genPowered(); // lamps dead, charger at a tenth of its speed
 function powerOn(){S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);HOST.lampT=LAMPS.map(()=>0)}
-function spawnMoth(){if(S.mons.filter(m=>m.ty===12).length>=2)return;let lit=LAMPS.map((L,i)=>i).filter(i=>S.lamps[i]);if(!lit.length)return;{const nb=lit.filter(i=>!(S.fixed||[]).includes(i));if(nb.length)lit=nb} // (they go for lights they can break)
+function spawnMoth(){if(S.mons.filter(m=>m.ty===12).length>=2)return;const lit=LAMPS.map((L,i)=>i).filter(i=>S.lamps[i]);if(!lit.length)return;
   const li=pick(lit),L=LAMPS[li];S.mons.push({id:monSeq++,ty:12,x:L.x+1.2,z:L.z,y:4.4,ry:0,st:'circle',li,t:0,ph:rand(0,TAU),a:2,lt:0})}
 function mothUpdate(m,dt){m.t+=dt;const L=LAMPS[m.li];
   if(m.st==='leave'){m.y+=dt*1.5;m.x+=Math.sin(m.ph)*dt*3;m.z+=Math.cos(m.ph)*dt*3;if(m.t>4){m.dead=true;emit({e:'fade',id:m.id})}return}

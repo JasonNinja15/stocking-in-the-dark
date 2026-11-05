@@ -344,12 +344,12 @@ function stalkerUpdate(m,dt){m.life-=dt;if(m.life<=0){m.dead=true;emit({e:'fade'
 // Dead fixtures stay dark unless someone has put a bulb in. While the generator has fuel the lamps don't fail
 // on their own (moths and the stalker can still put them out). In a power outage nothing comes on unless the
 // generator has fuel.
-// (a light with a new bulb in it doesn't go out: not by itself, not for moths, not for the stalker. Only the power.)
-function lampOut(i,dur){if(!S.lamps[i]||(S.fixed||[]).includes(i))return;S.lamps[i]=0;HOST.lampT[i]=dur;emit({e:'lamp',i})}
+// (a light with a new bulb in it never goes out by itself; moths and the stalker can still put it out for a while)
+function lampOut(i,dur){if(!S.lamps[i])return;S.lamps[i]=0;HOST.lampT[i]=dur;emit({e:'lamp',i})}
 function lampsUpdate(dt){if(S.ot)return;if(mainsDown()){if(S.lamps.some(x=>x))S.lamps=S.lamps.map(()=>0);return}const steady=owned('gen');for(let i=0;i<LAMPS.length;i++){
   if(LAMPS[i].dead&&!S.fixed.includes(i))continue;
   if(!S.lamps[i]){HOST.lampT[i]-=dt;if(HOST.lampT[i]<=0){S.lamps[i]=1;emit({e:'lampOn',i})}continue}
-  HOST.lampNext[i]-=dt;if(HOST.lampNext[i]<=0){HOST.lampNext[i]=rand(25,50)/diffEv()*(i===0?1.8:i===3?.6:1);if(!steady)lampOut(i,rand(1.5,4.5))}}}
+  HOST.lampNext[i]-=dt;if(HOST.lampNext[i]<=0){HOST.lampNext[i]=rand(25,50)/diffEv()*(i===0?1.8:i===3?.6:1);if(!steady&&!(S.fixed||[]).includes(i))lampOut(i,rand(1.5,4.5))}}}
 
 // ---------------------------------------------------------------- player actions
 function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;

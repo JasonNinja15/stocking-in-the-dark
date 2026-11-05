@@ -218,7 +218,7 @@ function genUpdate(dt){if(!owned('gen')||S.ot||!S.outage)return;const g=S.gen;
 const genPowered=()=>owned('gen')&&S.gen&&S.gen.fuel>0;
 const mainsDown=()=>!!S.outage&&!genPowered(); // lamps dead, charger at a tenth of its speed
 function powerOn(){S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);HOST.lampT=LAMPS.map(()=>0)}
-function spawnMoth(){if(S.mons.filter(m=>m.ty===12).length>=2)return;let lit=LAMPS.map((L,i)=>i).filter(i=>S.lamps[i]);if(!lit.length)return;{const nb=lit.filter(i=>!(S.fixed||[]).includes(i));if(nb.length)lit=nb} // (they go for lights they can break)
+function spawnMoth(){if(S.mons.filter(m=>m.ty===12).length>=2)return;const lit=LAMPS.map((L,i)=>i).filter(i=>S.lamps[i]);if(!lit.length)return;
   const li=pick(lit),L=LAMPS[li];S.mons.push({id:monSeq++,ty:12,x:L.x+1.2,z:L.z,y:4.4,ry:0,st:'circle',li,t:0,ph:rand(0,TAU),a:2,lt:0})}
 function mothUpdate(m,dt){m.t+=dt;const L=LAMPS[m.li];
   if(m.st==='leave'){m.y+=dt*1.5;m.x+=Math.sin(m.ph)*dt*3;m.z+=Math.cos(m.ph)*dt*3;if(m.t>4){m.dead=true;emit({e:'fade',id:m.id})}return}
