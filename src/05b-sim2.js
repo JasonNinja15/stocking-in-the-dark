@@ -509,8 +509,11 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
     for(const m of S.mons){if(m.bay!==bi)continue;if(m.ty===3&&m.st!=='inside'&&m.st!=='home'){m.dead=true;emit({e:'vanish',x:m.x,y:m.y,z:m.z})}if(m.ty===1){m.st='sleep';m.lx=LURK_LX;m.lz=LURK_HOME;m.ry=Math.PI/2}}
     emit({e:'slam',x:BAYS[bi].x,z:WH.z0});emit({e:'horn',b:bi});no(`Bay ${nm} slammed shut. The truck is leaving.`);break}
   case 'bulb':{if(!(inv.bulb>0))return;const fi=deadLampAt(p.x,p.z);
-    if(fi<0)return no('Stand under a dead light fixture to put the bulb in.');if(S.fixed.length>=MAX_BULBS)return no('That\'s as many fixtures as the wiring will take.');
-    inv.bulb--;S.fixed.push(fi);if(!S.ot&&!mainsDown())S.lamps[fi]=1;emit({e:'bulbOn',i:fi});break}
+    // a working light that's only out for the moment looks just like a dead one, so say which it is
+    if(fi<0){const w=LAMPS.findIndex((L,i)=>!L.dead&&Math.hypot(p.x-L.x,p.z-L.z)<3);
+      return no(w>=0?(S.ot||mainsDown()?'This light isn\'t broken: the power is off. It needs no bulb.':'This light isn\'t broken, only out for a moment. It needs no bulb.'):'Stand under a dead light fixture to put the bulb in.')}
+    if(S.fixed.length>=MAX_BULBS)return no('That\'s as many fixtures as the wiring will take.');
+    const live=!S.ot&&!mainsDown();inv.bulb--;S.fixed.push(fi);if(live)S.lamps[fi]=1;emit({e:'bulbOn',i:fi,on:live?1:0,p:p.id});break}
   }}
 
 // ---------------------------------------------------------------- the actions additions add (returns true if handled)

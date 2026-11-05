@@ -380,7 +380,7 @@ function onEvent2(e){if(onEvent3(e))return;const me=NET.myId,P=(x,z,y=1)=>({x,y,
   case 'forkIn':if(e.p===me){ME.yaw=S.fork.ry+Math.PI;ME.pitch=-.1;ME.fv=0;toast('W/S drive, A/D steer. E lifts or sets down a pallet, Q gets out.',4)}break;
   case 'forkOut':break;
   case 'pa2':SFX.pa(e.fake);toast(`Loudspeaker: "Priority parcel ${e.n}. Double pay."`,6,e.fake?'radio fake':'radio');break;
-  case 'bulbOn':SFX.bulb({x:LAMPS[e.i].x,y:5,z:LAMPS[e.i].z});toast('The light flickers on and stays on.',2.5);break;
+  case 'bulbOn':SFX.bulb({x:LAMPS[e.i].x,y:5,z:LAMPS[e.i].z});if(!e.p||e.p===NET.myId)toast(e.on===0?(S.ot?'The bulb is in. It will light tomorrow night: the lights are off for overtime.':'The bulb is in. It will light when the power comes back.'):'The light flickers on and stays on.',3.5);break;
   case 'skitter':SFX.skitter(P(e.x,e.z,e.y));break;
   }}
 

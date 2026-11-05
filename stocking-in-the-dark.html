@@ -2512,8 +2512,11 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
     for(const m of S.mons){if(m.bay!==bi)continue;if(m.ty===3&&m.st!=='inside'&&m.st!=='home'){m.dead=true;emit({e:'vanish',x:m.x,y:m.y,z:m.z})}if(m.ty===1){m.st='sleep';m.lx=LURK_LX;m.lz=LURK_HOME;m.ry=Math.PI/2}}
     emit({e:'slam',x:BAYS[bi].x,z:WH.z0});emit({e:'horn',b:bi});no(`Bay ${nm} slammed shut. The truck is leaving.`);break}
   case 'bulb':{if(!(inv.bulb>0))return;const fi=deadLampAt(p.x,p.z);
-    if(fi<0)return no('Stand under a dead light fixture to put the bulb in.');if(S.fixed.length>=MAX_BULBS)return no('That\'s as many fixtures as the wiring will take.');
-    inv.bulb--;S.fixed.push(fi);if(!S.ot&&!mainsDown())S.lamps[fi]=1;emit({e:'bulbOn',i:fi});break}
+    // a working light that's only out for the moment looks just like a dead one, so say which it is
+    if(fi<0){const w=LAMPS.findIndex((L,i)=>!L.dead&&Math.hypot(p.x-L.x,p.z-L.z)<3);
+      return no(w>=0?(S.ot||mainsDown()?'This light isn\'t broken: the power is off. It needs no bulb.':'This light isn\'t broken, only out for a moment. It needs no bulb.'):'Stand under a dead light fixture to put the bulb in.')}
+    if(S.fixed.length>=MAX_BULBS)return no('That\'s as many fixtures as the wiring will take.');
+    const live=!S.ot&&!mainsDown();inv.bulb--;S.fixed.push(fi);if(live)S.lamps[fi]=1;emit({e:'bulbOn',i:fi,on:live?1:0,p:p.id});break}
   }}
 
 // ---------------------------------------------------------------- the actions additions add (returns true if handled)
@@ -3398,7 +3401,8 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     // a bulb on you: under a dead light it's E; with the bulb picked anywhere else, point the way to the nearest one
     if(!t&&!ME.driving&&me&&haveItem(me,'bulb')){if(deadLampAt(ME.x,ME.z)>=0)pr='<kbd>E</kbd> or <kbd>Right click</kbd> Put the new bulb in this light';
       else if(curSel(me)==='bulb'&&ME.x<60&&!onRoof(ME)){let bi=-1,bd=1e9;LAMPS.forEach((L,i)=>{const d=Math.hypot(ME.x-L.x,ME.z-L.z);if(L.dead&&!(S.fixed||[]).includes(i)&&d<bd){bd=d;bi=i}});
-        if(bi>=0)pr=`Lamp bulb: nearest dark light ${dirTo(LAMPS[bi].x,LAMPS[bi].z)}`}}
+        const ok=LAMPS.some(L=>!L.dead&&Math.hypot(ME.x-L.x,ME.z-L.z)<3); // (under a working light that's only out)
+        if(bi>=0)pr=`${ok?'This light isn\'t broken. ':''}Lamp bulb: nearest broken light ${dirTo(LAMPS[bi].x,LAMPS[bi].z)}`}}
     if(ME.cart>=0&&!t)pr='<kbd>Q</kbd> Let go of the cart'+(carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?(owned('amrl')&&Math.hypot(forkTip().x-AMR.l.x,forkTip().z-AMR.l.z)<1.7?' &nbsp; <kbd>G</kbd> Set the pallet on the robot pad':' &nbsp; <kbd>G</kbd> Set the pallet down'):carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
@@ -3969,7 +3973,7 @@ function onEvent2(e){if(onEvent3(e))return;const me=NET.myId,P=(x,z,y=1)=>({x,y,
   case 'forkIn':if(e.p===me){ME.yaw=S.fork.ry+Math.PI;ME.pitch=-.1;ME.fv=0;toast('W/S drive, A/D steer. E lifts or sets down a pallet, Q gets out.',4)}break;
   case 'forkOut':break;
   case 'pa2':SFX.pa(e.fake);toast(`Loudspeaker: "Priority parcel ${e.n}. Double pay."`,6,e.fake?'radio fake':'radio');break;
-  case 'bulbOn':SFX.bulb({x:LAMPS[e.i].x,y:5,z:LAMPS[e.i].z});toast('The light flickers on and stays on.',2.5);break;
+  case 'bulbOn':SFX.bulb({x:LAMPS[e.i].x,y:5,z:LAMPS[e.i].z});if(!e.p||e.p===NET.myId)toast(e.on===0?(S.ot?'The bulb is in. It will light tomorrow night: the lights are off for overtime.':'The bulb is in. It will light when the power comes back.'):'The light flickers on and stays on.',3.5);break;
   case 'skitter':SFX.skitter(P(e.x,e.z,e.y));break;
   }}
 

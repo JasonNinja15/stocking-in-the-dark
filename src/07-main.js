@@ -435,7 +435,8 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     // a bulb on you: under a dead light it's E; with the bulb picked anywhere else, point the way to the nearest one
     if(!t&&!ME.driving&&me&&haveItem(me,'bulb')){if(deadLampAt(ME.x,ME.z)>=0)pr='<kbd>E</kbd> or <kbd>Right click</kbd> Put the new bulb in this light';
       else if(curSel(me)==='bulb'&&ME.x<60&&!onRoof(ME)){let bi=-1,bd=1e9;LAMPS.forEach((L,i)=>{const d=Math.hypot(ME.x-L.x,ME.z-L.z);if(L.dead&&!(S.fixed||[]).includes(i)&&d<bd){bd=d;bi=i}});
-        if(bi>=0)pr=`Lamp bulb: nearest dark light ${dirTo(LAMPS[bi].x,LAMPS[bi].z)}`}}
+        const ok=LAMPS.some(L=>!L.dead&&Math.hypot(ME.x-L.x,ME.z-L.z)<3); // (under a working light that's only out)
+        if(bi>=0)pr=`${ok?'This light isn\'t broken. ':''}Lamp bulb: nearest broken light ${dirTo(LAMPS[bi].x,LAMPS[bi].z)}`}}
     if(ME.cart>=0&&!t)pr='<kbd>Q</kbd> Let go of the cart'+(carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?(owned('amrl')&&Math.hypot(forkTip().x-AMR.l.x,forkTip().z-AMR.l.z)<1.7?' &nbsp; <kbd>G</kbd> Set the pallet on the robot pad':' &nbsp; <kbd>G</kbd> Set the pallet down'):carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
