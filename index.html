@@ -373,7 +373,7 @@ const COLD={x0:21,x1:WH.x1,z0:WH.z0,z1:-12.5,dx0:24.6,dx1:26.0};           // fr
 const CONV={z:18.4,x0:-12.6,x1:-2.75,y:.85,bx:-2.2,bins:[17.25,18.4,19.55],lever:{x:-5.2,z:16.95},jam:{x:-3.05,z:17.7}};
 const CAR_UP={x0:-30,x1:-27.5,z0:-10.5,z1:-8.1}, CAR_DN={x0:70,x1:72.5,z0:-1.2,z1:1.2}, BASE={x0:70,x1:84,z0:-6,z1:6};
 // the basement shredder by the returns cage, and the corner something sits in
-const SHRED={x:76.6,z:-5.25}, HUNCH={x:83.2,z:5.2}, STRUGGLE_N=14;
+const SHRED={x:76.6,z:-5.25}, HUNCH={x:83.2,z:5.2}, STRUGGLE_N=28, STRUG_DECAY=4; // presses to break its grip; the meter drains this many a second once you stop
 const CAR_OFF={x:CAR_DN.x0-CAR_UP.x0,z:CAR_DN.z0-CAR_UP.z0};
 const GEN={x:-28.6,z:11.9}, FUELR={x:-25.2,z:13.2}, FORK_HOME={x:7.6,z:-15.2,ry:-Math.PI/2}, SHRINK_HOME={x:25.4,z:13.4}, MGR_SPOT={x:-28.3,z:18.2}; // the night manager comes and goes by the roof ladder
 // the roof is its own space far off to the west (like the basement to the east), the same size as the warehouse below it.
@@ -732,7 +732,7 @@ function pushOut(p,r,c){const nx=clamp(p.x,c.x0,c.x1),nz=clamp(p.z,c.z0,c.z1);le
 function insideAny(x,z,pad=0){for(const c of COL)if(c.on&&x>c.x0-pad&&x<c.x1+pad&&z>c.z0-pad&&z<c.z1+pad)return true;return false}
 // 2D segment vs rectangles: does anything solid sit between a and b?
 function segBlocked(ax,az,bx,bz){const dx=bx-ax,dz=bz-az;
-  for(const c of COL){if(!c.on)continue;let t0=0,t1=1;
+  for(const c of COL){if(!c.on||c.low)continue;let t0=0,t1=1;
     if(Math.abs(dx)<1e-9){if(ax<c.x0||ax>c.x1)continue}else{let a=(c.x0-ax)/dx,b=(c.x1-ax)/dx;if(a>b)[a,b]=[b,a];t0=Math.max(t0,a);t1=Math.min(t1,b);if(t0>t1)continue}
     if(Math.abs(dz)<1e-9){if(az<c.z0||az>c.z1)continue}else{let a=(c.z0-az)/dz,b=(c.z1-az)/dz;if(a>b)[a,b]=[b,a];t0=Math.max(t0,a);t1=Math.min(t1,b);if(t0>t1)continue}
     if(t1>0.02&&t0<0.98)return true}
@@ -763,6 +763,10 @@ function astar(sx,sz,tx,tz,avoid){ // avoid(x,z)->true to treat a cell as blocke
 // bought: its geometry becomes visible and its colliders (tagged with `add`) start counting for collisions
 // and for the monsters' pathfinding grid.
 const FORKCOL=col(0,0,0,0,{dyn:true}); // follows the forklift around
+// the hand carts: up to two, parked by the west end of the dock (the far end of the bays from the forklift). A parked
+// cart is solid to walk into; it's waist high, so it never hides anything from a flashlight or a monster (low).
+const CART_MAX=5,CART_OFF=.98,CART_HOME=[{x:-26.7,z:-16.9,ry:0},{x:-26.7,z:-14.3,ry:0}];
+const CARTCOL=CART_HOME.map(()=>col(0,0,0,0,{dyn:true,on:false,low:true}));
 const ADDG={};         // addition key -> group
 const ADDV={};         // moving parts: doors, gates, hatches, the sorting arm, gauges
 function addGroup(k){const g=new THREE.Group();g.visible=false;ROOT.add(g);ADDG[k]=g;return g}
@@ -1249,6 +1253,27 @@ function makeForklift(){const g=new THREE.Group(),body=pivot(0,0,0,g);
   const beacon=new THREE.Mesh(GEO.sph,basic(0xffa020));beacon.scale.setScalar(.06);beacon.position.set(0,2.42,-.2);body.add(beacon);
   g.userData={body,lift,beacon};return g}
 
+// ---- the hand cart: a platform truck. A blue steel deck with a ribbed rubber mat, a lip round the edge, four
+// casters (the front two swivel), and a tubular push handle at the back with foam grips. Faces +Z; the handle is at -Z.
+const CART_MAT={frame:toon(0x2b5aa0),mat:toon(0x1d1e20),grip:toon(0x111214),chrome:toon(0x8d9399)};
+function makeCart(){const g=new THREE.Group(),M=CART_MAT,body=pivot(0,0,0,g);
+  part(GEO.box,M.frame,.64,.06,1.04,0,.23,0,body);part(GEO.box,M.mat,.58,.012,.98,0,.266,0,body,{cast:false});      // deck, mat
+  for(let i=-4;i<=4;i++)part(GEO.box,M.frame,.56,.008,.018,0,.276,i*.1,body,{cast:false});                              // mat ribs
+  for(const s of[-1,1])part(GEO.box,M.frame,.03,.05,1.04,s*.305,.285,0,body);part(GEO.box,M.frame,.64,.05,.03,0,.285,.505,body); // lip
+  for(const s of[-1,1])part(GEO.box,M.frame,.05,.05,.96,s*.25,.18,0,body,{cast:false});                                // chassis rails underneath
+  // the push handle: two uprights leaning back a little, a crossbar, foam grips
+  const h=pivot(0,.26,-.49,body);h.rotation.x=-.12;
+  for(const s of[-1,1]){part(GEO.cyl,M.frame,.018,.82,.018,s*.27,.41,0,h);part(GEO.box,M.frame,.05,.06,.07,s*.27,.02,0,h)}
+  part(GEO.cyl,M.frame,.018,.58,.018,0,.82,0,h,{rz:Math.PI/2});part(GEO.cyl,M.grip,.026,.4,.026,0,.82,0,h,{rz:Math.PI/2});
+  part(GEO.cyl,M.frame,.014,.54,.014,0,.5,0,h,{rz:Math.PI/2});                                                          // lower rail
+  // casters: a bracket under each corner, a wheel that spins as it rolls; the front pair swivel on their stems
+  const wheels=[],swivel=[];
+  for(const [x,z] of[[-.24,.4],[.24,.4],[-.24,-.4],[.24,-.4]]){const st=pivot(x,.2,z,body);if(z>0)swivel.push(st);
+    part(GEO.cyl,M.chrome,.03,.03,.03,0,0,0,st);part(GEO.box,M.chrome,.012,.11,.05,-.035,-.06,0,st);part(GEO.box,M.chrome,.012,.11,.05,.035,-.06,0,st);
+    const w=pivot(0,-.11,0,st);part(GEO.cyl,M.grip,.09,.045,.09,0,0,0,w,{rz:Math.PI/2});part(GEO.cyl,M.chrome,.035,.05,.035,0,0,0,w,{rz:Math.PI/2,cast:false});
+    part(GEO.box,M.chrome,.05,.02,.02,0,.06,0,w,{cast:false});wheels.push(w)} // (a spoke, so you can see it turn)
+  g.userData={wheels,swivel,handle:h};return g}
+
 // ---- the warehouse robots (autonomous mobile robots). Both face +Z, front lidar and bumper that way.
 // S: a small white tote-mover, low drive base with a dark skirt and a blue light band, a lidar puck up front, a slim
 // mast with a status screen, and a lift deck on top that carries one box and raises it to the shelf.
@@ -1561,6 +1586,8 @@ function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.create
   else if(kind==='belt'){const f=filt('lowpass',300);osc('sawtooth',48).connect(f);amp(f,.4);const n=filt('bandpass',900,3);ns().connect(n);const a=amp(n,.15);lfoTo(a.gain,6,.1,'square')}
   else if(kind==='lift'){const f=filt('lowpass',220);osc('sawtooth',62).connect(f);osc('sawtooth',63.5).connect(f);amp(f,.5);const n=filt('bandpass',500,2);ns().connect(n);amp(n,.2)}
   else if(kind==='gen'){const f=filt('lowpass',380);osc('sawtooth',30).connect(f);osc('square',60).connect(f);const a=amp(f,.4);lfoTo(a.gain,15,.12);const n=filt('lowpass',600);ns().connect(n);amp(n,.15)}
+  else if(kind==='cart'){ // casters on concrete: a fast clatter over a low rumble
+    const f=filt('bandpass',2300,2.5);ns().connect(f);const a=amp(f,.22);lfoTo(a.gain,21,.2,'square');lfoTo(a.gain,3.3,.08);const l=filt('lowpass',240);ns().connect(l);const b=amp(l,.55);lfoTo(b.gain,8,.2,'square')}
   else if(kind==='flare'){const f=filt('bandpass',3500,.8);ns().connect(f);const a=amp(f,.4);lfoTo(a.gain,9,.12)}
   else if(kind==='gbreath'){ // the thing in the yard breathing: one breath every ten seconds, from somewhere far overhead
     const f=filt('lowpass',240);ns().connect(f);const a=amp(f,.45);lfoTo(a.gain,.1,.45);const s=filt('lowpass',60);osc('sine',29).connect(s);const b=amp(s,.5);lfoTo(b.gain,.1,.5);
@@ -1597,7 +1624,7 @@ const DF=()=>DIFFS[S&&DIFFS[S.diff]?S.diff:1];
 const lateN=()=>Math.max(0,(S?S.night:1)-5),diffEv=()=>DF().ev*Math.min(2,1+.12*lateN()),dmgMul=()=>DF().dmg*Math.min(1.6,1+.06*lateN());
 function newState(){return{night:1,diff:DIFFS[SET.diff]?SET.diff:1,t:0,phase:'play',inter:0,quota:15,shelved:0,lost:0,score:0,total:0,aidLeft:2,lamps:LAMPS.map(L=>L.dead?0:1),
   players:{},boxes:[],trucks:BAYS.map(()=>({st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,stuck:0})),mons:[],over:null,bver:0,
-  cash:0,adds:[],fixed:[],aidBonus:0,extra:0}}
+  cash:0,adds:[],fixed:[],aidBonus:0,extra:0,carts:[]}}
 function addPlayer(id,name,col){S.players[id]={id,name,col,x:0,z:-16,yaw:0,pitch:0,light:true,hp:100,dead:false,carry:-1,lastHurt:-99,inv:{},up:{},stack:[],can:false}}
 function spawnPoint(i){return{x:-2.4+(i%5)*1.4,z:-15.5+Math.floor(i/5)*1.4}}
 const crewMul=()=>{const n=Math.max(1,Object.keys(S.players).length);return 1+.45*Math.min(3,n-1)+.3*Math.max(0,n-4)};
@@ -1621,6 +1648,7 @@ function endNight(){
     S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,stuck:0}));
     // anything in someone's arms (or on the forks) goes down where they stand, and stays for the next night
     if(S.fork&&S.fork.drv&&S.players[S.fork.drv])forkUnload(S.players[S.fork.drv]);
+    for(const c of S.carts||[])if(c.by)cartLetGo(c);
     for(const p of Object.values(S.players)){dropCarry(p);p.can=false}
     // a mimic still loose at 6 AM folds itself back into a box wherever it is
     for(const m of S.mons)if(m.ty===0&&m.st!=='bolt'){const [i,j]=cellOf(m.x,m.z);if(m.x<WH.x0||m.x>WH.x1||m.z<WH.z0+.5||GRID.blk[j*GRID.nx+i])continue;
@@ -1660,7 +1688,10 @@ function applyColliders(){if(!S)return;S.trucks.forEach((tr,i)=>{const v=BAYV[i]
   ADDV.carUp.gcol.on=owned('base')&&!carGateOpen(0);ADDV.carDn.gcol.on=owned('base')&&!carGateOpen(1);
   // (on a client the forklift you bump into is the smoothed one you see: the raw snapshot position jumps 20 times a
   // second, and a collider that jumps shoves you, and your camera, along with it)
-  if(S.fork){const f=S.fork,P=NET.mode==='client'&&FORK3D?FORK3D.position:f;Object.assign(FORKCOL,{x0:P.x-.75,x1:P.x+.75,z0:P.z-.75,z1:P.z+.75,on:!(f.drv&&f.drv===NET.myId)})}}
+  if(S.fork){const f=S.fork,P=NET.mode==='client'&&FORK3D?FORK3D.position:f;Object.assign(FORKCOL,{x0:P.x-.75,x1:P.x+.75,z0:P.z-.75,z1:P.z+.75,on:!(f.drv&&f.drv===NET.myId)})}
+  // a parked hand cart is solid (one being pushed isn't: it moves with its pusher)
+  CARTCOL.forEach((cc,i)=>{const c=(S.carts||[])[i];cc.on=!!c&&!c.by;if(!cc.on)return;const hx=Math.abs(Math.cos(c.ry))*.34+Math.abs(Math.sin(c.ry))*.56,hz=Math.abs(Math.sin(c.ry))*.34+Math.abs(Math.cos(c.ry))*.56;
+    Object.assign(cc,{x0:c.x-hx,x1:c.x+hx,z0:c.z-hz,z1:c.z+hz})})}
 // is (x,y,z) inside someone's flashlight beam with nothing solid in the way?
 // (anything up near the ceiling is above the racks, so only floor-level targets can be hidden behind them)
 // (someone driving the forklift sits higher, and the forklift's own body never blocks their light)
@@ -1696,7 +1727,7 @@ function simUpdate(dt){
   applyColliders();
   for(const p of Object.values(S.players)){if(p._l===undefined)p._l=p.light;if(p.light!==p._l){p._l=p.light;(p.togs||(p.togs=[])).push(S.t)}
     if(p.togs)while(p.togs.length&&S.t-p.togs[0]>1.6)p.togs.shift()}
-  trucksUpdate(dt);boxesUpdate(dt);monstersUpdate(dt);lampsUpdate(dt);extrasUpdate(dt);elevGuard();
+  trucksUpdate(dt);boxesUpdate(dt);monstersUpdate(dt);lampsUpdate(dt);extrasUpdate(dt);cartUpdate(dt);elevGuard();
   for(const p of Object.values(S.players))if(!p.dead&&p.hp<60&&S.t-p.lastHurt>12)p.hp=Math.min(60,p.hp+dt*2.5);
   const ps=Object.values(S.players);if(ps.length&&ps.every(p=>p.dead))gameOver('dead');
 }
@@ -1938,7 +1969,8 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
   switch(a.a){
   case 'pick':{const b=B(a.b);if(!b||(b.st!==0&&b.st!==3)||busy||b.amr)return;
     // the carry upgrade stacks up to three; otherwise hands must be empty
-    if(p.carry>=0&&!((p.up.hand||drv)&&p.stack.length<2))return;const w=boxWorld(b);if(drv?tipD(w)>2.8:!near(w,3.4))return;
+    // (a hand cart takes five)
+    const cap=cartOf(pid)>=0?CART_MAX-1:(p.up.hand||drv)?2:0;if(p.carry>=0&&p.stack.length>=cap)return;const w=boxWorld(b);if(drv?tipD(w)>2.8:!near(w,3.4))return;
     if(b.m){burstMimic(b,pid,true);return}
     if(p.carry>=0)p.stack.push(p.carry);
     const fromTruck=b.st===0,bay=b.bay;b.st=1;b.h=pid;p.carry=b.id;p.baseIdle=0;p.baseWarn=false;if(fromTruck)settleTruck(bay);S.bver++;emit({e:'pick',p:pid,x:w.x,y:w.y,z:w.z});break}
@@ -2002,6 +2034,7 @@ const SHOP={
   bulb:{name:'Lamp bulb',price:50,give:1,key:9,desc:'Use it under a dead light fixture to fix it for the rest of the run.'},
   hand:{name:'Carry Upgrade',price:110,once:true,desc:'Carry up to three boxes at once. Slower, and noisier.'},
   red:{name:'Red headlamp',price:80,once:true,key:'H',desc:'A dim red light (H) that monsters don\'t notice.'},
+  cart:{name:'Hand cart',price:300,team:true,desc:'A flat cart with a push handle, parked at the west end of the dock. Push it to carry five boxes at once, at half the slowdown of carrying them. The wheels rattle a little.'},
   aid:{name:'First-aid refill',price:30,team:true,desc:'One more use of the first-aid cabinet next night (two at most, three with the Medkit Upgrade).'}};
 const PA_SPOTS=[{n:'by the roof ladder',x:-22.4,z:12.2},{n:'at the west end of aisle two',x:-28.4,z:1.5},{n:'behind the east racks',x:28.6,z:2.5},
   {n:'by the barrels',x:26.4,z:16.4},{n:'between the middle racks',x:0,z:1.5},{n:'at the west end of aisle four',x:-28.4,z:11.5},{n:'by the dock columns',x:5.5,z:-11.2}];
@@ -2051,6 +2084,7 @@ function shopAct(pid,a){const p=S.players[pid];if(!p)return;
   if(a.a!=='buy'||S.phase!=='shop')return;const k=a.k;
   const no=m=>emit({e:'msg',m,p:pid});
   if(isTeam(k)){const it=ADDS[k]||SHOP[k];if(ADDS[k]&&owned(k))return no('Already built.');
+    if(k==='cart'&&(S.carts||[]).length>=cartMax())return no(cartMax()>1?'The crew already has two carts.':'You already have a cart.');
     if(k==='aid'&&(S.aidBonus||0)>=aidCap())return no('The cabinet is already stocked for tomorrow.');
     const tv=S.tvotes||(S.tvotes={}),v=tv[k]||(tv[k]=[]);if(v.includes(pid)){tv[k]=v.filter(x=>x!==pid);return}
     if((S.cash||0)<priceOf(k))return no('Not enough in the team fund.');v.push(pid);teamVoteCheck();return}
@@ -2067,8 +2101,8 @@ function shopAct(pid,a){const p=S.players[pid];if(!p)return;
 // a team purchase goes through once more than half the crew has voted for it (and the team fund covers it)
 function teamVoteCheck(){const ids=Object.keys(S.players),tv=S.tvotes||(S.tvotes={});
   for(const k in tv){tv[k]=tv[k].filter(id=>ids.includes(id));const pr=priceOf(k);if(!tv[k].length){delete tv[k];continue}
-    if(tv[k].length*2>ids.length&&(S.cash||0)>=pr&&!(ADDS[k]&&owned(k))){S.cash-=pr;delete tv[k];
-      if(ADDS[k]){S.adds.push(k);applyAdds()}else if(k==='aid')S.aidBonus=(S.aidBonus||0)+1;
+    if(tv[k].length*2>ids.length&&(S.cash||0)>=pr&&!(ADDS[k]&&owned(k))&&!(k==='cart'&&(S.carts||[]).length>=cartMax())){S.cash-=pr;delete tv[k];
+      if(ADDS[k]){S.adds.push(k);applyAdds()}else if(k==='aid')S.aidBonus=(S.aidBonus||0)+1;else if(k==='cart')(S.carts||(S.carts=[])).push(newCart((S.carts||[]).length));
       emit({e:'bought',k,team:1});saveRun()}}}
 function shopVoteCheck(){const ids=Object.keys(S.players),v=(S.votes||[]).filter(id=>ids.includes(id));S.votes=v;teamVoteCheck();
   if(S.phase==='shop'&&v.length*2>ids.length){S.night++;startNight()}}
@@ -2488,10 +2522,11 @@ function act2(pid,p,a){
   case 'cold':{if(!owned('cold'))return true;const c=S.cold;if(c.open){c.open=false}else{c.open=true;c.t=6}emit({e:'coldDoor',o:c.open?1:0});return true}
   case 'lever':{if(!owned('conv')||!nearPos(p,CONV.lever.x,CONV.lever.z,3))return true;S.conv.sel=(S.conv.sel+1)%3;emit({e:'lever',x:CONV.lever.x,z:CONV.lever.z});return true}
   case 'jam':{if(!owned('conv')||!S.conv.jam||!nearPos(p,CONV.jam.x,CONV.jam.z,2.5))return true;S.conv.jam=false;const e=S.parcels.find(x=>x.jam&&x.x>=CONV.x1-.3);if(e)e.jam=false;emit({e:'unjam'});return true}
-  case 'elevIn':{if(!owned('base'))return true;const C=a.lvl===0?CAR_UP:CAR_DN;if(!inCar(p,C)||S.elev.lvl!==a.lvl)return true;elevStart(a.lvl);return true}
+  case 'cart':{const i=cartOf(pid);if(i>=0)cartLetGo(S.carts[i]);else cartGrab(p,a.i|0);return true}
+  case 'elevIn':{if(!owned('base'))return true;if(cartOf(pid)>=0)return toP(p,'Let go of the cart first. It won\'t fit in the car with you.'),true;const C=a.lvl===0?CAR_UP:CAR_DN;if(!inCar(p,C)||S.elev.lvl!==a.lvl)return true;elevStart(a.lvl);return true}
   case 'elevCall':{if(!owned('base'))return true;if(S.elev.st==='idle'&&S.elev.lvl!==a.lvl)elevStart(S.elev.lvl);return true}
   case 'shred':shredBox(p);return true;
-  case 'climb':{if(p.carry>=0||p.can||(S.fork&&S.fork.drv===pid))return toP(p,'You need both hands for the ladder.'),true;
+  case 'climb':{if(p.carry>=0||p.can||cartOf(pid)>=0||(S.fork&&S.fork.drv===pid))return toP(p,'You need both hands for the ladder.'),true;
     const up=nearPos(p,LADDER.x,LADDER.z,2.4),down=nearPos(p,HATCH.x,HATCH.z,2.4);if(!up&&!down)return true;
     if(down&&S.rg&&S.rg.st==='eat'&&S.rg.tg===pid)return true;
     const x=up?HATCH.x+1.15:LADDER.x+1.1,z=up?HATCH.z-1.1:LADDER.z-.9;p.x=x;p.z=z;p.tpT=.8;
@@ -2502,11 +2537,11 @@ function act2(pid,p,a){
     S.stash=false;const k=['batt','flare','drink','horn','strobe'][randi(0,4)];p.inv[k]=(p.inv[k]||0)+1;emit({e:'stash',p:pid,k});return true}
   case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>m.ty===14&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
   case 'shake':{if(!p.up.shake||S.t-(p.shT??-1e9)<.3)return true;p.shT=S.t;noise(p.x,p.z,10);emit({e:'shake',p:pid,x:p.x,z:p.z});return true}
-  case 'can':{if(!owned('gen')||p.carry>=0||p.can||!nearPos(p,FUELR.x,FUELR.z,2.6))return true;p.can=true;emit({e:'canUp',p:pid});return true}
+  case 'can':{if(!owned('gen')||p.carry>=0||cartOf(pid)>=0||p.can||!nearPos(p,FUELR.x,FUELR.z,2.6))return true;p.can=true;emit({e:'canUp',p:pid});return true}
   case 'fuel':{if(!owned('gen')||!p.can||!nearPos(p,GEN.x,GEN.z,2.8))return true;p.can=false;const was=mainsDown();S.gen.fuel=Math.min(100,S.gen.fuel+50);S.gen.out=false;if(was&&!S.ot)powerOn();emit({e:'refuel',x:GEN.x,z:GEN.z,on:was});return true}
   case 'fork':{const f=S.fork;if(f.drv===pid){forkUnload(p);f.drv='';const sx=Math.cos(f.ry),sz=-Math.sin(f.ry);let x=f.x+sx*1.2,z=f.z+sz*1.2;if(insideAny(x,z,.3)){x=f.x-sx*1.2;z=f.z-sz*1.2}
       p.x=x;p.z=z;p.tpT=.6;emit({e:'tp',p:pid,x:r2(x),z:r2(z)});emit({e:'forkOut',p:pid});return true}
-    if(!owned("fork")||f.drv||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>5.2)return true; // (matches the reach of the hit box around it)
+    if(!owned("fork")||f.drv||cartOf(pid)>=0||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>5.2)return true; // (matches the reach of the hit box around it)
     f.drv=pid;if(S.night>=2&&!f.pass&&Math.random()<.25*diffEv())f.pass={lit:0,dark:0};emit({e:'forkIn',p:pid});return true}
   case 'fpick':{const f=S.fork;if(f.drv!==pid||f.pal>=0||p.carry>=0)return true;const t=forkTip();const pal=S.pallets.find(x=>(x.st===0||x.st===3)&&x.amr!==2&&Math.hypot(palWorld(x).x-t.x,palWorld(x).z-t.z)<1.3);
     if(!pal)return true;pal.st=1;f.pal=pal.id;pal.amr=0;pal.y=0;f.lift=2.62;emit({e:'pick',x:t.x,y:.5,z:t.z});return true}
@@ -2547,7 +2582,7 @@ function blindUpdate(m,dt){m.cd-=dt;m.t+=dt;m.hearT-=dt;
 // Anyone who stands around down there without handling a box gets noticed. It crawls over slowly, takes hold and
 // drags them to the shredder. Mashing E breaks its grip; getting back to work before it arrives sends it back.
 const inBase=p=>p.x>60;
-const baseLimit=()=>25/Math.sqrt(diffEv()); // seconds of idling: 25 on Normal, about 34 on Easy and 20 on Hard
+const baseLimit=()=>7; // seconds of standing about down here before it comes for you
 // the cage fence runs along x = 79 with its gate at z = 0
 function baseStep(m,tx,tz,sp,dt){let wx=tx,wz=tz;const inside=m.x>79,want=tx>79;
   if(inside!==want){wx=Math.abs(m.z)>.5?(inside?79.7:78.3):(want?79.9:78.1);wz=0}
@@ -2565,6 +2600,7 @@ function hunchUpdate(m,dt){const lim=baseLimit();m.cd-=dt;m.t+=dt;
   if(m.st==='reach'){if(!tg||tg.dead||!inBase(tg)||tg.baseIdle<lim*.5){m.st='back';return}
     m.a=2;if(baseStep(m,tg.x,tg.z,.75,dt)<1.0){m.st='drag';m.t=0;tg.strug=0;emit({e:'grab',p:tg.id,id:m.id})}return}
   if(m.st==='drag'){if(!tg||tg.dead){m.st='back';return}
+    if(S.t-(tg.sgT??-1e9)>.25)tg.strug=Math.max(0,(tg.strug||0)-dt*STRUG_DECAY); // stop mashing and its grip comes back
     if((tg.strug||0)>=STRUGGLE_N){damage(tg,20);tg.baseIdle=0;tg.baseWarn=false;m.st='back';m.cd=12;emit({e:'freed',p:tg.id,x:m.x,z:m.z});return}
     m.a=5;if(m.t<1.2)return; // it takes its time getting a grip
     if(baseStep(m,SHRED.x,SHRED.z+1.65,.9,dt)<.15){m.ry=Math.PI;emit({e:'scare',p:tg.id,ty:14,id:m.id});emit({e:'shred',x:SHRED.x,z:SHRED.z});damage(tg,999);m.st='back';m.cd=8}}}
@@ -2582,7 +2618,7 @@ MON_UPD[13]=blindUpdate;MON_UPD[14]=hunchUpdate;
 // older save alone until it has a night of its own to save over it.
 const SAVE_KEY='sitd-run';
 function saveRun(){if(!S||S.over)return;const pl={};for(const p of Object.values(S.players))pl[p.name]={inv:p.inv,up:p.up,cash:Math.round(p.cash||0)};
-  const sv={v:1,night:S.night,diff:S.diff,total:S.total,score:S.score,cash:S.cash,adds:S.adds,fixed:S.fixed,aidBonus:S.aidBonus||0,sel:S.conv?S.conv.sel:0,pl,
+  const sv={v:1,night:S.night,diff:S.diff,total:S.total,score:S.score,cash:S.cash,adds:S.adds,fixed:S.fixed,aidBonus:S.aidBonus||0,carts:(S.carts||[]).length,sel:S.conv?S.conv.sel:0,pl,
     boxes:S.boxes.filter(b=>b.st===3).map(b=>({x:b.x,y:b.y,z:b.z,ry:b.ry,k:b.k,f:b.f,v:b.v,s:b.s,m:b.m,roam:b.roam,ret:b.ret,pri:b.pri})),crew:Object.keys(S.players).length,at:Date.now()};
   S.saved=true;try{localStorage.setItem(SAVE_KEY,JSON.stringify(sv))}catch(e){}}
 function loadSave(){try{const sv=JSON.parse(localStorage.getItem(SAVE_KEY));return sv&&sv.v===1&&sv.night>=1?sv:null}catch(e){return null}}
@@ -2590,6 +2626,7 @@ function dropSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}}
 // players get their own gear back by name; anyone new to the crew picks up gear nobody claimed, or starts empty
 function restoreRun(sv){Object.assign(S,{night:sv.night,diff:DIFFS[sv.diff]?sv.diff:1,total:sv.total|0,score:sv.score||0,cash:sv.cash||0,adds:(sv.adds||[]).filter(k=>ADDS[k]),fixed:sv.fixed||[],aidBonus:sv.aidBonus|0,
     conv:{sel:sv.sel|0,next:12,jam:false},phase:'shop',shopT:150,votes:[],saved:true});
+  S.carts=Array.from({length:Math.min(2,sv.carts|0)},(_,i)=>newCart(i));
   const left=Object.assign({},sv.pl||{}),ps=Object.values(S.players),give=(p,g)=>{p.inv=Object.assign({},g.inv||{});p.up=Object.assign({},g.up||{});p.cash=g.cash||0};
   for(const p of ps)if(left[p.name]){give(p,left[p.name]);delete left[p.name];p.got=1}
   const rest=Object.values(left);for(const p of ps)if(!p.got&&rest.length)give(p,rest.shift());
@@ -2757,6 +2794,33 @@ function devAct(p,a){if(!p||!isDevName(p.name)||!S||S.over)return;
   case 16:{if(has(16))return here('auditor');S.mons.push({id:monSeq++,ty:16,x:sp.x,z:sp.z,y:0,ry:rand(-3,3),st:'pick',a:0,t:0,life:0,cd:2,pulled:0,exp:{},path:null,rep:0});break}
   default:return}
   toP(p,`Spawned: ${name}.`)}
+
+// ---------------------------------------------------------------- hand carts (a team purchase: one alone, two in a crew)
+// E on a parked cart takes the handle; you stand behind it and it rolls ahead of you. Boxes you pick up go onto the deck
+// (five at most) and still count as yours (p.carry and p.stack), so shelving one is the same E as always. A loaded cart
+// is half as slow as carrying the same boxes. Q lets go; any boxes still on the deck are set down beside it. The
+// casters rattle on the concrete: quiet, but anything that hunts by ear close by can hear it.
+const cartMax=()=>Object.keys(S.players||{}).length>1?2:1;
+const newCart=i=>{const h=CART_HOME[i]||CART_HOME[0];return{x:h.x,z:h.z,ry:h.ry,by:''}};
+const cartOf=pid=>(S.carts||[]).findIndex(c=>c.by===pid);
+const cartLoad=p=>(p.carry>=0?1:0)+(p.stack?p.stack.length:0);
+function cartGrab(p,i){const c=(S.carts||[])[i];if(!c||c.by||p.dead||p.can||(S.fork&&S.fork.drv===p.id)||cartOf(p.id)>=0)return;
+  if(Math.hypot(p.x-c.x,p.z-c.z)>3.2||cartLoad(p)>CART_MAX)return;
+  // step round behind the handle, facing the way the cart points
+  const fx=Math.sin(c.ry),fz=Math.cos(c.ry);let x=c.x-fx*CART_OFF,z=c.z-fz*CART_OFF;if(insideAny(x,z,.25)){x=p.x;z=p.z}
+  c.by=p.id;p.x=x;p.z=z;p.yaw=c.ry+Math.PI;p.tpT=.4;emit({e:'tp',p:p.id,x:r2(x),z:r2(z),yaw:r3(p.yaw)});emit({e:'cartOn',p:p.id})}
+// let go: whatever is on the deck goes down on the floor either side of it
+function cartLetGo(c){const p=S.players[c.by];c.by='';if(!p)return;const ids=[p.carry,...(p.stack||[])].filter(id=>id>=0);p.carry=-1;p.stack=[];
+  const sx=Math.cos(c.ry),sz=-Math.sin(c.ry),fx=Math.sin(c.ry),fz=Math.cos(c.ry);
+  ids.forEach((id,k)=>{const b=S.boxes.find(x=>x.id===id);if(!b)return;const side=k%2?-1:1,along=(Math.floor(k/2)-1)*.5;
+    let x=c.x+sx*side*.8+fx*along,z=c.z+sz*side*.8+fz*along;if(insideAny(x,z,.2)){x=c.x-sx*side*.8+fx*along;z=c.z-sz*side*.8+fz*along}if(insideAny(x,z,.2)){x=p.x;z=p.z}
+    const tb=trailerAt(x,z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=x-BAYS[tb].x;b.z=z-S.trucks[tb].z;b.y=0;settleTruck(tb)}else{b.st=3;b.x=x;b.z=z;b.y=0}b.ry=c.ry+rand(-.3,.3);b.h=''});
+  if(ids.length){S.bver++;emit({e:'place',x:c.x,y:0,z:c.z})}emit({e:'cartOff',p:p.id})}
+// every tick: the cart rolls ahead of whoever has it. Leave the warehouse floor (the elevator, the ladder) and it stays behind.
+function cartUpdate(dt){for(const c of S.carts||[]){if(!c.by)continue;const p=S.players[c.by];
+  if(!p||p.dead||!inWH(p)||onRoof(p)||(S.fork&&S.fork.drv===p.id)){cartLetGo(c);continue}
+  c.x=p.x-Math.sin(p.yaw)*CART_OFF;c.z=p.z-Math.cos(p.yaw)*CART_OFF;c.ry=p.yaw+Math.PI;
+  c.nT=(c.nT||0)-dt;if(c.nT<=0){c.nT=.5;if(p.spd>.8)noise(c.x,c.z,cartLoad(p)?5:4,'cart')}}}
 // ===================================================================== networking
 // Browser-to-browser over WebRTC (PeerJS). The host runs the simulation; clients send their own
 // position plus action requests, and get snapshots back 20 times a second.
@@ -2853,7 +2917,7 @@ function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S
   tr:S.trucks.map(t=>[t.st,r2(t.z),r2(t.door),Math.round(t.t),t.warn?1:0,t.claw?1:0,t.left,t.n,t.reject?1:0,t.kg||0,t.extra||0,r2(t.stuck||0)]),
   mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0,m.tg||'']),
   // the additions' moving parts
-  x:{cash:Math.round(S.cash||0),tv:S.tvotes||{},adds:S.adds,fixed:S.fixed,ab:S.aidBonus|0,ex:S.extra|0,shopT:Math.round(S.shopT||0),vo:S.votes||[],
+  x:{ct:(S.carts||[]).map(c=>[r2(c.x),r2(c.z),r3(c.ry),c.by]),cash:Math.round(S.cash||0),tv:S.tvotes||{},adds:S.adds,fixed:S.fixed,ab:S.aidBonus|0,ex:S.extra|0,shopT:Math.round(S.shopT||0),vo:S.votes||[],
     par:(S.parcels||[]).map(p=>[p.id,r2(p.x),p.c,p.m?1:0]),pal:(S.pallets||[]).filter(p=>p.st!==4).map(p=>[p.id,p.st,p.bay??-1,p.lx||0,p.lz||0,r2(p.x||0),r2(p.z||0),r2(p.ry||0),p.s??-1,r2(p.y||0),p.amr|0]),
     fl:(S.flares||[]).map(f=>[f.id,r2(f.x),r2(f.z),Math.round(f.t)]),cold:S.cold&&[r2(S.cold.door),S.cold.open?1:0],conv:S.conv&&[S.conv.sel,S.conv.jam?1:0],
     elev:S.elev&&[S.elev.lvl,S.elev.st,r2(S.elev.t),r2(S.elev.gate),r2(S.elev.hl||0),r2(S.elev.ht||0)],df:S.diff,gen:S.gen&&[Math.round(S.gen.fuel),S.gen.out?1:0],
@@ -2876,6 +2940,7 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
   m.tr.forEach((a,i)=>{const tr=S.trucks[i];if(tr.z===undefined||Math.abs(tr.z-a[1])>6)tr.z=a[1];Object.assign(tr,{st:a[0],tz:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]})});
   S.mons=m.mo.map(a=>({id:a[0],ty:a[1],x:a[2],y:a[3],z:a[4],ry:a[5],a:a[6],k:a[7],v:a[8],f:!!a[9],tg:a[10]||''}));
   const x=m.x||{};const addsChanged=JSON.stringify(x.adds||[])!==JSON.stringify(S.adds||[]);
+  S.carts=(x.ct||[]).map(c=>({x:c[0],z:c[1],ry:c[2],by:c[3]}));
   Object.assign(S,{outage:!!x.out,cash:x.cash,tvotes:x.tv||{},adds:x.adds||[],fixed:x.fixed||[],aidBonus:x.ab,extra:x.ex,shopT:x.shopT,votes:x.vo||[],yard:x.yard?{bay:x.yard[0],stage:x.yard[1],hit:x.yard[2]||'',ht:x.yard[3]||0}:null,amr:(x.am||[]).map(a=>({k:a[0],x:a[1],z:a[2],ry:a[3],st:AMR_ST[a[4]],load:a[5],slot:a[6],t:a[7]})),stash:!!x.st,chill:x.ch?{st:x.ch[0]?'cold':'warn',t:x.ch[1]}:null,
     rg:x.rg?{st:RG_ST[x.rg[0]],x:x.rg[1],z:x.rg[2],ry:x.rg[3],k:x.rg[4],hx:x.rg[5],hz:x.rg[6],tg:x.rg[7],t:x.rg[8],b:x.rg[9]|0}:null,
     parcels:(x.par||[]).map(a=>({id:a[0],x:a[1],c:a[2],m:!!a[3]})),pallets:(x.pal||[]).map(a=>({id:a[0],st:a[1],bay:a[2],lx:a[3],lz:a[4],x:a[5],z:a[6],ry:a[7],s:a[8],y:a[9]||0,amr:a[10]||0})),
@@ -3046,17 +3111,17 @@ function updGhost(me){const t=ME.target;const b=t&&t.kind==='slot'&&me&&me.carry
 function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.scare)return;
   RC.setFromCamera({x:0,y:0},camera);RC.far=3.1;const carrying=me.carry>=0;
   // in the forklift: pallets first; with no pallet up, loose boxes and shelf slots out past the forks
-  const drv=ME.driving,reach=drv?4.8:3.3,many=(me.up&&me.up.hand)||drv;
+  const drv=ME.driving,reach=drv?4.8:3.3,cap=ME.cart>=0?CART_MAX-1:((me.up&&me.up.hand)||drv)?2:0;
   if(drv){ME.target=S.fork.pal>=0||!carrying?forkTarget():null;if(ME.target||S.fork.pal>=0)return;RC.far=reach}
   if(carrying){let best=null,bt=reach;for(const s of SLOTS){if(Math.abs(s.x-ME.x)>6||Math.abs(s.z-ME.z)>6||(drv&&s.cold)||!slotOn(s))continue;const hx=s.rot?.55:.97,hz=s.rot?.97:.55;const t=rayBox(RC.ray,s.x-hx,s.y,s.z-hz,s.x+hx,s.y+1.08,s.z+hz);if(t!==null&&t<bt){bt=t;best=s}}
     const cb=S.boxes.find(x=>x.id===me.carry),ret=!!(cb&&cb.ret);
     if(best){const under=best.box>=0?S.boxes.find(x=>x.id===best.box):null,stack=!!under&&!(best.box2>=0)&&canStack(me,under,cb);
       ME.target={kind:'slot',s:best,ok:!ret&&!best.old&&(best.box===-1||stack),ret,stack,under:stack?under:null,full:best.box2>=0||!!under&&!stack&&!!(me.up&&me.up.stock2)};return}}
   const hits=RC.intersectObjects(BOXPICK.concat(INTER,PARCELPICK,PALPICK,FORKPICK),false);
-  for(const h of hits){const ud=h.object.userData;if(!shown(h.object)||(drv&&ud.kind!=='box'))continue;
+  for(const h of hits){const ud=h.object.userData;if(!shown(h.object)||(drv&&ud.kind!=='box')||(ud.kind==='cart'&&ME.cart>=0))continue;
     // (parcels ride on top of the belt, inside its collider, so they can't be hidden behind it)
     if(ud.kind!=='parcel'&&segBlocked(ME.x,ME.z,h.point.x-(h.point.x-ME.x)*.08,h.point.z-(h.point.z-ME.z)*.08))break;
-    if(ud.kind==='box'){const b=S.boxes.find(x=>x.id===ud.id);if(b&&(b.st===1||b.amr))continue; /* (the robots' loads aren't yours to grab) */if(!b||b.st===2)break;if(!carrying||(many&&(me.stack||[]).length<2))ME.target={kind:'box',b};break}
+    if(ud.kind==='box'){const b=S.boxes.find(x=>x.id===ud.id);if(b&&(b.st===1||b.amr))continue; /* (the robots' loads aren't yours to grab) */if(!b||b.st===2)break;if(!carrying||(me.stack||[]).length<cap)ME.target={kind:'box',b};break}
     if(findTarget2(me,h))break;if(ud.kind)ME.target={kind:ud.kind,bay:ud.bay};break}}
 
 function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
@@ -3069,13 +3134,13 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   if(ME.driving){driveUpdate(dt,me);batteryUpdate(dt,busy,me);findTarget(me);return}
   const ax=moveAxes(),fw=busy?0:ax[0],st=busy?0:ax[1];
   // a stack (carry upgrade) is heavier; a jerry can slows you a little
-  const carry=me.carry>=0?S.boxes.find(b=>b.id===me.carry):null,slow=(carry?BOX_KINDS[carry.k].slow:1)*Math.pow(.85,me.stack?me.stack.length:0)*(me.can?.9:1);
+  const carry=me.carry>=0?S.boxes.find(b=>b.id===me.carry):null,slow0=(carry?BOX_KINDS[carry.k].slow:1)*Math.pow(.85,me.stack?me.stack.length:0),slow=(ME.cart>=0?cartSlow(slow0):slow0)*(me.can?.9:1); // (a hand cart halves the slowdown)
   const moving=fw||st,run=(K.ShiftLeft||K.ShiftRight||TJ.run)&&fw>0&&!ME.exh&&ME.stam>0;
   const spd=(run?5.3:3.05)*slow;
   const sx=-Math.sin(ME.yaw),sz=-Math.cos(ME.yaw),rx=Math.cos(ME.yaw),rz=-Math.sin(ME.yaw);
   let tx=sx*fw+rx*st,tz=sz*fw+rz*st;const tl=Math.hypot(tx,tz);if(tl>0){const m=Math.min(1,tl);tx=tx/tl*spd*m;tz=tz/tl*spd*m} // a half-pushed stick walks slower
   ME.vx=damp(ME.vx,tx,10,dt);ME.vz=damp(ME.vz,tz,10,dt);
-  const p={x:ME.x+ME.vx*dt,z:ME.z+ME.vz*dt};collideCircle(p,.32);
+  const p={x:ME.x+ME.vx*dt,z:ME.z+ME.vz*dt};collideCircle(p,.32);if(ME.cart>=0)cartCollide(p);
   // never strand anyone outside: if the trailer they're in isn't docked, put them back by the bay door
   // the basement is its own room, far off to the east
   if(ME.x>60){p.x=clamp(p.x,BASE.x0+.3,BASE.x1-.3);p.z=clamp(p.z,BASE.z0+.3,BASE.z1-.3)}
@@ -3167,6 +3232,7 @@ function syncTrucks(dt){S.trucks.forEach((tr,i)=>{const v=TV[i],b=BAYS[i],bv=BAY
 function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
   for(const b of S.boxes){if(b.st===4)continue;live.add(b.id);let m=BM.get(b.id);if(!m){m=makeBoxMesh(b);BM.set(b.id,m);ROOT.add(m);m.userData.tw=0}
     if(b.st===1){const f=S.fork,onF=!!(f&&f.drv&&f.drv===b.h&&FORK3D),h=S.players[b.h];
+      {const cp=cartBoxPose(b,h);if(cp){m.visible=true;m.position.set(cp.x,cp.y,cp.z);m.rotation.set(0,cp.ry,0);continue}} // (riding on a hand cart)
       // the box in their arms (or on the forks), with anything stacked on top of it
       const pile=(h?[h.carry,...(h.stack||[]).slice().reverse()]:[]).map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),lv=Math.max(0,pile.indexOf(b));
       if(onF){let y=FORK3D.userData.lift.position.y+.08;for(let i=0;i<lv;i++)y+=BOX_KINDS[pile[i].k].h;const P=FORK3D.position,fr=FORK3D.rotation.y;        m.visible=true;m.position.set(P.x+Math.sin(fr)*1.45,y,P.z+Math.cos(fr)*1.45);m.rotation.set(0,fr+lv*.1,0);continue}
@@ -3177,7 +3243,7 @@ function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
     if(m.userData.tw>0){m.userData.tw-=dt;const k=m.userData.tw;m.rotation.z=Math.sin(k*70)*.07*Math.min(1,k*3);m.rotation.x=Math.cos(k*53)*.05*Math.min(1,k*3);m.position.y+=Math.abs(Math.sin(k*45))*.035}}
   for(const [id,m] of BM)if(!live.has(id)){ROOT.remove(m);BM.delete(id)}
   BOXPICK.length=0;for(const m of BM.values())if(m.visible)BOXPICK.push(m);
-  const cb=me&&me.carry>=0?S.boxes.find(b=>b.id===me.carry):null;setViewBox(me&&!me.dead&&!ME.driving?cb:null)}
+  const cb=me&&me.carry>=0?S.boxes.find(b=>b.id===me.carry):null;setViewBox(me&&!me.dead&&!ME.driving&&!(ME.cart>=0)?cb:null)}
 function syncMonsters(dt,time){const live=new Set();
   for(const m of S.mons){live.add(m.id);let v=MV.get(m.id);
     if(!v){const g=makeMonster2(m)||(m.ty===0?makeMimic(m.k,m.v,m.f):m.ty===1?makeLurker():m.ty===3?makeCrawler():makeStalker());if(m.ty===1&&m.k===1)coldify(g);g.position.set(m.x,m.y,m.z);g.rotation.y=m.ry;ROOT.add(g);
@@ -3239,7 +3305,7 @@ function syncAvatars(dt,time){const live=new Set(),lit=[];let si=0;
     const g=v.g,u=g.userData,drv=S.fork&&S.fork.drv===p.id;g.visible=!p.dead;g.position.set(v.x,drv?.75:0,v.z);
     const held=rgHeldAt(p.id);if(held)g.position.set(held.x,held.y-1.1,held.z); /* in the giant's fist */g.rotation.y=drv?S.fork.ry:v.yaw+Math.PI;if(drv){u.legs.forEach(l=>l.rotation.x=-1.4)}
     const a=Math.min(1,sp/3);u.legs[0].rotation.x=Math.sin(v.walk)*.6*a;u.legs[1].rotation.x=-Math.sin(v.walk)*.6*a;
-    if(p.carry>=0){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.25,10,dt))}else{u.arms[0].rotation.x=-Math.sin(v.walk)*.5*a;u.arms[1].rotation.x=-.9}
+    if(S.carts&&S.carts.some(c=>c.by===p.id)){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.0,10,dt))} /* both hands on the cart handle */else if(p.carry>=0){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.25,10,dt))}else{u.arms[0].rotation.x=-Math.sin(v.walk)*.5*a;u.arms[1].rotation.x=-.9}
     u.torch.rotation.x=-v.pitch;u.head.rotation.x=-v.pitch*.6;u.beam.visible=!!p.light;
     if(p.light&&!p.dead)lit.push({v,u,d:Math.hypot(v.x-ME.x,v.z-ME.z)})}
   // only a few real lights to go round: they go to the nearest crewmates' torches
@@ -3258,7 +3324,7 @@ function syncLamps(dt){let pool=0;LAMPV.forEach((L,i)=>{let on;
   if(light)light.intensity=(L.light?17:15)*lv;L.bulb.material.color.setRGB(lerp(.1,1,lv),lerp(.08,.85,lv),lerp(.06,.62,lv));L.cone.material.uniforms.lv.value=lv;
   if(AU.ready){if(!L.hum)L.hum=loop('hum',{x:LAMPS[i].x,y:5,z:LAMPS[i].z},.35);L.hum.set(lv*.35,.03)}});
   for(;pool<LAMPV.pool.length;pool++)LAMPV.pool[pool].intensity=0}
-function syncWorld(dt,time){applyColliders();syncTrucks(dt);syncAvatars(dt,time);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time)}
+function syncWorld(dt,time){applyColliders();syncTrucks(dt);syncAvatars(dt,time);syncCarts(dt);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time)}
 function clearVisuals(){for(const m of BM.values())ROOT.remove(m);BM.clear();for(const v of MV.values()){ROOT.remove(v.g);v.lp&&v.lp.stop();v.gr&&v.gr.stop()}MV.clear();for(const v of AV.values())ROOT.remove(v.g);AV.clear();
   for(const v of TV)v.g.visible=false;for(const s of REMOTE_SPOTS)s.intensity=0;setViewBox(null);if(ME.scare){camera.remove(ME.scare.g);ME.scare=null}
   for(const s of SLOTS)s.box=-1;BOXPICK.length=0;
@@ -3319,7 +3385,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   if(me&&!me.dead&&!ME.scare&&S.phase==='play'){const carrying=me.carry>=0;
     const p2=t&&promptFor(t,me);
     if(p2!==null&&p2!==undefined)pr=p2;
-    else if(t){if(t.kind==='box'&&ME.driving)pr='<kbd>E</kbd> Load onto the forks';
+    else if(t){if(t.kind==='box'&&ME.driving)pr='<kbd>E</kbd> Load onto the forks';else if(t.kind==='box'&&ME.cart>=0)pr='<kbd>E</kbd> Load onto the cart';
       else if(t.kind==='box')pr=(carrying?'<kbd>E</kbd> Pick up another':'<kbd>E</kbd> Pick up')+(t.b.ret?' damaged return <span class="warn">(shredder only)</span>':'')+' &nbsp; <kbd>Q</kbd> Kick'+(curSel(me)==='cutter'?' &nbsp; <kbd>Right click</kbd> Cut':'');
       else if(t.kind==='slot')pr=t.ret?'<span class="warn">Returns can\'t be shelved: shred them in the basement</span>':t.ok?(t.stack?'<kbd>E</kbd> Stack it on top':'<kbd>E</kbd> Shelve box'):t.full?'No room to stack that here':'Shelf is full';
       else if(t.kind==='charger')pr=ME.bat>=99.5?'Flashlight fully charged':ME.charging?`Charging&hellip; ${Math.floor(ME.bat)}%`:'Hold <kbd>E</kbd> Charge flashlight';
@@ -3327,6 +3393,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
       else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=!bayOn(t.bay)?`Bay ${BAYS[t.bay].name}: not in service`:tr.st===0&&tr.stuck>0?`<kbd>E</kbd> Close the Bay ${BAYS[t.bay].name} door`:tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
       else if(t.kind==='exit')pr='<kbd>E</kbd> Exit';}
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
+    if(ME.cart>=0&&!t)pr='<kbd>Q</kbd> Let go of the cart'+(carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?(owned('amrl')&&Math.hypot(forkTip().x-AMR.l.x,forkTip().z-AMR.l.z)<1.7?' &nbsp; <kbd>G</kbd> Set the pallet on the robot pad':' &nbsp; <kbd>G</kbd> Set the pallet down'):carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
     const hn=hatchNote()||grabNote();if(hn)pr=hn;}
@@ -3474,7 +3541,7 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
   let near=99;
   if(GAME.on&&S){
     if(NET.mode!=='client'&&!GAME.paused)simUpdate(dt);
-    ME.driving=!!(S.fork&&S.fork.drv===NET.myId);
+    ME.driving=!!(S.fork&&S.fork.drv===NET.myId);ME.cart=myCart();
     // (the reverse beep is only turned down while driving, so silence it here once you're out or paused)
     if(ME.beep&&(!ME.driving||GAME.paused)){ME.beep.set(0,.05);if(!ME.driving)ME.fv=0}
     if(!GAME.paused)localUpdate(dt);
@@ -3713,6 +3780,10 @@ function onKey2(code,me){
   if(k){if(!haveItem(me,k)){SFX.deny();toast(`No ${SHOP[k].name.toLowerCase()}. They're sold between nights.`,2.5);return true}
     if(ME.sel!==k){ME.sel=k;SFX.click()}return true}
   if(code==='UseItem'||code==='Space'){useSel(me);return true}
+  // pushing a hand cart: Q lets go, G sets a box down beside it
+  if(ME.cart>=0){if(code==='KeyQ'){doAct({a:'cart'});return true}
+    if(code==='KeyG'){if(me.carry<0)return true;const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw),rx=Math.cos(ME.yaw),rz=-Math.sin(ME.yaw);let x=ME.x+rx*.85+fx*.7,z=ME.z+rz*.85+fz*.7;
+      if(insideAny(x,z,.2)){x=ME.x-rx*.85+fx*.7;z=ME.z-rz*.85+fz*.7}doAct({a:'drop',x:r2(x),z:r2(z),ry:r2(ME.yaw)});return true}}
   if(ME.driving){
     if(code==='KeyQ'){doAct({a:'fork'});return true}
     if(code==='KeyE'){const t=ME.target;if(t&&t.kind==='fslot'){if(t.ok)doAct({a:'fplace',s:t.s.id});else SFX.deny()}else if(t&&t.kind==='fpal')doAct({a:'fpick'});
@@ -3721,7 +3792,8 @@ function onKey2(code,me){
     return true}
   if(code==='KeyE'){const t=ME.target;if(!t)return false;
     switch(t.kind){
-    case 'fork':if(!owned('fork')){toast('The forklift is broken. It can be repaired between nights.',3);SFX.locked()}else if(me.carry>=0||me.can)toast('Put down what you\'re carrying first.',2.5);else doAct({a:'fork'});return true;
+    case 'fork':if(ME.cart>=0)toast('Let go of the cart first.',2.5);else if(!owned('fork')){toast('The forklift is broken. It can be repaired between nights.',3);SFX.locked()}else if(me.carry>=0||me.can)toast('Put down what you\'re carrying first.',2.5);else doAct({a:'fork'});return true;
+    case 'cart':{const c=S.carts&&S.carts[t.i];if(!c)return true;if(c.by)toast('Someone else is pushing that cart.',2.5);else if(me.can)toast('Put the jerry can down first.',2.5);else doAct({a:'cart',i:t.i});return true}
     case 'pallet':toast('Far too heavy to lift by hand. That\'s forklift work.',3);SFX.deny();return true;
     case 'parcel':toast('Parcels sort themselves. Set the lever to the next colour.',3);return true;
     case 'cold':doAct({a:'cold'});return true;
@@ -3732,7 +3804,7 @@ function onKey2(code,me){
     case 'gen':if(me.can)doAct({a:'fuel'});else toast('Bring a jerry can from the fuel rack.',2.5);return true;
     case 'fuelrack':if(me.can)toast('You already have a can.',2);else if(me.carry>=0)toast('Your hands are full.',2);else doAct({a:'can'});return true;
     case 'shred':if(me.carry<0)toast('Bring a box to feed it.',2);else doAct({a:'shred'});return true;
-    case 'ladder':case 'hatch':if(me.carry>=0||me.can){toast('You need both hands for the ladder.',2.5);SFX.deny()}else doAct({a:'climb'});return true;
+    case 'ladder':case 'hatch':if(ME.cart>=0||me.carry>=0||me.can){toast('You need both hands for the ladder.',2.5);SFX.deny()}else doAct({a:'climb'});return true;
     case 'amrPad':if(me.carry<0)toast('Bring a box. The robot takes it to a shelf for you.',2.5);else doAct({a:'amrLoad'});return true;
     case 'stash':doAct({a:'stash'});return true}}
   if(code==='KeyQ'&&ME.target&&ME.target.kind==='parcel'){if(ME.kickCD>0)return true;ME.kickCD=.8;ME.kickA=.35;doAct({a:'kick',pc:ME.target.id});return true}
@@ -3855,7 +3927,7 @@ function onEvent2(e){if(onEvent3(e))return;const me=NET.myId,P=(x,z,y=1)=>({x,y,
   case 'unstall':SFX.thunk(P(ME.x,ME.z,2));break;
   case 'elevGo':SFX.thunk(P(e.lvl===0?-28.7:71.3,e.lvl===0?-9.3:0,1));break;
   case 'ding':SFX.ding(P(e.lvl===0?-28.7:71.3,e.lvl===0?-9.3:0,2.4));break;
-  case 'tp':if(e.p===me){ME.x=e.x;ME.z=e.z;ME.vx=ME.vz=0;
+  case 'tp':if(e.p===me){ME.x=e.x;ME.z=e.z;ME.vx=ME.vz=0;if(e.yaw!==undefined)ME.yaw=e.yaw;
       if(e.climb){const f=$('fade');if(f){f.style.transition='none';f.style.opacity=1;requestAnimationFrame(()=>{f.style.transition='opacity .9s';f.style.opacity=0})}
         for(let i=0;i<5;i++)setTimeout(()=>SFX.step(true,false),i*120);ME.yaw=e.climb>0?Math.PI*.75:Math.PI*.25;ME.pitch=0;
         if(e.climb>0&&!GAME.hints.roof){GAME.hints.roof=1;toast('The roof. It\'s snowing hard and nothing up here is lit. Someone keeps a supply crate at the far end.',6)}}}break;
@@ -3900,6 +3972,7 @@ function hotbarHTML(me){if(!me||!me.inv)return'';const sel=curSel(me),items=[];
   const lamp=me.up.red?`<span data-k="lamp" class="hb lamp${ME.red?' on':''}"><small>${keyLabel('KeyH')}</small>Headlamp</span>`:'';
   return items.length||lamp?`${name}<div class="hbrow">${items.join('')}${lamp}</div>`:''}
 function promptFor(t,me){switch(t.kind){
+  case 'cart':{const c=S.carts&&S.carts[t.i];return!c?null:c.by?'Someone else is pushing this cart':'<kbd>E</kbd> Push the hand cart'+(me.carry>=0?' (your boxes go on it)':'')}
   case 'fork':return owned('fork')?'<kbd>E</kbd> Drive the forklift':'Broken forklift';
   case 'pallet':return'Pallet load: forklift only';
   case 'parcel':return'<kbd>Q</kbd> Kick off the belt'+(curSel(me)==='cutter'?' &nbsp; <kbd>Right click</kbd> Cut':'');
@@ -3945,7 +4018,7 @@ function dirTo(x,z){const dx=x-ME.x,dz=z-ME.z,d=Math.hypot(dx,dz),fx=-Math.sin(M
 function carryNote(me){if(!me)return'';
   if(me.can)return`Jerry can &middot; generator ${dirTo(GEN.x,GEN.z)}`;
   const b=me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;if(!b)return'';const n=1+(me.stack?me.stack.length:0);
-  let s=n>1?`Carrying ${n} boxes`:'';
+  let s=ME.cart>=0?`On the cart: ${n} of ${CART_MAX}`:n>1?`Carrying ${n} boxes`:'';
   if(b.fz)s+=(s?' &middot; ':'')+`<span style="color:#9fd4ff">${chilled()?'Frozen: holding in the cold':`Frozen: thaws in ${Math.max(0,Math.ceil(b.th||0))}s`}${inCold(ME)?'':` &middot; freezer ${dirTo((COLD.dx0+COLD.dx1)/2,COLD.z1+.6)}`}</span>`;
   else if(b.ret)s+=(s?' &middot; ':'')+`<span style="color:#d9a35a">Damaged return: shred it &middot; ${ME.x>60?`shredder ${dirTo(SHRED.x,SHRED.z)}`:`basement elevator ${dirTo(CAR_UP.x1,(CAR_UP.z0+CAR_UP.z1)/2)}`}</span>`;
   else if(ME.x>60)s+=(s?' &middot; ':'')+`Shelves are upstairs &middot; elevator ${dirTo(CAR_DN.x1,0)}`;
@@ -3967,7 +4040,7 @@ function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const f
 // ---------------------------------------------------------------- the shop screen
 let shopShown=false,shopSig='';
 function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)return;
-  const sig=JSON.stringify([S.cash,me.cash,S.tvotes,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
+  const sig=JSON.stringify([(S.carts||[]).length,S.cash,me.cash,S.tvotes,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
   const team=Math.round(S.cash||0),mine$=Math.round(me.cash||0),crew=Object.keys(S.players).length,tneed=Math.floor(crew/2)+1;
   $('shopCash').innerHTML=crew>1?`Team fund $${team}<small>·</small>Your fund $${mine$}`:`$${team+mine$}`;$('shopNight').textContent=`Night ${S.night} done. Night ${S.night+1} is next.`;
   // team things show their votes on the button: amber once anyone has voted, green when you have
@@ -3976,7 +4049,9 @@ function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)retu
     if(locked)extra+=`<div class="tag" style="color:#ff9f70">on sale from night ${it.night}</div>`;
     const label=!tm||crew<2?'Buy':tv.length?`${voted?'Voted':'Vote'} · ${tv.length} of ${crew} (${tneed} needed)`:'Vote to buy',cls=tm&&crew>1?(voted?'voted':tv.length?'votes':''):'';
     return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+pr}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" class="${cls}" ${can?'':'disabled'}>${label}</button>`}</div>`};
-  const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)).join('');
+  const nCart=(S.carts||[]).length,maxCart=crew>1?2:1;
+  const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>k==='cart'?card(k,it,nCart>=maxCart,`<div class="tag">${crew>1?'the crew has':'you have'} ${nCart} of ${maxCart}${crew>1?'':' (two in a crew)'}</div>`)
+    :card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)).join('');
   $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)).join('')+teamShop;
   $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.team&&(!it.needs||me.up[it.needs])).map(([k,it])=>{const have=it.once?!!me.up[k]:(me.inv[k]||0);
     const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
@@ -3999,12 +4074,14 @@ function bindShop(){$('shop').addEventListener('click',e=>{const b=e.target.clos
 function grabber(){return S.mons.find(m=>m.ty===14&&m.a===5&&m.tg===NET.myId)}
 function grabUpdate(dt,me){const m=grabber();if(!m){ME.grab=false;return false}
   if(!ME.grab){ME.grab=true;ME.strug=0}
+  // (the meter drains once you stop mashing, the same as on the host)
+  if(performance.now()-(ME.sgT||0)>250)ME.strug=Math.max(0,(ME.strug||0)-dt*STRUG_DECAY);
   const v=MV.get(m.id),gx=v?v.g.position.x:m.x,gz=v?v.g.position.z:m.z,ry=v?v.g.rotation.y:m.ry;
   ME.x=gx+Math.sin(ry)*.85;ME.z=gz+Math.cos(ry)*.85;ME.vx=ME.vz=0;
   ME.yaw=angLerp(ME.yaw,Math.atan2(-(SHRED.x-ME.x),-(SHRED.z-ME.z)),dt*4);ME.pitch=damp(ME.pitch,-.3,4,dt);
   const t=performance.now()*.001;camera.position.set(ME.x,1.35+Math.sin(t*9)*.03,ME.z);camera.rotation.set(ME.pitch,ME.yaw+Math.sin(t*7)*.04,Math.sin(t*5)*.08);
   me.x=ME.x;me.z=ME.z;return true}
-function struggle(){ME.strug=(ME.strug||0)+1;ME.shake=Math.max(ME.shake,.25);doAct({a:'struggle'})}
+function struggle(){const now=performance.now();if(now-(ME.sgT||0)<60)return;ME.sgT=now;ME.strug=(ME.strug||0)+1;ME.shake=Math.max(ME.shake,.25);doAct({a:'struggle'})}
 function grabNote(){if(!ME.grab)return'';const k=clamp((ME.strug||0)/STRUGGLE_N,0,1);
   return`<span class="warnline">IT HAS YOU</span><br>Mash <kbd>E</kbd> to break free <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}
 // ===================================================================== the two later creatures (models, animation, sound)
@@ -4197,7 +4274,7 @@ function touchTick(){const vis=TOUCH.on&&GAME.on&&!$('hud').classList.contains('
   if(!vis)return;const me=S&&S.players[NET.myId];if(!me)return;
   const dead=!!me.dead,lab=(id,s)=>{if(_tl[id]!==s){_tl[id]=s;$(id).textContent=s}},hid=(id,h)=>$(id).classList.toggle('hide',h);
   const sel=dead?'':curSel(me);
-  lab('tUse',dead?'NEXT':ME.grab?'PULL':'USE');lab('tKick',dead?'BACK':ME.grab?'PULL':ME.driving?'GET OUT':'KICK');
+  lab('tUse',dead?'NEXT':ME.grab?'PULL':'USE');lab('tKick',dead?'BACK':ME.grab?'PULL':ME.driving?'GET OUT':ME.cart>=0?'LET GO':'KICK');
   lab('tItem',sel?(ITEM_ICON[sel]||'ITEM').toUpperCase():'ITEM');hid('tItem',dead||!sel);
   hid('tLight',dead);hid('tDrop',dead||(me.carry<0&&!(ME.driving&&S.fork&&S.fork.pal>=0)));
   hid('tLamp',dead||!(me.up&&me.up.red));hid('tShake',dead||!(me.up&&me.up.shake)||ME.driving);
@@ -4267,6 +4344,46 @@ addEventListener('keydown',e=>{if(DEV.open&&e.code==='Escape')devToggle(false)})
 // a DEV button next to pause on touch screens, for the dev only; and the console shuts when the match ends
 (function(){const tp=$('tPause');if(tp){const d=document.createElement('button');d.className='tb hide';d.id='tDev';d.dataset.k='dev';d.textContent='DEV';tp.after(d)}})();
 setInterval(()=>{const ok=devOk();if(DEV.open&&!ok)devToggle(false);const d=$('tDev');if(d)d.classList.toggle('hide',!ok)},300);
+// ===================================================================== client: hand carts
+// Your own cart is drawn from your own movement (so it never lags behind you), a crewmate's from their smoothed
+// avatar, and a parked one where the host says it is.
+const CARTV=[];
+const myCart=()=>S&&S.carts?S.carts.findIndex(c=>c.by===NET.myId):-1;
+function cartPose(i){const c=S.carts[i];if(!c)return null;
+  if(c.by&&c.by===NET.myId)return{x:ME.x-Math.sin(ME.yaw)*CART_OFF,z:ME.z-Math.cos(ME.yaw)*CART_OFF,ry:ME.yaw+Math.PI};
+  const av=c.by&&AV.get(c.by);if(av)return{x:av.x-Math.sin(av.yaw)*CART_OFF,z:av.z-Math.cos(av.yaw)*CART_OFF,ry:av.yaw+Math.PI};
+  return{x:c.x,z:c.z,ry:c.ry}}
+function syncCarts(dt){const n=S&&S.carts?S.carts.length:0;
+  for(let i=0;i<Math.max(n,CARTV.length);i++){let v=CARTV[i];
+    if(i>=n){if(v){v.g.visible=false;if(v.snd)v.snd.set(0,.1)}continue}
+    const P=cartPose(i);
+    if(!v){const g=makeCart();ROOT.add(g);g.position.set(P.x,0,P.z);g.rotation.y=P.ry;
+      const hit=new THREE.Mesh(GEO.box,basic(0));hit.scale.set(.8,1.15,1.2);hit.position.set(0,.55,0);hit.visible=false;hit.userData={kind:'cart',i};g.add(hit);FORKPICK.push(hit);
+      v=CARTV[i]={g,snd:null,sw:0}}
+    const g=v.g,u=g.userData,ox=g.position.x,oz=g.position.z;g.visible=true;
+    if(S.carts[i].by===NET.myId||Math.hypot(P.x-ox,P.z-oz)>3){g.position.set(P.x,0,P.z);g.rotation.y=P.ry}
+    else{g.position.x=damp(ox,P.x,14,dt);g.position.z=damp(oz,P.z,14,dt);g.rotation.y=angLerp(g.rotation.y,P.ry,1-Math.exp(-14*dt))}
+    // wheels turn with the distance rolled; the front casters trail round to the way it's going
+    const dx=g.position.x-ox,dz=g.position.z-oz,d=Math.hypot(dx,dz),ry=g.rotation.y,lz=dx*Math.sin(ry)+dz*Math.cos(ry),lx=dx*Math.cos(ry)-dz*Math.sin(ry);
+    const sp=d/Math.max(dt,1e-3);for(const w of u.wheels)w.rotation.x+=(lz<0?-d:d)/.09;
+    if(sp>.2){let a=Math.atan2(lx,lz);if(a>Math.PI/2)a-=Math.PI;else if(a<-Math.PI/2)a+=Math.PI;v.sw=damp(v.sw,a,6,dt)}
+    for(const s of u.swivel)s.rotation.y=v.sw;
+    if(AU.ready){if(!v.snd)v.snd=loop('cart',{x:P.x,y:.2,z:P.z},.9);if(v.snd){v.snd.pos({x:g.position.x,y:.2,z:g.position.z});v.snd.set(sp>.25?clamp(sp/3.2,.25,1):0,.08)}}}}
+// a box riding on someone's cart: two piles along the deck, filled in the order they were loaded
+function cartBoxPose(b,h){const i=S.carts?S.carts.findIndex(c=>c.by===b.h):-1,v=CARTV[i];if(i<0||!v||!h)return null;
+  const pile=[...(h.stack||[]),h.carry].map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),k=pile.indexOf(b);if(k<0)return null;
+  let y=.28;for(let j=k%2;j<k;j+=2)y+=BOX_KINDS[pile[j].k].h;
+  const g=v.g,ry=g.rotation.y,lz=k%2?-.2:.25;return{x:g.position.x+Math.sin(ry)*lz,y,z:g.position.z+Math.cos(ry)*lz,ry:ry+((b.id*37)%7-3)*.03}}
+// pushing: the cart is a body of its own, two circles ahead of you, and it stops where it can't go
+function cartCollide(p){const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw);
+  for(const off of[.72,1.3]){const c={x:p.x+fx*off,z:p.z+fz*off},x0=c.x,z0=c.z;collideCircle(c,.36);
+    c.x=clamp(c.x,WH.x0+.4,WH.x1-.4);c.z=Math.min(c.z,WH.z1-.4);
+    if(c.z<WH.z0+.4){let ok=false;BAYS.forEach((b,i)=>{const tr=S.trucks[i];if(bayOn(i)&&tr&&tr.st===2&&Math.abs(c.x-b.x)<TRAIL_HW-.35)ok=true});
+      if(!ok)c.z=WH.z0+.4;else c.z=Math.max(c.z,TZ_DOCK-TRAIL_LEN+.45)}
+    p.x+=c.x-x0;p.z+=c.z-z0}
+  collideCircle(p,.32)}
+// half the slowdown boxes would give you in your arms
+const cartSlow=s=>1-(1-s)/2;
 </script>
 </body>
 </html>

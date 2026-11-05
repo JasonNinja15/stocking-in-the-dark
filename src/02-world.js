@@ -180,7 +180,7 @@ function pushOut(p,r,c){const nx=clamp(p.x,c.x0,c.x1),nz=clamp(p.z,c.z0,c.z1);le
 function insideAny(x,z,pad=0){for(const c of COL)if(c.on&&x>c.x0-pad&&x<c.x1+pad&&z>c.z0-pad&&z<c.z1+pad)return true;return false}
 // 2D segment vs rectangles: does anything solid sit between a and b?
 function segBlocked(ax,az,bx,bz){const dx=bx-ax,dz=bz-az;
-  for(const c of COL){if(!c.on)continue;let t0=0,t1=1;
+  for(const c of COL){if(!c.on||c.low)continue;let t0=0,t1=1;
     if(Math.abs(dx)<1e-9){if(ax<c.x0||ax>c.x1)continue}else{let a=(c.x0-ax)/dx,b=(c.x1-ax)/dx;if(a>b)[a,b]=[b,a];t0=Math.max(t0,a);t1=Math.min(t1,b);if(t0>t1)continue}
     if(Math.abs(dz)<1e-9){if(az<c.z0||az>c.z1)continue}else{let a=(c.z0-az)/dz,b=(c.z1-az)/dz;if(a>b)[a,b]=[b,a];t0=Math.max(t0,a);t1=Math.min(t1,b);if(t0>t1)continue}
     if(t1>0.02&&t0<0.98)return true}

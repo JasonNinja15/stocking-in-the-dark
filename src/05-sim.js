@@ -17,7 +17,7 @@ const DF=()=>DIFFS[S&&DIFFS[S.diff]?S.diff:1];
 const lateN=()=>Math.max(0,(S?S.night:1)-5),diffEv=()=>DF().ev*Math.min(2,1+.12*lateN()),dmgMul=()=>DF().dmg*Math.min(1.6,1+.06*lateN());
 function newState(){return{night:1,diff:DIFFS[SET.diff]?SET.diff:1,t:0,phase:'play',inter:0,quota:15,shelved:0,lost:0,score:0,total:0,aidLeft:2,lamps:LAMPS.map(L=>L.dead?0:1),
   players:{},boxes:[],trucks:BAYS.map(()=>({st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,stuck:0})),mons:[],over:null,bver:0,
-  cash:0,adds:[],fixed:[],aidBonus:0,extra:0}}
+  cash:0,adds:[],fixed:[],aidBonus:0,extra:0,carts:[]}}
 function addPlayer(id,name,col){S.players[id]={id,name,col,x:0,z:-16,yaw:0,pitch:0,light:true,hp:100,dead:false,carry:-1,lastHurt:-99,inv:{},up:{},stack:[],can:false}}
 function spawnPoint(i){return{x:-2.4+(i%5)*1.4,z:-15.5+Math.floor(i/5)*1.4}}
 const crewMul=()=>{const n=Math.max(1,Object.keys(S.players).length);return 1+.45*Math.min(3,n-1)+.3*Math.max(0,n-4)};
@@ -41,6 +41,7 @@ function endNight(){
     S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,stuck:0}));
     // anything in someone's arms (or on the forks) goes down where they stand, and stays for the next night
     if(S.fork&&S.fork.drv&&S.players[S.fork.drv])forkUnload(S.players[S.fork.drv]);
+    for(const c of S.carts||[])if(c.by)cartLetGo(c);
     for(const p of Object.values(S.players)){dropCarry(p);p.can=false}
     // a mimic still loose at 6 AM folds itself back into a box wherever it is
     for(const m of S.mons)if(m.ty===0&&m.st!=='bolt'){const [i,j]=cellOf(m.x,m.z);if(m.x<WH.x0||m.x>WH.x1||m.z<WH.z0+.5||GRID.blk[j*GRID.nx+i])continue;
@@ -80,7 +81,10 @@ function applyColliders(){if(!S)return;S.trucks.forEach((tr,i)=>{const v=BAYV[i]
   ADDV.carUp.gcol.on=owned('base')&&!carGateOpen(0);ADDV.carDn.gcol.on=owned('base')&&!carGateOpen(1);
   // (on a client the forklift you bump into is the smoothed one you see: the raw snapshot position jumps 20 times a
   // second, and a collider that jumps shoves you, and your camera, along with it)
-  if(S.fork){const f=S.fork,P=NET.mode==='client'&&FORK3D?FORK3D.position:f;Object.assign(FORKCOL,{x0:P.x-.75,x1:P.x+.75,z0:P.z-.75,z1:P.z+.75,on:!(f.drv&&f.drv===NET.myId)})}}
+  if(S.fork){const f=S.fork,P=NET.mode==='client'&&FORK3D?FORK3D.position:f;Object.assign(FORKCOL,{x0:P.x-.75,x1:P.x+.75,z0:P.z-.75,z1:P.z+.75,on:!(f.drv&&f.drv===NET.myId)})}
+  // a parked hand cart is solid (one being pushed isn't: it moves with its pusher)
+  CARTCOL.forEach((cc,i)=>{const c=(S.carts||[])[i];cc.on=!!c&&!c.by;if(!cc.on)return;const hx=Math.abs(Math.cos(c.ry))*.34+Math.abs(Math.sin(c.ry))*.56,hz=Math.abs(Math.sin(c.ry))*.34+Math.abs(Math.cos(c.ry))*.56;
+    Object.assign(cc,{x0:c.x-hx,x1:c.x+hx,z0:c.z-hz,z1:c.z+hz})})}
 // is (x,y,z) inside someone's flashlight beam with nothing solid in the way?
 // (anything up near the ceiling is above the racks, so only floor-level targets can be hidden behind them)
 // (someone driving the forklift sits higher, and the forklift's own body never blocks their light)
@@ -116,7 +120,7 @@ function simUpdate(dt){
   applyColliders();
   for(const p of Object.values(S.players)){if(p._l===undefined)p._l=p.light;if(p.light!==p._l){p._l=p.light;(p.togs||(p.togs=[])).push(S.t)}
     if(p.togs)while(p.togs.length&&S.t-p.togs[0]>1.6)p.togs.shift()}
-  trucksUpdate(dt);boxesUpdate(dt);monstersUpdate(dt);lampsUpdate(dt);extrasUpdate(dt);elevGuard();
+  trucksUpdate(dt);boxesUpdate(dt);monstersUpdate(dt);lampsUpdate(dt);extrasUpdate(dt);cartUpdate(dt);elevGuard();
   for(const p of Object.values(S.players))if(!p.dead&&p.hp<60&&S.t-p.lastHurt>12)p.hp=Math.min(60,p.hp+dt*2.5);
   const ps=Object.values(S.players);if(ps.length&&ps.every(p=>p.dead))gameOver('dead');
 }
@@ -358,7 +362,8 @@ function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
   switch(a.a){
   case 'pick':{const b=B(a.b);if(!b||(b.st!==0&&b.st!==3)||busy||b.amr)return;
     // the carry upgrade stacks up to three; otherwise hands must be empty
-    if(p.carry>=0&&!((p.up.hand||drv)&&p.stack.length<2))return;const w=boxWorld(b);if(drv?tipD(w)>2.8:!near(w,3.4))return;
+    // (a hand cart takes five)
+    const cap=cartOf(pid)>=0?CART_MAX-1:(p.up.hand||drv)?2:0;if(p.carry>=0&&p.stack.length>=cap)return;const w=boxWorld(b);if(drv?tipD(w)>2.8:!near(w,3.4))return;
     if(b.m){burstMimic(b,pid,true);return}
     if(p.carry>=0)p.stack.push(p.carry);
     const fromTruck=b.st===0,bay=b.bay;b.st=1;b.h=pid;p.carry=b.id;p.baseIdle=0;p.baseWarn=false;if(fromTruck)settleTruck(bay);S.bver++;emit({e:'pick',p:pid,x:w.x,y:w.y,z:w.z});break}

@@ -31,6 +31,7 @@ const SHOP={
   bulb:{name:'Lamp bulb',price:50,give:1,key:9,desc:'Use it under a dead light fixture to fix it for the rest of the run.'},
   hand:{name:'Carry Upgrade',price:110,once:true,desc:'Carry up to three boxes at once. Slower, and noisier.'},
   red:{name:'Red headlamp',price:80,once:true,key:'H',desc:'A dim red light (H) that monsters don\'t notice.'},
+  cart:{name:'Hand cart',price:300,team:true,desc:'A flat cart with a push handle, parked at the west end of the dock. Push it to carry five boxes at once, at half the slowdown of carrying them. The wheels rattle a little.'},
   aid:{name:'First-aid refill',price:30,team:true,desc:'One more use of the first-aid cabinet next night (two at most, three with the Medkit Upgrade).'}};
 const PA_SPOTS=[{n:'by the roof ladder',x:-22.4,z:12.2},{n:'at the west end of aisle two',x:-28.4,z:1.5},{n:'behind the east racks',x:28.6,z:2.5},
   {n:'by the barrels',x:26.4,z:16.4},{n:'between the middle racks',x:0,z:1.5},{n:'at the west end of aisle four',x:-28.4,z:11.5},{n:'by the dock columns',x:5.5,z:-11.2}];
@@ -80,6 +81,7 @@ function shopAct(pid,a){const p=S.players[pid];if(!p)return;
   if(a.a!=='buy'||S.phase!=='shop')return;const k=a.k;
   const no=m=>emit({e:'msg',m,p:pid});
   if(isTeam(k)){const it=ADDS[k]||SHOP[k];if(ADDS[k]&&owned(k))return no('Already built.');
+    if(k==='cart'&&(S.carts||[]).length>=cartMax())return no(cartMax()>1?'The crew already has two carts.':'You already have a cart.');
     if(k==='aid'&&(S.aidBonus||0)>=aidCap())return no('The cabinet is already stocked for tomorrow.');
     const tv=S.tvotes||(S.tvotes={}),v=tv[k]||(tv[k]=[]);if(v.includes(pid)){tv[k]=v.filter(x=>x!==pid);return}
     if((S.cash||0)<priceOf(k))return no('Not enough in the team fund.');v.push(pid);teamVoteCheck();return}
@@ -96,8 +98,8 @@ function shopAct(pid,a){const p=S.players[pid];if(!p)return;
 // a team purchase goes through once more than half the crew has voted for it (and the team fund covers it)
 function teamVoteCheck(){const ids=Object.keys(S.players),tv=S.tvotes||(S.tvotes={});
   for(const k in tv){tv[k]=tv[k].filter(id=>ids.includes(id));const pr=priceOf(k);if(!tv[k].length){delete tv[k];continue}
-    if(tv[k].length*2>ids.length&&(S.cash||0)>=pr&&!(ADDS[k]&&owned(k))){S.cash-=pr;delete tv[k];
-      if(ADDS[k]){S.adds.push(k);applyAdds()}else if(k==='aid')S.aidBonus=(S.aidBonus||0)+1;
+    if(tv[k].length*2>ids.length&&(S.cash||0)>=pr&&!(ADDS[k]&&owned(k))&&!(k==='cart'&&(S.carts||[]).length>=cartMax())){S.cash-=pr;delete tv[k];
+      if(ADDS[k]){S.adds.push(k);applyAdds()}else if(k==='aid')S.aidBonus=(S.aidBonus||0)+1;else if(k==='cart')(S.carts||(S.carts=[])).push(newCart((S.carts||[]).length));
       emit({e:'bought',k,team:1});saveRun()}}}
 function shopVoteCheck(){const ids=Object.keys(S.players),v=(S.votes||[]).filter(id=>ids.includes(id));S.votes=v;teamVoteCheck();
   if(S.phase==='shop'&&v.length*2>ids.length){S.night++;startNight()}}
@@ -517,10 +519,11 @@ function act2(pid,p,a){
   case 'cold':{if(!owned('cold'))return true;const c=S.cold;if(c.open){c.open=false}else{c.open=true;c.t=6}emit({e:'coldDoor',o:c.open?1:0});return true}
   case 'lever':{if(!owned('conv')||!nearPos(p,CONV.lever.x,CONV.lever.z,3))return true;S.conv.sel=(S.conv.sel+1)%3;emit({e:'lever',x:CONV.lever.x,z:CONV.lever.z});return true}
   case 'jam':{if(!owned('conv')||!S.conv.jam||!nearPos(p,CONV.jam.x,CONV.jam.z,2.5))return true;S.conv.jam=false;const e=S.parcels.find(x=>x.jam&&x.x>=CONV.x1-.3);if(e)e.jam=false;emit({e:'unjam'});return true}
-  case 'elevIn':{if(!owned('base'))return true;const C=a.lvl===0?CAR_UP:CAR_DN;if(!inCar(p,C)||S.elev.lvl!==a.lvl)return true;elevStart(a.lvl);return true}
+  case 'cart':{const i=cartOf(pid);if(i>=0)cartLetGo(S.carts[i]);else cartGrab(p,a.i|0);return true}
+  case 'elevIn':{if(!owned('base'))return true;if(cartOf(pid)>=0)return toP(p,'Let go of the cart first. It won\'t fit in the car with you.'),true;const C=a.lvl===0?CAR_UP:CAR_DN;if(!inCar(p,C)||S.elev.lvl!==a.lvl)return true;elevStart(a.lvl);return true}
   case 'elevCall':{if(!owned('base'))return true;if(S.elev.st==='idle'&&S.elev.lvl!==a.lvl)elevStart(S.elev.lvl);return true}
   case 'shred':shredBox(p);return true;
-  case 'climb':{if(p.carry>=0||p.can||(S.fork&&S.fork.drv===pid))return toP(p,'You need both hands for the ladder.'),true;
+  case 'climb':{if(p.carry>=0||p.can||cartOf(pid)>=0||(S.fork&&S.fork.drv===pid))return toP(p,'You need both hands for the ladder.'),true;
     const up=nearPos(p,LADDER.x,LADDER.z,2.4),down=nearPos(p,HATCH.x,HATCH.z,2.4);if(!up&&!down)return true;
     if(down&&S.rg&&S.rg.st==='eat'&&S.rg.tg===pid)return true;
     const x=up?HATCH.x+1.15:LADDER.x+1.1,z=up?HATCH.z-1.1:LADDER.z-.9;p.x=x;p.z=z;p.tpT=.8;
@@ -531,11 +534,11 @@ function act2(pid,p,a){
     S.stash=false;const k=['batt','flare','drink','horn','strobe'][randi(0,4)];p.inv[k]=(p.inv[k]||0)+1;emit({e:'stash',p:pid,k});return true}
   case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>m.ty===14&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
   case 'shake':{if(!p.up.shake||S.t-(p.shT??-1e9)<.3)return true;p.shT=S.t;noise(p.x,p.z,10);emit({e:'shake',p:pid,x:p.x,z:p.z});return true}
-  case 'can':{if(!owned('gen')||p.carry>=0||p.can||!nearPos(p,FUELR.x,FUELR.z,2.6))return true;p.can=true;emit({e:'canUp',p:pid});return true}
+  case 'can':{if(!owned('gen')||p.carry>=0||cartOf(pid)>=0||p.can||!nearPos(p,FUELR.x,FUELR.z,2.6))return true;p.can=true;emit({e:'canUp',p:pid});return true}
   case 'fuel':{if(!owned('gen')||!p.can||!nearPos(p,GEN.x,GEN.z,2.8))return true;p.can=false;const was=mainsDown();S.gen.fuel=Math.min(100,S.gen.fuel+50);S.gen.out=false;if(was&&!S.ot)powerOn();emit({e:'refuel',x:GEN.x,z:GEN.z,on:was});return true}
   case 'fork':{const f=S.fork;if(f.drv===pid){forkUnload(p);f.drv='';const sx=Math.cos(f.ry),sz=-Math.sin(f.ry);let x=f.x+sx*1.2,z=f.z+sz*1.2;if(insideAny(x,z,.3)){x=f.x-sx*1.2;z=f.z-sz*1.2}
       p.x=x;p.z=z;p.tpT=.6;emit({e:'tp',p:pid,x:r2(x),z:r2(z)});emit({e:'forkOut',p:pid});return true}
-    if(!owned("fork")||f.drv||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>5.2)return true; // (matches the reach of the hit box around it)
+    if(!owned("fork")||f.drv||cartOf(pid)>=0||p.carry>=0||p.can||Math.hypot(p.x-f.x,p.z-f.z)>5.2)return true; // (matches the reach of the hit box around it)
     f.drv=pid;if(S.night>=2&&!f.pass&&Math.random()<.25*diffEv())f.pass={lit:0,dark:0};emit({e:'forkIn',p:pid});return true}
   case 'fpick':{const f=S.fork;if(f.drv!==pid||f.pal>=0||p.carry>=0)return true;const t=forkTip();const pal=S.pallets.find(x=>(x.st===0||x.st===3)&&x.amr!==2&&Math.hypot(palWorld(x).x-t.x,palWorld(x).z-t.z)<1.3);
     if(!pal)return true;pal.st=1;f.pal=pal.id;pal.amr=0;pal.y=0;f.lift=2.62;emit({e:'pick',x:t.x,y:.5,z:t.z});return true}
@@ -576,7 +579,7 @@ function blindUpdate(m,dt){m.cd-=dt;m.t+=dt;m.hearT-=dt;
 // Anyone who stands around down there without handling a box gets noticed. It crawls over slowly, takes hold and
 // drags them to the shredder. Mashing E breaks its grip; getting back to work before it arrives sends it back.
 const inBase=p=>p.x>60;
-const baseLimit=()=>25/Math.sqrt(diffEv()); // seconds of idling: 25 on Normal, about 34 on Easy and 20 on Hard
+const baseLimit=()=>7; // seconds of standing about down here before it comes for you
 // the cage fence runs along x = 79 with its gate at z = 0
 function baseStep(m,tx,tz,sp,dt){let wx=tx,wz=tz;const inside=m.x>79,want=tx>79;
   if(inside!==want){wx=Math.abs(m.z)>.5?(inside?79.7:78.3):(want?79.9:78.1);wz=0}
@@ -594,6 +597,7 @@ function hunchUpdate(m,dt){const lim=baseLimit();m.cd-=dt;m.t+=dt;
   if(m.st==='reach'){if(!tg||tg.dead||!inBase(tg)||tg.baseIdle<lim*.5){m.st='back';return}
     m.a=2;if(baseStep(m,tg.x,tg.z,.75,dt)<1.0){m.st='drag';m.t=0;tg.strug=0;emit({e:'grab',p:tg.id,id:m.id})}return}
   if(m.st==='drag'){if(!tg||tg.dead){m.st='back';return}
+    if(S.t-(tg.sgT??-1e9)>.25)tg.strug=Math.max(0,(tg.strug||0)-dt*STRUG_DECAY); // stop mashing and its grip comes back
     if((tg.strug||0)>=STRUGGLE_N){damage(tg,20);tg.baseIdle=0;tg.baseWarn=false;m.st='back';m.cd=12;emit({e:'freed',p:tg.id,x:m.x,z:m.z});return}
     m.a=5;if(m.t<1.2)return; // it takes its time getting a grip
     if(baseStep(m,SHRED.x,SHRED.z+1.65,.9,dt)<.15){m.ry=Math.PI;emit({e:'scare',p:tg.id,ty:14,id:m.id});emit({e:'shred',x:SHRED.x,z:SHRED.z});damage(tg,999);m.st='back';m.cd=8}}}
@@ -611,7 +615,7 @@ MON_UPD[13]=blindUpdate;MON_UPD[14]=hunchUpdate;
 // older save alone until it has a night of its own to save over it.
 const SAVE_KEY='sitd-run';
 function saveRun(){if(!S||S.over)return;const pl={};for(const p of Object.values(S.players))pl[p.name]={inv:p.inv,up:p.up,cash:Math.round(p.cash||0)};
-  const sv={v:1,night:S.night,diff:S.diff,total:S.total,score:S.score,cash:S.cash,adds:S.adds,fixed:S.fixed,aidBonus:S.aidBonus||0,sel:S.conv?S.conv.sel:0,pl,
+  const sv={v:1,night:S.night,diff:S.diff,total:S.total,score:S.score,cash:S.cash,adds:S.adds,fixed:S.fixed,aidBonus:S.aidBonus||0,carts:(S.carts||[]).length,sel:S.conv?S.conv.sel:0,pl,
     boxes:S.boxes.filter(b=>b.st===3).map(b=>({x:b.x,y:b.y,z:b.z,ry:b.ry,k:b.k,f:b.f,v:b.v,s:b.s,m:b.m,roam:b.roam,ret:b.ret,pri:b.pri})),crew:Object.keys(S.players).length,at:Date.now()};
   S.saved=true;try{localStorage.setItem(SAVE_KEY,JSON.stringify(sv))}catch(e){}}
 function loadSave(){try{const sv=JSON.parse(localStorage.getItem(SAVE_KEY));return sv&&sv.v===1&&sv.night>=1?sv:null}catch(e){return null}}
@@ -619,6 +623,7 @@ function dropSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}}
 // players get their own gear back by name; anyone new to the crew picks up gear nobody claimed, or starts empty
 function restoreRun(sv){Object.assign(S,{night:sv.night,diff:DIFFS[sv.diff]?sv.diff:1,total:sv.total|0,score:sv.score||0,cash:sv.cash||0,adds:(sv.adds||[]).filter(k=>ADDS[k]),fixed:sv.fixed||[],aidBonus:sv.aidBonus|0,
     conv:{sel:sv.sel|0,next:12,jam:false},phase:'shop',shopT:150,votes:[],saved:true});
+  S.carts=Array.from({length:Math.min(2,sv.carts|0)},(_,i)=>newCart(i));
   const left=Object.assign({},sv.pl||{}),ps=Object.values(S.players),give=(p,g)=>{p.inv=Object.assign({},g.inv||{});p.up=Object.assign({},g.up||{});p.cash=g.cash||0};
   for(const p of ps)if(left[p.name]){give(p,left[p.name]);delete left[p.name];p.got=1}
   const rest=Object.values(left);for(const p of ps)if(!p.got&&rest.length)give(p,rest.shift());

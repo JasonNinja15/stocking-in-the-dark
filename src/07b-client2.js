@@ -197,6 +197,10 @@ function onKey2(code,me){
   if(k){if(!haveItem(me,k)){SFX.deny();toast(`No ${SHOP[k].name.toLowerCase()}. They're sold between nights.`,2.5);return true}
     if(ME.sel!==k){ME.sel=k;SFX.click()}return true}
   if(code==='UseItem'||code==='Space'){useSel(me);return true}
+  // pushing a hand cart: Q lets go, G sets a box down beside it
+  if(ME.cart>=0){if(code==='KeyQ'){doAct({a:'cart'});return true}
+    if(code==='KeyG'){if(me.carry<0)return true;const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw),rx=Math.cos(ME.yaw),rz=-Math.sin(ME.yaw);let x=ME.x+rx*.85+fx*.7,z=ME.z+rz*.85+fz*.7;
+      if(insideAny(x,z,.2)){x=ME.x-rx*.85+fx*.7;z=ME.z-rz*.85+fz*.7}doAct({a:'drop',x:r2(x),z:r2(z),ry:r2(ME.yaw)});return true}}
   if(ME.driving){
     if(code==='KeyQ'){doAct({a:'fork'});return true}
     if(code==='KeyE'){const t=ME.target;if(t&&t.kind==='fslot'){if(t.ok)doAct({a:'fplace',s:t.s.id});else SFX.deny()}else if(t&&t.kind==='fpal')doAct({a:'fpick'});
@@ -205,7 +209,8 @@ function onKey2(code,me){
     return true}
   if(code==='KeyE'){const t=ME.target;if(!t)return false;
     switch(t.kind){
-    case 'fork':if(!owned('fork')){toast('The forklift is broken. It can be repaired between nights.',3);SFX.locked()}else if(me.carry>=0||me.can)toast('Put down what you\'re carrying first.',2.5);else doAct({a:'fork'});return true;
+    case 'fork':if(ME.cart>=0)toast('Let go of the cart first.',2.5);else if(!owned('fork')){toast('The forklift is broken. It can be repaired between nights.',3);SFX.locked()}else if(me.carry>=0||me.can)toast('Put down what you\'re carrying first.',2.5);else doAct({a:'fork'});return true;
+    case 'cart':{const c=S.carts&&S.carts[t.i];if(!c)return true;if(c.by)toast('Someone else is pushing that cart.',2.5);else if(me.can)toast('Put the jerry can down first.',2.5);else doAct({a:'cart',i:t.i});return true}
     case 'pallet':toast('Far too heavy to lift by hand. That\'s forklift work.',3);SFX.deny();return true;
     case 'parcel':toast('Parcels sort themselves. Set the lever to the next colour.',3);return true;
     case 'cold':doAct({a:'cold'});return true;
@@ -216,7 +221,7 @@ function onKey2(code,me){
     case 'gen':if(me.can)doAct({a:'fuel'});else toast('Bring a jerry can from the fuel rack.',2.5);return true;
     case 'fuelrack':if(me.can)toast('You already have a can.',2);else if(me.carry>=0)toast('Your hands are full.',2);else doAct({a:'can'});return true;
     case 'shred':if(me.carry<0)toast('Bring a box to feed it.',2);else doAct({a:'shred'});return true;
-    case 'ladder':case 'hatch':if(me.carry>=0||me.can){toast('You need both hands for the ladder.',2.5);SFX.deny()}else doAct({a:'climb'});return true;
+    case 'ladder':case 'hatch':if(ME.cart>=0||me.carry>=0||me.can){toast('You need both hands for the ladder.',2.5);SFX.deny()}else doAct({a:'climb'});return true;
     case 'amrPad':if(me.carry<0)toast('Bring a box. The robot takes it to a shelf for you.',2.5);else doAct({a:'amrLoad'});return true;
     case 'stash':doAct({a:'stash'});return true}}
   if(code==='KeyQ'&&ME.target&&ME.target.kind==='parcel'){if(ME.kickCD>0)return true;ME.kickCD=.8;ME.kickA=.35;doAct({a:'kick',pc:ME.target.id});return true}
@@ -339,7 +344,7 @@ function onEvent2(e){if(onEvent3(e))return;const me=NET.myId,P=(x,z,y=1)=>({x,y,
   case 'unstall':SFX.thunk(P(ME.x,ME.z,2));break;
   case 'elevGo':SFX.thunk(P(e.lvl===0?-28.7:71.3,e.lvl===0?-9.3:0,1));break;
   case 'ding':SFX.ding(P(e.lvl===0?-28.7:71.3,e.lvl===0?-9.3:0,2.4));break;
-  case 'tp':if(e.p===me){ME.x=e.x;ME.z=e.z;ME.vx=ME.vz=0;
+  case 'tp':if(e.p===me){ME.x=e.x;ME.z=e.z;ME.vx=ME.vz=0;if(e.yaw!==undefined)ME.yaw=e.yaw;
       if(e.climb){const f=$('fade');if(f){f.style.transition='none';f.style.opacity=1;requestAnimationFrame(()=>{f.style.transition='opacity .9s';f.style.opacity=0})}
         for(let i=0;i<5;i++)setTimeout(()=>SFX.step(true,false),i*120);ME.yaw=e.climb>0?Math.PI*.75:Math.PI*.25;ME.pitch=0;
         if(e.climb>0&&!GAME.hints.roof){GAME.hints.roof=1;toast('The roof. It\'s snowing hard and nothing up here is lit. Someone keeps a supply crate at the far end.',6)}}}break;
@@ -384,6 +389,7 @@ function hotbarHTML(me){if(!me||!me.inv)return'';const sel=curSel(me),items=[];
   const lamp=me.up.red?`<span data-k="lamp" class="hb lamp${ME.red?' on':''}"><small>${keyLabel('KeyH')}</small>Headlamp</span>`:'';
   return items.length||lamp?`${name}<div class="hbrow">${items.join('')}${lamp}</div>`:''}
 function promptFor(t,me){switch(t.kind){
+  case 'cart':{const c=S.carts&&S.carts[t.i];return!c?null:c.by?'Someone else is pushing this cart':'<kbd>E</kbd> Push the hand cart'+(me.carry>=0?' (your boxes go on it)':'')}
   case 'fork':return owned('fork')?'<kbd>E</kbd> Drive the forklift':'Broken forklift';
   case 'pallet':return'Pallet load: forklift only';
   case 'parcel':return'<kbd>Q</kbd> Kick off the belt'+(curSel(me)==='cutter'?' &nbsp; <kbd>Right click</kbd> Cut':'');
@@ -429,7 +435,7 @@ function dirTo(x,z){const dx=x-ME.x,dz=z-ME.z,d=Math.hypot(dx,dz),fx=-Math.sin(M
 function carryNote(me){if(!me)return'';
   if(me.can)return`Jerry can &middot; generator ${dirTo(GEN.x,GEN.z)}`;
   const b=me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;if(!b)return'';const n=1+(me.stack?me.stack.length:0);
-  let s=n>1?`Carrying ${n} boxes`:'';
+  let s=ME.cart>=0?`On the cart: ${n} of ${CART_MAX}`:n>1?`Carrying ${n} boxes`:'';
   if(b.fz)s+=(s?' &middot; ':'')+`<span style="color:#9fd4ff">${chilled()?'Frozen: holding in the cold':`Frozen: thaws in ${Math.max(0,Math.ceil(b.th||0))}s`}${inCold(ME)?'':` &middot; freezer ${dirTo((COLD.dx0+COLD.dx1)/2,COLD.z1+.6)}`}</span>`;
   else if(b.ret)s+=(s?' &middot; ':'')+`<span style="color:#d9a35a">Damaged return: shred it &middot; ${ME.x>60?`shredder ${dirTo(SHRED.x,SHRED.z)}`:`basement elevator ${dirTo(CAR_UP.x1,(CAR_UP.z0+CAR_UP.z1)/2)}`}</span>`;
   else if(ME.x>60)s+=(s?' &middot; ':'')+`Shelves are upstairs &middot; elevator ${dirTo(CAR_DN.x1,0)}`;
@@ -451,7 +457,7 @@ function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const f
 // ---------------------------------------------------------------- the shop screen
 let shopShown=false,shopSig='';
 function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)return;
-  const sig=JSON.stringify([S.cash,me.cash,S.tvotes,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
+  const sig=JSON.stringify([(S.carts||[]).length,S.cash,me.cash,S.tvotes,S.adds,me.inv,me.up,S.aidBonus,S.fixed,Math.round(S.shopT||0),S.votes,Object.keys(S.players).length]);if(!force&&sig===shopSig)return;shopSig=sig;
   const team=Math.round(S.cash||0),mine$=Math.round(me.cash||0),crew=Object.keys(S.players).length,tneed=Math.floor(crew/2)+1;
   $('shopCash').innerHTML=crew>1?`Team fund $${team}<small>·</small>Your fund $${mine$}`:`$${team+mine$}`;$('shopNight').textContent=`Night ${S.night} done. Night ${S.night+1} is next.`;
   // team things show their votes on the button: amber once anyone has voted, green when you have
@@ -460,7 +466,9 @@ function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)retu
     if(locked)extra+=`<div class="tag" style="color:#ff9f70">on sale from night ${it.night}</div>`;
     const label=!tm||crew<2?'Buy':tv.length?`${voted?'Voted':'Vote'} · ${tv.length} of ${crew} (${tneed} needed)`:'Vote to buy',cls=tm&&crew>1?(voted?'voted':tv.length?'votes':''):'';
     return`<div class="sc${ownedNow?' own':''}"><div class="sh"><b>${it.name}</b><span>${ownedNow?'OWNED':'$'+pr}</span></div><p>${it.desc}</p>${extra}${ownedNow?'':`<button data-buy="${k}" class="${cls}" ${can?'':'disabled'}>${label}</button>`}</div>`};
-  const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)).join('');
+  const nCart=(S.carts||[]).length,maxCart=crew>1?2:1;
+  const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>k==='cart'?card(k,it,nCart>=maxCart,`<div class="tag">${crew>1?'the crew has':'you have'} ${nCart} of ${maxCart}${crew>1?'':' (two in a crew)'}</div>`)
+    :card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)).join('');
   $('shopAdds').innerHTML=Object.entries(ADDS).map(([k,it])=>card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)).join('')+teamShop;
   $('shopItems').innerHTML=Object.entries(SHOP).filter(([k,it])=>!it.team&&(!it.needs||me.up[it.needs])).map(([k,it])=>{const have=it.once?!!me.up[k]:(me.inv[k]||0);
     const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
@@ -483,11 +491,13 @@ function bindShop(){$('shop').addEventListener('click',e=>{const b=e.target.clos
 function grabber(){return S.mons.find(m=>m.ty===14&&m.a===5&&m.tg===NET.myId)}
 function grabUpdate(dt,me){const m=grabber();if(!m){ME.grab=false;return false}
   if(!ME.grab){ME.grab=true;ME.strug=0}
+  // (the meter drains once you stop mashing, the same as on the host)
+  if(performance.now()-(ME.sgT||0)>250)ME.strug=Math.max(0,(ME.strug||0)-dt*STRUG_DECAY);
   const v=MV.get(m.id),gx=v?v.g.position.x:m.x,gz=v?v.g.position.z:m.z,ry=v?v.g.rotation.y:m.ry;
   ME.x=gx+Math.sin(ry)*.85;ME.z=gz+Math.cos(ry)*.85;ME.vx=ME.vz=0;
   ME.yaw=angLerp(ME.yaw,Math.atan2(-(SHRED.x-ME.x),-(SHRED.z-ME.z)),dt*4);ME.pitch=damp(ME.pitch,-.3,4,dt);
   const t=performance.now()*.001;camera.position.set(ME.x,1.35+Math.sin(t*9)*.03,ME.z);camera.rotation.set(ME.pitch,ME.yaw+Math.sin(t*7)*.04,Math.sin(t*5)*.08);
   me.x=ME.x;me.z=ME.z;return true}
-function struggle(){ME.strug=(ME.strug||0)+1;ME.shake=Math.max(ME.shake,.25);doAct({a:'struggle'})}
+function struggle(){const now=performance.now();if(now-(ME.sgT||0)<60)return;ME.sgT=now;ME.strug=(ME.strug||0)+1;ME.shake=Math.max(ME.shake,.25);doAct({a:'struggle'})}
 function grabNote(){if(!ME.grab)return'';const k=clamp((ME.strug||0)/STRUGGLE_N,0,1);
   return`<span class="warnline">IT HAS YOU</span><br>Mash <kbd>E</kbd> to break free <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}

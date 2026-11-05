@@ -3,6 +3,10 @@
 // bought: its geometry becomes visible and its colliders (tagged with `add`) start counting for collisions
 // and for the monsters' pathfinding grid.
 const FORKCOL=col(0,0,0,0,{dyn:true}); // follows the forklift around
+// the hand carts: up to two, parked by the west end of the dock (the far end of the bays from the forklift). A parked
+// cart is solid to walk into; it's waist high, so it never hides anything from a flashlight or a monster (low).
+const CART_MAX=5,CART_OFF=.98,CART_HOME=[{x:-26.7,z:-16.9,ry:0},{x:-26.7,z:-14.3,ry:0}];
+const CARTCOL=CART_HOME.map(()=>col(0,0,0,0,{dyn:true,on:false,low:true}));
 const ADDG={};         // addition key -> group
 const ADDV={};         // moving parts: doors, gates, hatches, the sorting arm, gauges
 function addGroup(k){const g=new THREE.Group();g.visible=false;ROOT.add(g);ADDG[k]=g;return g}

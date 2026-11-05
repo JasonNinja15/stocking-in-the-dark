@@ -158,3 +158,30 @@ function devAct(p,a){if(!p||!isDevName(p.name)||!S||S.over)return;
   case 16:{if(has(16))return here('auditor');S.mons.push({id:monSeq++,ty:16,x:sp.x,z:sp.z,y:0,ry:rand(-3,3),st:'pick',a:0,t:0,life:0,cd:2,pulled:0,exp:{},path:null,rep:0});break}
   default:return}
   toP(p,`Spawned: ${name}.`)}
+
+// ---------------------------------------------------------------- hand carts (a team purchase: one alone, two in a crew)
+// E on a parked cart takes the handle; you stand behind it and it rolls ahead of you. Boxes you pick up go onto the deck
+// (five at most) and still count as yours (p.carry and p.stack), so shelving one is the same E as always. A loaded cart
+// is half as slow as carrying the same boxes. Q lets go; any boxes still on the deck are set down beside it. The
+// casters rattle on the concrete: quiet, but anything that hunts by ear close by can hear it.
+const cartMax=()=>Object.keys(S.players||{}).length>1?2:1;
+const newCart=i=>{const h=CART_HOME[i]||CART_HOME[0];return{x:h.x,z:h.z,ry:h.ry,by:''}};
+const cartOf=pid=>(S.carts||[]).findIndex(c=>c.by===pid);
+const cartLoad=p=>(p.carry>=0?1:0)+(p.stack?p.stack.length:0);
+function cartGrab(p,i){const c=(S.carts||[])[i];if(!c||c.by||p.dead||p.can||(S.fork&&S.fork.drv===p.id)||cartOf(p.id)>=0)return;
+  if(Math.hypot(p.x-c.x,p.z-c.z)>3.2||cartLoad(p)>CART_MAX)return;
+  // step round behind the handle, facing the way the cart points
+  const fx=Math.sin(c.ry),fz=Math.cos(c.ry);let x=c.x-fx*CART_OFF,z=c.z-fz*CART_OFF;if(insideAny(x,z,.25)){x=p.x;z=p.z}
+  c.by=p.id;p.x=x;p.z=z;p.yaw=c.ry+Math.PI;p.tpT=.4;emit({e:'tp',p:p.id,x:r2(x),z:r2(z),yaw:r3(p.yaw)});emit({e:'cartOn',p:p.id})}
+// let go: whatever is on the deck goes down on the floor either side of it
+function cartLetGo(c){const p=S.players[c.by];c.by='';if(!p)return;const ids=[p.carry,...(p.stack||[])].filter(id=>id>=0);p.carry=-1;p.stack=[];
+  const sx=Math.cos(c.ry),sz=-Math.sin(c.ry),fx=Math.sin(c.ry),fz=Math.cos(c.ry);
+  ids.forEach((id,k)=>{const b=S.boxes.find(x=>x.id===id);if(!b)return;const side=k%2?-1:1,along=(Math.floor(k/2)-1)*.5;
+    let x=c.x+sx*side*.8+fx*along,z=c.z+sz*side*.8+fz*along;if(insideAny(x,z,.2)){x=c.x-sx*side*.8+fx*along;z=c.z-sz*side*.8+fz*along}if(insideAny(x,z,.2)){x=p.x;z=p.z}
+    const tb=trailerAt(x,z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=x-BAYS[tb].x;b.z=z-S.trucks[tb].z;b.y=0;settleTruck(tb)}else{b.st=3;b.x=x;b.z=z;b.y=0}b.ry=c.ry+rand(-.3,.3);b.h=''});
+  if(ids.length){S.bver++;emit({e:'place',x:c.x,y:0,z:c.z})}emit({e:'cartOff',p:p.id})}
+// every tick: the cart rolls ahead of whoever has it. Leave the warehouse floor (the elevator, the ladder) and it stays behind.
+function cartUpdate(dt){for(const c of S.carts||[]){if(!c.by)continue;const p=S.players[c.by];
+  if(!p||p.dead||!inWH(p)||onRoof(p)||(S.fork&&S.fork.drv===p.id)){cartLetGo(c);continue}
+  c.x=p.x-Math.sin(p.yaw)*CART_OFF;c.z=p.z-Math.cos(p.yaw)*CART_OFF;c.ry=p.yaw+Math.PI;
+  c.nT=(c.nT||0)-dt;if(c.nT<=0){c.nT=.5;if(p.spd>.8)noise(c.x,c.z,cartLoad(p)?5:4,'cart')}}}

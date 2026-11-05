@@ -95,7 +95,7 @@ function touchTick(){const vis=TOUCH.on&&GAME.on&&!$('hud').classList.contains('
   if(!vis)return;const me=S&&S.players[NET.myId];if(!me)return;
   const dead=!!me.dead,lab=(id,s)=>{if(_tl[id]!==s){_tl[id]=s;$(id).textContent=s}},hid=(id,h)=>$(id).classList.toggle('hide',h);
   const sel=dead?'':curSel(me);
-  lab('tUse',dead?'NEXT':ME.grab?'PULL':'USE');lab('tKick',dead?'BACK':ME.grab?'PULL':ME.driving?'GET OUT':'KICK');
+  lab('tUse',dead?'NEXT':ME.grab?'PULL':'USE');lab('tKick',dead?'BACK':ME.grab?'PULL':ME.driving?'GET OUT':ME.cart>=0?'LET GO':'KICK');
   lab('tItem',sel?(ITEM_ICON[sel]||'ITEM').toUpperCase():'ITEM');hid('tItem',dead||!sel);
   hid('tLight',dead);hid('tDrop',dead||(me.carry<0&&!(ME.driving&&S.fork&&S.fork.pal>=0)));
   hid('tLamp',dead||!(me.up&&me.up.red));hid('tShake',dead||!(me.up&&me.up.shake)||ME.driving);

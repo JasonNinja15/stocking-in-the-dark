@@ -126,6 +126,27 @@ function makeForklift(){const g=new THREE.Group(),body=pivot(0,0,0,g);
   const beacon=new THREE.Mesh(GEO.sph,basic(0xffa020));beacon.scale.setScalar(.06);beacon.position.set(0,2.42,-.2);body.add(beacon);
   g.userData={body,lift,beacon};return g}
 
+// ---- the hand cart: a platform truck. A blue steel deck with a ribbed rubber mat, a lip round the edge, four
+// casters (the front two swivel), and a tubular push handle at the back with foam grips. Faces +Z; the handle is at -Z.
+const CART_MAT={frame:toon(0x2b5aa0),mat:toon(0x1d1e20),grip:toon(0x111214),chrome:toon(0x8d9399)};
+function makeCart(){const g=new THREE.Group(),M=CART_MAT,body=pivot(0,0,0,g);
+  part(GEO.box,M.frame,.64,.06,1.04,0,.23,0,body);part(GEO.box,M.mat,.58,.012,.98,0,.266,0,body,{cast:false});      // deck, mat
+  for(let i=-4;i<=4;i++)part(GEO.box,M.frame,.56,.008,.018,0,.276,i*.1,body,{cast:false});                              // mat ribs
+  for(const s of[-1,1])part(GEO.box,M.frame,.03,.05,1.04,s*.305,.285,0,body);part(GEO.box,M.frame,.64,.05,.03,0,.285,.505,body); // lip
+  for(const s of[-1,1])part(GEO.box,M.frame,.05,.05,.96,s*.25,.18,0,body,{cast:false});                                // chassis rails underneath
+  // the push handle: two uprights leaning back a little, a crossbar, foam grips
+  const h=pivot(0,.26,-.49,body);h.rotation.x=-.12;
+  for(const s of[-1,1]){part(GEO.cyl,M.frame,.018,.82,.018,s*.27,.41,0,h);part(GEO.box,M.frame,.05,.06,.07,s*.27,.02,0,h)}
+  part(GEO.cyl,M.frame,.018,.58,.018,0,.82,0,h,{rz:Math.PI/2});part(GEO.cyl,M.grip,.026,.4,.026,0,.82,0,h,{rz:Math.PI/2});
+  part(GEO.cyl,M.frame,.014,.54,.014,0,.5,0,h,{rz:Math.PI/2});                                                          // lower rail
+  // casters: a bracket under each corner, a wheel that spins as it rolls; the front pair swivel on their stems
+  const wheels=[],swivel=[];
+  for(const [x,z] of[[-.24,.4],[.24,.4],[-.24,-.4],[.24,-.4]]){const st=pivot(x,.2,z,body);if(z>0)swivel.push(st);
+    part(GEO.cyl,M.chrome,.03,.03,.03,0,0,0,st);part(GEO.box,M.chrome,.012,.11,.05,-.035,-.06,0,st);part(GEO.box,M.chrome,.012,.11,.05,.035,-.06,0,st);
+    const w=pivot(0,-.11,0,st);part(GEO.cyl,M.grip,.09,.045,.09,0,0,0,w,{rz:Math.PI/2});part(GEO.cyl,M.chrome,.035,.05,.035,0,0,0,w,{rz:Math.PI/2,cast:false});
+    part(GEO.box,M.chrome,.05,.02,.02,0,.06,0,w,{cast:false});wheels.push(w)} // (a spoke, so you can see it turn)
+  g.userData={wheels,swivel,handle:h};return g}
+
 // ---- the warehouse robots (autonomous mobile robots). Both face +Z, front lidar and bumper that way.
 // S: a small white tote-mover, low drive base with a dark skirt and a blue light band, a lidar puck up front, a slim
 // mast with a status screen, and a lift deck on top that carries one box and raises it to the shelf.
