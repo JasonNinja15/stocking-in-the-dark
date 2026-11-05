@@ -86,14 +86,14 @@ function touchUp(t){const b=TT.btn.get(t.identifier);
   if(TT.stick&&t.identifier===TT.stick.id){TT.stick=null;TJ.x=TJ.y=0;TJ.run=false;TT.base.classList.add('hide');return}
   if(TT.look&&t.identifier===TT.look.id){const L=TT.look;TT.look=null;
     // watching a crewmate after you go down, a tap switches to the next one
-    const me=S&&S.players[NET.myId];if(me&&me.dead&&performance.now()-L.t0<350&&Math.hypot(t.clientX-L.sx,t.clientY-L.sy)<14)specCycle(1)}}
+    const me=S&&S.players[NET.myId];if(me&&(me.dead||me.locked)&&performance.now()-L.t0<350&&Math.hypot(t.clientX-L.sx,t.clientY-L.sy)<14)specCycle(1)}}
 // every frame: show the controls only while you're on shift, and fit the buttons to what you're doing
 const _tl={};
 function touchTick(){const vis=TOUCH.on&&GAME.on&&!$('hud').classList.contains('hide')&&SCREENS.every(s=>$(s).classList.contains('hide'));
   if(vis!==TT.vis){TT.vis=vis;TT.el.classList.toggle('hide',!vis);if(!vis)touchRelease()}
   $('rotate').classList.toggle('hide',!(vis&&!TT.portraitOk&&innerHeight>innerWidth*1.1));
   if(!vis)return;const me=S&&S.players[NET.myId];if(!me)return;
-  const dead=!!me.dead,lab=(id,s)=>{if(_tl[id]!==s){_tl[id]=s;$(id).textContent=s}},hid=(id,h)=>$(id).classList.toggle('hide',h);
+  const dead=!!(me.dead||me.locked),lab=(id,s)=>{if(_tl[id]!==s){_tl[id]=s;$(id).textContent=s}},hid=(id,h)=>$(id).classList.toggle('hide',h);
   const sel=dead?'':curSel(me);
   lab('tUse',dead?'NEXT':ME.grab?'PULL':'USE');lab('tKick',dead?'BACK':ME.grab?'PULL':ME.driving?'GET OUT':ME.cart>=0?'LET GO':'KICK');
   lab('tItem',sel?(ITEM_ICON[sel]||'ITEM').toUpperCase():'ITEM');hid('tItem',dead||!sel);

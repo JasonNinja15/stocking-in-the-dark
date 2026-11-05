@@ -117,7 +117,7 @@ function extrasUpdate(dt){
   // the blind one only walks while the building is actually dark: a running generator sends it away, and it comes
   // back if the generator runs dry
   if(S.outage&&!S.ot){if(genPowered()){for(const m of S.mons)if(m.ty===13&&!m.dead){m.dead=true;emit({e:'fade',id:m.id})}}else if(!S.mons.some(m=>m.ty===13&&!m.dead))spawnBlind()}
-  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);amrUpdate(dt);
+  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);amrUpdate(dt);janTick(dt);
   if(!HOST.mgr&&S.night>=3&&S.t>=-S.extra+50){HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:MGR_SPOT.x,z:MGR_SPOT.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0})}
   if(owned('gen')){HOST.nextMoth-=dt;if(HOST.nextMoth<=0){HOST.nextMoth=rand(40,70);spawnMoth()}}}
 
@@ -494,6 +494,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
       else if(m.ty===0&&m.st!=='bolt'&&Math.hypot(m.x-p.x,m.z-p.z)<10)boltMimic(m);
       else if(m.ty===7&&Math.hypot(m.x-p.x,m.z-p.z)<12)m.stun=6;
       else if(m.ty===12&&Math.hypot(m.x-p.x,m.z-p.z)<12){m.st='leave';m.t=0}
+      else if(m.ty===17&&inCone(m.x,m.z,10))janStrobe(m); // the night janitor flinches and lets go of whoever he has
       else if(m.ty===16&&m.st!=='leave'&&inCone(m.x,m.z,12)){m.st='leave';m.path=null;m.t=0;emit({e:'audOff',x:r2(m.x),z:r2(m.z)})}
       else if(m.ty===2&&inCone(m.x,m.z,12)){m.dead=true;emit({e:'shriek',id:m.id,x:m.x,z:m.z})}}
     for(const b of S.boxes)if(b.roam&&b.st===3&&Math.hypot(b.x-p.x,b.z-p.z)<10)unboxMimic(b,'bolt',p.id);
@@ -534,7 +535,10 @@ function act2(pid,p,a){
   case 'amrLoad':amrLoad(p);return true;
   case 'stash':{if(!nearPos(p,STASH.x,STASH.z,2.4))return true;if(!S.stash)return toP(p,'Empty. Someone already went through it tonight.'),true;
     S.stash=false;const k=['batt','flare','drink','horn','strobe'][randi(0,4)];p.inv[k]=(p.inv[k]||0)+1;emit({e:'stash',p:pid,k});return true}
-  case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>m.ty===14&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
+  case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>(m.ty===14||m.ty===17)&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
+  case 'slip':janSlip(p);return true;
+  case 'janHelp':janHelp(p);return true;
+  case 'janFree':janFree(p);return true;
   case 'shake':{if(!p.up.shake||S.t-(p.shT??-1e9)<.3)return true;p.shT=S.t;noise(p.x,p.z,10);emit({e:'shake',p:pid,x:p.x,z:p.z});return true}
   case 'can':{if(!owned('gen')||p.carry>=0||cartOf(pid)>=0||p.can||!nearPos(p,FUELR.x,FUELR.z,2.6))return true;p.can=true;emit({e:'canUp',p:pid});return true}
   case 'fuel':{if(!owned('gen')||!p.can||!nearPos(p,GEN.x,GEN.z,2.8))return true;p.can=false;const was=mainsDown();S.gen.fuel=Math.min(100,S.gen.fuel+50);S.gen.out=false;if(was&&!S.ot)powerOn();emit({e:'refuel',x:GEN.x,z:GEN.z,on:was});return true}

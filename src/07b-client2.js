@@ -191,6 +191,7 @@ function forkTarget(){const f=S.fork,t={x:f.x+Math.sin(f.ry)*1.55,z:f.z+Math.cos
 
 // ---------------------------------------------------------------- input for the new things (returns true if it used the key)
 function onKey2(code,me){
+  if(code==="KeyE"&&janHelpKey(me))return true; // pulling a crewmate away from the night janitor
   if(code==='KeyH'){if(me.up&&me.up.red){ME.red=!ME.red;SFX.click()}else toast('You don\'t have a headlamp.');return true}
   // number keys jump straight to that item on the hotbar; right click uses it
   const k=ITEM_KEYS[code];
@@ -270,7 +271,7 @@ function syncScanner(){let i=0;const put=(x,y,z,s)=>{if(i>=SCAN.length)return;co
   for(;i<SCAN.length;i++)SCAN[i].visible=false}
 
 // ---------------------------------------------------------------- monsters added later
-function makeMonster2(m){if(m.ty===15)return makeSpider();if(m.ty===16)return makeAuditor();if(m.ty===13)return makeBlind();if(m.ty===14)return makeHunch();if(m.ty===4)return makeManager();if(m.ty===5)return makeShrink();if(m.ty===6)return makeFrost();if(m.ty===12)return makeMoth();
+function makeMonster2(m){if(m.ty===17)return makeJanitor();if(m.ty===15)return makeSpider();if(m.ty===16)return makeAuditor();if(m.ty===13)return makeBlind();if(m.ty===14)return makeHunch();if(m.ty===4)return makeManager();if(m.ty===5)return makeShrink();if(m.ty===6)return makeFrost();if(m.ty===12)return makeMoth();
   if(m.ty===7){const g=makeDriver();const others=Object.values(S.players).filter(p=>p.id!==NET.myId);
     // in a crew it wears one of your crewmates' names
     if(others.length){const o=others[m.k%others.length],tag=makeTag(o.name,o.col||'#ccc');tag.position.y=2.1;g.add(tag)}return g}
@@ -306,8 +307,9 @@ function fearOf(v,d){if(v.ty>=15)return fearOf3(v,d);if(v.ty===4)return v.a===4?
   if(v.ty===6)return clamp(1-d/6,0,1)*(v.a===2?.9:.3);if(v.ty===7)return clamp(1-d/8,0,1)*.8;if(v.ty===12)return clamp(1-d/5,0,1)*.25;return null}
 
 // ---------------------------------------------------------------- jumpscares for the new ones
-function makeScare2(ty){return ty===13?makeBlind():ty===14?makeHunch():ty===4?makeManager():ty===5?makeShrink():ty===6?makeFrost():ty===7?makeDriver():ty===10?makeRoofThing():ty===11?makePassenger():null}
+function makeScare2(ty){return ty===17?makeJanitor():ty===13?makeBlind():ty===14?makeHunch():ty===4?makeManager():ty===5?makeShrink():ty===6?makeFrost():ty===7?makeDriver():ty===10?makeRoofThing():ty===11?makePassenger():null}
 function updScare2(s,k,lunge){const g=s.g,u=g.userData;
+  if(s.ty===17){janScare(s,k,lunge);return}
   if(s.ty===4){g.position.set(rand(-.01,.01),-2.36,lerp(-1.9,-.78,lunge(.18)));g.rotation.y=Math.PI*0;u.clip.position.y=.3;u.clip.rotation.x=1.35;u.head.rotation.set(-.2,0,Math.sin(k*17)*.05+.15);u.arms.forEach(a=>{a.rotation.x=-1.6;a.rotation.z=0})}
   else if(s.ty===5){g.position.set(rand(-.02,.02),-1.9,lerp(-1.4,-.6,lunge(.2)));u.head.rotation.set(-.15,0,Math.sin(k*25)*.2);u.torso.rotation.x=.25}
   else if(s.ty===6){g.position.set(rand(-.02,.02),-1.84,lerp(-1.5,-.62,lunge(.16)));u.arms.forEach((a,i)=>{a.rotation.x=-1.9;a.rotation.z=(i?-1:1)*.3});u.head.rotation.set(-.25,0,0)}
@@ -495,16 +497,18 @@ function bindShop(){$('shop').addEventListener('click',e=>{const b=e.target.clos
 
 // ---------------------------------------------------------------- held by the thing in the basement
 // It drags you to the shredder: you can't move, only mash E (or Q, Space, click) to break its grip.
-function grabber(){return S.mons.find(m=>m.ty===14&&m.a===5&&m.tg===NET.myId)}
+// (the night janitor drags you too: see janHeld)
+function grabber(){return S.mons.find(m=>(m.ty===14||m.ty===17)&&m.a===5&&m.tg===NET.myId)}
 function grabUpdate(dt,me){const m=grabber();if(!m){ME.grab=false;return false}
   if(!ME.grab){ME.grab=true;ME.strug=0}
   // (the meter drains once you stop mashing, the same as on the host)
   if(performance.now()-(ME.sgT||0)>250)ME.strug=Math.max(0,(ME.strug||0)-dt*STRUG_DECAY);
+  if(m.ty===17)return janHeld(dt,me,m);
   const v=MV.get(m.id),gx=v?v.g.position.x:m.x,gz=v?v.g.position.z:m.z,ry=v?v.g.rotation.y:m.ry;
   ME.x=gx+Math.sin(ry)*.85;ME.z=gz+Math.cos(ry)*.85;ME.vx=ME.vz=0;
   ME.yaw=angLerp(ME.yaw,Math.atan2(-(SHRED.x-ME.x),-(SHRED.z-ME.z)),dt*4);ME.pitch=damp(ME.pitch,-.3,4,dt);
   const t=performance.now()*.001;camera.position.set(ME.x,1.35+Math.sin(t*9)*.03,ME.z);camera.rotation.set(ME.pitch,ME.yaw+Math.sin(t*7)*.04,Math.sin(t*5)*.08);
   me.x=ME.x;me.z=ME.z;return true}
 function struggle(){const now=performance.now();if(now-(ME.sgT||0)<60)return;ME.sgT=now;ME.strug=(ME.strug||0)+1;ME.shake=Math.max(ME.shake,.25);doAct({a:'struggle'})}
-function grabNote(){if(!ME.grab)return'';const k=clamp((ME.strug||0)/STRUGGLE_N,0,1);
+function grabNote(){if(!ME.grab)return"";const gm=grabber();if(gm&&gm.ty===17)return janGrabNote(gm);const k=clamp((ME.strug||0)/STRUGGLE_N,0,1);
   return`<span class="warnline">IT HAS YOU</span><br>Mash <kbd>E</kbd> to break free <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}

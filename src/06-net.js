@@ -37,7 +37,7 @@ function hostMsg(c,m){if(!m||!NET.conns.has(c.peer))return;
     lobbyBroadcast();return}
   if(m.t==='me'&&S){const p=S.players[c.peer];if(p&&Array.isArray(m.p)){const [x,z,yaw,pitch,light,fx,fz,fry]=m.p;
     if(S.fork&&S.fork.drv===c.peer&&isFinite(fx)&&isFinite(fz)){S.fork.x=fx;S.fork.z=fz;S.fork.ry=+fry||0}
-    if(isFinite(x)&&isFinite(z)&&!(p.tpT>0)){const up=x<-100;p.x=x>60?clamp(x,BASE.x0,BASE.x1):up?clamp(x,ROOF.x0,ROOF.x1):clamp(x,WH.x0,WH.x1);p.z=x>60?clamp(z,BASE.z0,BASE.z1):up?clamp(z,ROOF.z0,ROOF.z1):clamp(z,TZ_DOCK-TRAIL_LEN,WH.z1)}if(isFinite(yaw))p.yaw=yaw;if(isFinite(pitch))p.pitch=clamp(pitch,-1.5,1.5);p.light=!!light}return}
+    if(isFinite(x)&&isFinite(z)&&!(p.tpT>0)&&!p.locked){const up=x<-100;p.x=x>60?clamp(x,BASE.x0,BASE.x1):up?clamp(x,ROOF.x0,ROOF.x1):clamp(x,WH.x0,WH.x1);p.z=x>60?clamp(z,BASE.z0,BASE.z1):up?clamp(z,ROOF.z0,ROOF.z1):clamp(z,TZ_DOCK-TRAIL_LEN,WH.z1)}if(isFinite(yaw))p.yaw=yaw;if(isFinite(pitch))p.pitch=clamp(pitch,-1.5,1.5);p.light=!!light}return}
   if(m.t==='act'&&S){act(c.peer,m.a);return}}
 function hostSend(m){for(const c of NET.conns.values())if(c.open)try{c.send(m)}catch(e){}}
 // snapshots go on the fast connection where there is one
@@ -61,6 +61,7 @@ function clientMsg(m){if(!m)return;
   case 'start':clientStart();break;
   case 'tp':ME.x=m.x;ME.z=m.z;ME.ready=true;break;
   case 'b':if(S)applyBoxes(m.b);break;
+  case 'w':if(S)applyWet(m.w);break; // the night janitor's wet floor
   case 's':if(S&&!(m.sq<=NET.lastSq)){NET.lastSq=m.sq;applySnap(m)}break; // (the fast channel can deliver an old one late: skip it)
   case 'ev':for(const e of m.ev||[])EVQ.push(e);break;
   }}
@@ -90,7 +91,7 @@ function netClose(){NET.closing=true;pubClose();NET.pub=false;NET.fast.clear();N
 // ---- snapshots
 const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
 function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S.inter),q:S.quota,sh:S.shelved,lo:S.lost,sc:S.score,to:S.total,ai:S.aidLeft,la:S.lamps,bv:S.bver,ov:S.over,
-  pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry,p.inv||{},p.up||{},p.stack||[],p.can?1:0,p.wu|0,Math.round(p.cash||0)]),
+  pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry,p.inv||{},p.up||{},p.stack||[],p.can?1:0,p.wu|0,Math.round(p.cash||0),p.down>0?1:0,p.locked?1:0]),
   tr:S.trucks.map(t=>[t.st,r2(t.z),r2(t.door),Math.round(t.t),t.warn?1:0,t.claw?1:0,t.left,t.n,t.reject?1:0,t.kg||0,t.extra||0,r2(t.stuck||0)]),
   mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0,m.tg||'']),
   // the additions' moving parts
@@ -111,7 +112,7 @@ function markSlots(){for(const s of SLOTS){s.box=-1;s.box2=-1}
   for(const p of S.pallets||[])if(p.st===2&&p.s>=0&&SLOTS[p.s])SLOTS[p.s].box=-(1000+p.id)}
 function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,inter:m.it,quota:m.q,shelved:m.sh,lost:m.lo,score:m.sc,total:m.to,aidLeft:m.ai,lamps:m.la,over:m.ov});
   const seen=new Set();
-  for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry,inv,up,stack,can,wu,cash]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry,inv,up,stack,can:!!can,wu,cash:cash|0});
+  for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry,inv,up,stack,can,wu,cash,down,locked]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry,inv,up,stack,can:!!can,wu,cash:cash|0,down:down|0,locked:!!locked});
     if(id!==NET.myId)Object.assign(p,{x,z,yaw,pitch,light:!!light});else if(!p.init){p.init=1;p.x=x;p.z=z}}
   for(const id in S.players)if(!seen.has(id))delete S.players[id];
   m.tr.forEach((a,i)=>{const tr=S.trucks[i];if(tr.z===undefined||Math.abs(tr.z-a[1])>6)tr.z=a[1];Object.assign(tr,{st:a[0],tz:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]})});
@@ -132,7 +133,11 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
 function netTick(dt){
   if(NET.mode==='host'&&NET.started&&S){NET.snapT-=dt;
     if(S.bver!==NET.sentBver||NET.boxT<=0){NET.sentBver=S.bver;NET.boxT=3;hostSend({t:'b',b:boxSnap()})}NET.boxT-=dt;
+    NET.wetT=(NET.wetT??0)-dt;if((S.wver|0)!==NET.sentWver||NET.wetT<=0){NET.sentWver=S.wver|0;NET.wetT=3;if(NET.conns.size)hostSend({t:"w",w:wetSnap()})} // (wet floor: on the reliable channel, when it changes and every few seconds)
     if(NETEV.length){if(NET.conns.size)hostSend({t:'ev',ev:NETEV.splice(0)});else NETEV.length=0}
     if(NET.snapT<=0){NET.snapT=Math.max(NET.snapT+1/20,0);if(NET.conns.size)hostSendFast(snap())}} // (carry the remainder over, so a 50 ms timer still sends 20 a second)
   else if(NET.mode==='client'&&NET.hostConn&&NET.hostConn.open&&ME.ready){NET.meT-=dt;if(NET.meT<=0){NET.meT=1/20;try{(NET.fastConn&&NET.fastConn.open?NET.fastConn:NET.hostConn).send({t:'me',p:[r2(ME.x),r2(ME.z),r3(ME.yaw),r3(ME.pitch),ME.lightOn()?1:0].concat(ME.driving&&S.fork?[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry)]:[])})}catch(e){}}}}
 function doAct(a){if(NET.mode==='client'){try{NET.hostConn&&NET.hostConn.open&&NET.hostConn.send({t:'act',a})}catch(e){}}else act(NET.myId,a)}
+// the night janitor's wet patches: [id, x, z, seconds left to dry, has a sign]
+function wetSnap(){return (S.wet||[]).map(w=>[w.id,w.x,w.z,r2(w.t),w.s|0])}
+function applyWet(arr){if(!Array.isArray(arr))return;S.wet=arr.map(a=>({id:a[0],x:a[1],z:a[2],t:a[3],s:a[4]|0}))}

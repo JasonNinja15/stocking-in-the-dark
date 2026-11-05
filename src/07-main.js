@@ -97,7 +97,7 @@ addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;if
   if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(code))e.preventDefault()});
 // a key (or touch button) going down: spectating, it switches whose view you watch
 function keyPress(code){if(!GAME.on||GAME.paused)return;const me=S&&S.players[NET.myId];
-  if(me&&me.dead&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(code))specCycle(-1)}else onKey(code)}
+  if(me&&(me.dead||me.locked)&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(code))specCycle(-1)}else onKey(code)}
 addEventListener('keyup',e=>{const code=mapKey(e.code);if(code)K[code]=false});
 addEventListener('blur',()=>{for(const k in K)K[k]=false});
 // Chrome sometimes reports one wildly wrong mouse movement while the pointer is locked (most often just after it locks,
@@ -109,7 +109,7 @@ document.addEventListener('mousemove',e=>{if(!GAME.on||!locked()||GAME.paused)re
   const s=.0021*SET.sens;ME.yaw-=mx*s;ME.pitch=clamp(ME.pitch-my*s,-1.45,1.45)});
 addEventListener('focus',()=>{lookSkip=3});
 canvas.addEventListener('mousedown',e=>{auInit();if(!GAME.on)return;if(!locked()){reqLock();return}
-  const me=S&&S.players[NET.myId];if(me&&me.dead){specCycle(e.button===2?-1:1);return}
+  const me=S&&S.players[NET.myId];if(me&&(me.dead||me.locked)){specCycle(e.button===2?-1:1);return}
   if(e.button===0)onKey('KeyE');else if(e.button===2){K.Mouse2=true;onKey('UseItem')}});
 addEventListener('mouseup',e=>{if(e.button===2)K.Mouse2=false});
 // the scroll wheel walks the item hotbar
@@ -121,7 +121,7 @@ document.addEventListener('pointerlockchange',()=>{if(locked()&&S&&S.phase==='sh
   if(locked()){lookSkip=3;GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
   else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')&&!DEV.open){showPause()}});
 
-function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||S.phase!=='play')return;
+function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||me.locked||ME.scare||S.phase!=='play')return;
   if(ME.grab){if(['KeyE','KeyQ','Space'].includes(code))struggle();return}
   if(code!=='KeyF'&&onKey2(code,me))return;
   if(code==='KeyF'){if(ME.bat>0)ME.light=!ME.light;SFX.click();return}
@@ -147,7 +147,7 @@ let BOXPICK=[];
 const GHOST=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1).translate(0,.5,0)),new THREE.LineBasicMaterial({color:0x9dff9a,transparent:true,opacity:.75,fog:false,depthWrite:false}));GHOST.visible=false;scene.add(GHOST);
 function updGhost(me){const t=ME.target;const b=t&&t.kind==='slot'&&me&&me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;GHOST.visible=!!b;if(!b)return;
   const K=BOX_KINDS[b.k];GHOST.scale.set(t.s.rot&&!t.under?K.d:K.w,K.h,t.s.rot&&!t.under?K.w:K.d);if(t.under){GHOST.position.set(t.under.x,t.under.y+BOX_KINDS[t.under.k].h+.01,t.under.z);GHOST.rotation.y=t.under.ry}else{GHOST.position.set(t.s.x,t.s.y+.01,t.s.z);GHOST.rotation.y=0}GHOST.material.color.set(t.ok?0x9dff9a:0xff6a5a);GHOST.material.opacity=.45+Math.sin(performance.now()/160)*.25}
-function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.scare)return;
+function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||me.locked||ME.scare)return;
   RC.setFromCamera({x:0,y:0},camera);RC.far=3.1;const carrying=me.carry>=0;
   // in the forklift: pallets first; with no pallet up, loose boxes and shelf slots out past the forks
   const drv=ME.driving,reach=drv?4.8:3.3,cap=ME.cart>=0?CART_MAX-1:((me.up&&me.up.hand)||drv)?2:0;
@@ -167,8 +167,9 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   if(me.hp<ME.lastHp-(chilled()?1.5:.5)){ME.hurt=Math.min(1,ME.hurt+.9);if(!ME.scare)SFX.hurt()}ME.lastHp=me.hp;
   ME.hurt=Math.max(0,ME.hurt-dt*.7);ME.flash=Math.max(0,ME.flash-dt*2.2);ME.kickCD-=dt;ME.kickA=Math.max(0,ME.kickA-dt);
   if(ME.scare)updScare(dt);else ME.shake=Math.max(0,ME.shake-dt*1.4);
-  if(me.dead){ME.deathT+=dt;spectate(dt);findTarget(null);return}
-  ME.deathT=0;localUpdate2(dt,me);if(grabUpdate(dt,me)||rgHeld(dt,me)){findTarget(null);return}
+  // shut in the janitor's closet you watch the crew the same way (straight to the crewmate's view, no fall)
+  if(me.dead||me.locked){ME.deathT=me.locked?Math.max(ME.deathT,2.3)+dt:ME.deathT+dt;ME.slipT=0;ME.grab=false;spectate(dt);findTarget(null);return}
+  ME.deathT=0;localUpdate2(dt,me);if(grabUpdate(dt,me)||rgHeld(dt,me)||janDown(dt,me)){findTarget(null);return}
   const busy=!!ME.scare||S.phase!=='play';
   if(ME.driving){driveUpdate(dt,me);batteryUpdate(dt,busy,me);findTarget(me);return}
   const ax=moveAxes(),fw=busy?0:ax[0],st=busy?0:ax[1];
@@ -188,6 +189,7 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
       const tr=bi>=0?S.trucks[bi]:null;if(!tr||(tr.st!==2&&tr.st!==3)){if(bi>=0)p.x=BAYS[bi].x;p.z=WH.z0+1.2}}
     p.x=clamp(p.x,WH.x0+.3,WH.x1-.3);p.z=clamp(p.z,TZ_DOCK-TRAIL_LEN+.3,WH.z1-.3)}
   const sp=Math.hypot(p.x-ME.x,p.z-ME.z)/Math.max(dt,1e-4);ME.x=p.x;ME.z=p.z;
+  janSlipCheck(run,sp,me); // running on the night janitor's wet floor
   const fit=me&&me.up?(me.up.stam4?3.3:me.up.stam3?2.6:me.up.stam2?2:me.up.stam?1.5:1):1; // the stamina upgrades
   if(run&&sp>1){if(!(ME.drinkT>0))ME.stam-=dt*21/fit;if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16)*fit);if(ME.exh&&ME.stam>35)ME.exh=false}
   // head bob + footsteps
@@ -214,7 +216,7 @@ function batteryUpdate(dt,busy,me){
 
 // ---- spectating: a third-person camera behind a crewmate who's still alive. The mouse orbits it;
 // click, Space or the arrow keys switch to the next one. If they go down, it moves on to someone else.
-const specList=()=>Object.values(S.players).filter(p=>!p.dead&&p.id!==NET.myId);
+const specList=()=>Object.values(S.players).filter(p=>!p.dead&&!p.locked&&p.id!==NET.myId);
 function specTarget(){const a=specList();return a.find(p=>p.id===ME.specId)||a[0]||null}
 function specCycle(d){const a=specList();if(!a.length)return;const i=a.findIndex(p=>p.id===ME.specId);ME.specId=a[((i<0?0:i+d)%a.length+a.length)%a.length].id;ME.specSnap=true}
 // can the camera sit here? (inside the walls, out of the racks, in a docked trailer or the basement)
@@ -282,7 +284,7 @@ function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
     if(m.userData.tw>0){m.userData.tw-=dt;const k=m.userData.tw;m.rotation.z=Math.sin(k*70)*.07*Math.min(1,k*3);m.rotation.x=Math.cos(k*53)*.05*Math.min(1,k*3);m.position.y+=Math.abs(Math.sin(k*45))*.035}}
   for(const [id,m] of BM)if(!live.has(id)){ROOT.remove(m);BM.delete(id)}
   BOXPICK.length=0;for(const m of BM.values())if(m.visible)BOXPICK.push(m);
-  const cb=me&&me.carry>=0?S.boxes.find(b=>b.id===me.carry):null;setViewBox(me&&!me.dead&&!ME.driving&&!(ME.cart>=0)?cb:null)}
+  const cb=me&&me.carry>=0?S.boxes.find(b=>b.id===me.carry):null;setViewBox(me&&!me.dead&&!me.locked&&!ME.driving&&!(ME.cart>=0)?cb:null)}
 function syncMonsters(dt,time){const live=new Set();
   for(const m of S.mons){live.add(m.id);let v=MV.get(m.id);
     if(!v){const g=makeMonster2(m)||(m.ty===0?makeMimic(m.k,m.v,m.f):m.ty===1?makeLurker():m.ty===3?makeCrawler():makeStalker());if(m.ty===1&&m.k===1)coldify(g);g.position.set(m.x,m.y,m.z);g.rotation.y=m.ry;ROOT.add(g);
@@ -341,11 +343,12 @@ function syncAvatars(dt,time){const live=new Set(),lit=[];let si=0;
     const ox=v.x,oz=v.z;v.x=damp(v.x,p.x,11,dt);v.z=damp(v.z,p.z,11,dt);v.yaw=angLerp(v.yaw,p.yaw,1-Math.exp(-12*dt));v.pitch=damp(v.pitch,p.pitch,12,dt);
     const sp=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3);const w0=v.walk;v.walk+=dt*sp*2.3;
     if(sp>.4&&Math.floor(w0/Math.PI)!==Math.floor(v.walk/Math.PI)&&Math.hypot(v.x-ME.x,v.z-ME.z)<16)SFX.step(v.z<WH.z0,sp>4,{x:v.x,y:.1,z:v.z});
-    const g=v.g,u=g.userData,drv=S.fork&&S.fork.drv===p.id;g.visible=!p.dead;g.position.set(v.x,drv?.75:0,v.z);
+    const g=v.g,u=g.userData,drv=S.fork&&S.fork.drv===p.id;g.visible=!p.dead&&!p.locked;g.position.set(v.x,drv?.75:0,v.z);
     const held=rgHeldAt(p.id);if(held)g.position.set(held.x,held.y-1.1,held.z); /* in the giant's fist */g.rotation.y=drv?S.fork.ry:v.yaw+Math.PI;if(drv){u.legs.forEach(l=>l.rotation.x=-1.4)}
     const a=Math.min(1,sp/3);u.legs[0].rotation.x=Math.sin(v.walk)*.6*a;u.legs[1].rotation.x=-Math.sin(v.walk)*.6*a;
     if(S.carts&&S.carts.some(c=>c.by===p.id)){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.0,10,dt))} /* both hands on the cart handle */else if(p.carry>=0){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.25,10,dt))}else{u.arms[0].rotation.x=-Math.sin(v.walk)*.5*a;u.arms[1].rotation.x=-.9}
     u.torch.rotation.x=-v.pitch;u.head.rotation.x=-v.pitch*.6;u.beam.visible=!!p.light;
+    janAvatar(p,v,dt); // flat on the floor after a slip (or being dragged off)
     if(p.light&&!p.dead)lit.push({v,u,d:Math.hypot(v.x-ME.x,v.z-ME.z)})}
   // only a few real lights to go round: they go to the nearest crewmates' torches
   lit.sort((a,b)=>a.d-b.d);
@@ -366,7 +369,7 @@ function syncLamps(dt){
   if(light)light.intensity=(L.light?17:15)*lv;L.bulb.material.color.setRGB(lerp(.1,1,lv),lerp(.08,.85,lv),lerp(.06,.62,lv));L.cone.material.uniforms.lv.value=lv;
   if(AU.ready){if(!L.hum)L.hum=loop('hum',{x:LAMPS[i].x,y:5,z:LAMPS[i].z},.35);L.hum.set(lv*.35,.03)}});
   for(let k=want.length;k<LAMPV.pool.length;k++)LAMPV.pool[k].intensity=0}
-function syncWorld(dt,time){applyColliders();syncTrucks(dt);syncAvatars(dt,time);syncCarts(dt);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time)}
+function syncWorld(dt,time){applyColliders();syncTrucks(dt);syncAvatars(dt,time);syncCarts(dt);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time);syncJan(dt,time)}
 function clearVisuals(){for(const m of BM.values())ROOT.remove(m);BM.clear();for(const v of MV.values()){ROOT.remove(v.g);v.lp&&v.lp.stop();v.gr&&v.gr.stop()}MV.clear();for(const v of AV.values())ROOT.remove(v.g);AV.clear();
   for(const v of TV)v.g.visible=false;for(const s of REMOTE_SPOTS)s.intensity=0;setViewBox(null);if(ME.scare){camera.remove(ME.scare.g);ME.scare=null}
   for(const s of SLOTS)s.box=-1;BOXPICK.length=0;
@@ -424,7 +427,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   $('hpb').firstChild.style.width=(me?me.hp:0)+'%';$('batb').firstChild.style.width=ME.bat+'%';$('stb').firstChild.style.width=ME.stam+'%';
   $('batb').style.opacity=ME.charging?(Math.sin(performance.now()/90)>0?1:.5):1;
   const t=ME.target;let pr='';
-  if(me&&!me.dead&&!ME.scare&&S.phase==='play'){const carrying=me.carry>=0;
+  if(me&&!me.dead&&!me.locked&&!ME.scare&&S.phase==='play'){const carrying=me.carry>=0;
     const p2=t&&promptFor(t,me);
     if(p2!==null&&p2!==undefined)pr=p2;
     else if(t){if(t.kind==='box'&&ME.driving)pr='<kbd>E</kbd> Load onto the forks';else if(t.kind==='box'&&ME.cart>=0)pr='<kbd>E</kbd> Load onto the cart';
@@ -443,7 +446,8 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     if(ME.cart>=0&&!t)pr='<kbd>Q</kbd> Let go of the cart'+(carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?(owned('amrl')&&Math.hypot(forkTip().x-AMR.l.x,forkTip().z-AMR.l.z)<1.7?' &nbsp; <kbd>G</kbd> Set the pallet on the robot pad':' &nbsp; <kbd>G</kbd> Set the pallet down'):carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
-    const hn=hatchNote()||grabNote();if(hn)pr=hn;}
+    const wn=wetNote(me);if(wn)pr+=(pr?"<br>":"")+wn;const sn=shutNote(me);if(sn)pr+=(pr?"<br>":"")+sn;
+    const hn=hatchNote()||grabNote()||janNote(me);if(hn)pr=hn;}
   pr=relabel(pr);if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
   $('cross').className=`xh x-${SET.cross||'dot'}${t&&(t.kind!=='slot'||t.ok)?' on':''}`;
   // a clock ticks through the last minute and overtime, only while the quota isn't met; double time for the final 10 s
@@ -467,7 +471,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   $('tr').innerHTML=h;
   const ps=Object.values(S.players);
   $('plist').innerHTML=ps.length>1?ps.map(p=>`<div style="color:${p.dead?'#666':p.col}">${p.dead?'&#10013; ':''}${esc(p.name)} ${p.dead?'':'&middot; '+Math.ceil(p.hp)}</div>`).join(''):'';
-  const sp=$('spect'),wt=me&&me.dead?specTarget():null;if(wt){const n=specList().length;sp.classList.remove('hide');sp.textContent=`You're down. Watching ${wt.name}${n>1?' · click or ← → to switch':''} · move the mouse to look around. Back on shift next night.`}else sp.classList.add('hide');
+  const sp=$('spect'),wt=me&&(me.dead||me.locked)?specTarget():null;if(wt){const n=specList().length;sp.classList.remove('hide');sp.textContent=me.locked?`Shut in the janitor's closet. A crewmate can let you out at the door on the east wall. Watching ${wt.name}${n>1?' · click or ← → to switch':''}.`:`You're down. Watching ${wt.name}${n>1?' · click or ← → to switch':''} · move the mouse to look around. Back on shift next night.`}else sp.classList.add('hide');
   if(SET.fps)$('fps').textContent=GAME.fps+' fps';}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -595,10 +599,10 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
     drainEvents();syncWorld(dt,time);netTick(dt);hud(dt);touchTick();near=updFear(dt);checkOver(dt);shopTick();syncScanner();
     const me=S.players[NET.myId];
     const fl2=me&&me.up&&me.up.fl2;FL.angle=fl2?.55:.44;FL.distance=fl2?28:24;
-    FL.intensity=ME.scare?(Math.random()<.45?7:.5):(ME.lightOn()&&me&&!me.dead?(fl2?40:30)*ME.flick:0);
+    FL.intensity=ME.scare?(Math.random()<.45?7:.5):(ME.lightOn()&&me&&!me.dead&&!me.locked?(fl2?40:30)*ME.flick:0);
     REDL.intensity=ME.red&&me&&me.up&&me.up.red&&!me.dead&&!ME.scare?10:0;VM.can.visible=!!(me&&me.can);
     SCARE_L.intensity=ME.scare?(Math.random()<.3?.6:4):0;
-    VM.g.visible=!!(me&&!me.dead);VM.lens.material.color.setScalar(ME.lightOn()?ME.flick:.15);
+    VM.g.visible=!!(me&&!me.dead&&!me.locked);VM.lens.material.color.setScalar(ME.lightOn()?ME.flick:.15);
     BAYV.chargeLed.material.color.set(ME.charging&&!ME.shaking?(Math.sin(time*12)>0?0x37ff8a:0x0a3a1a):0x37ff8a);
   }else{ // title screen: drift through the dark dock
     const t=time*.05;camera.position.set(Math.sin(t)*7,2.1+Math.sin(t*1.7)*.2,-8+Math.cos(t*.8)*2);camera.rotation.set(-.08,Math.sin(t*.9)*.6,0);
@@ -624,7 +628,7 @@ async function init(){
   applyQuality();bindUI();saveNote();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,relabel,toast,applyBoxes,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,truckGone,spiderDoor,spawnAuditor,spFree,kickAim,MV,onKey,priceOf,isTeam,owned,netHost,netJoin,
+  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,relabel,toast,applyBoxes,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,truckGone,spiderDoor,spawnAuditor,spFree,kickAim,MV,onKey,priceOf,isTeam,owned,netHost,netJoin,applyWet,wetSnap,wetAt,slipDur,JAN,WETV,JANV,
 
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});

@@ -155,6 +155,7 @@ function devAct(p,a){if(!p||!isDevName(p.name)||!S||S.over)return;
   case 15:{if(has(15))return here('long-legged thing');let i=S.trucks.findIndex((t,k)=>bayOn(k)&&t.st===0);if(i<0)i=Math.max(0,S.trucks.findIndex((t,k)=>bayOn(k)));
     const tr=S.trucks[i];if(tr.st===0){tr.door=1;tr.stuck=16;emit({e:'stuck',b:i})}
     S.mons.push({id:monSeq++,ty:15,bay:i,x:BAYS[i].x,z:WH.z0-8,y:SP_LOW,ry:0,st:'enter',a:4,t:0,life:0,cd:0,hearT:0});break}
+  case 17:if(has(17))return here('night janitor');HOST.janDone=true;spawnJanitor();break;
   case 16:{if(has(16))return here('auditor');S.mons.push({id:monSeq++,ty:16,x:sp.x,z:sp.z,y:0,ry:rand(-3,3),st:'pick',a:0,t:0,life:0,cd:2,pulled:0,exp:{},path:null,rep:0});break}
   default:return}
   toP(p,`Spawned: ${name}.`)}

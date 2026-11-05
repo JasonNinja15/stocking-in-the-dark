@@ -1638,9 +1638,9 @@ function startNight(){
   S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0}));
   HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)/diffEv()*(i===0?1.8:i===3?.6:1));
   HOST.nextTruck=6;HOST.nextStalker=(rand(42,55)-Math.min(20,(S.night-1)*6))/diffEv();HOST.trucksTonight=0;HOST.lastTruck=false;S.ot=false;
-  S.quota=calcQuota();nightSetup();nightSetup3();
+  S.quota=calcQuota();nightSetup();nightSetup3();nightSetupJan();
   markSlots(); // again now last night's pallets are gone, or the slots they sat in stay marked full all night
-  const pos={};Object.values(S.players).forEach((p,i)=>{const sp=spawnPoint(i);Object.assign(p,{x:sp.x,z:sp.z,yaw:0,pitch:0,hp:100,dead:false,carry:-1,lastHurt:-99,tpT:.8});pos[p.id]=[sp.x,sp.z]});
+  const pos={};Object.values(S.players).forEach((p,i)=>{const sp=spawnPoint(i);Object.assign(p,{x:sp.x,z:sp.z,yaw:0,pitch:0,hp:100,dead:false,locked:false,carry:-1,lastHurt:-99,tpT:.8});pos[p.id]=[sp.x,sp.z]});
   emit({e:'night',n:S.night,q:S.quota,pos,ex:S.extra,df:S.diff});
 }
 function endNight(){
@@ -1656,7 +1656,7 @@ function endNight(){
     S.mons=[];
     for(const b of S.boxes)if(b.st===3){b.x=clamp(b.x,WH.x0+.4,b.x>60?1e9:WH.x1-.4);if(b.x<60)b.z=clamp(b.z,WH.z0+.6,WH.z1-.4)}
     S.boxes=S.boxes.filter(b=>b.st===2||(b.st===3&&!b.fz));S.bver++;
-    S.parcels=[];S.flares=[];S.yard=null;if(S.fork){S.fork.drv='';S.fork.pal=-1;S.fork.pass=null}
+    S.parcels=[];S.flares=[];S.yard=null;S.wet=[];S.wver=(S.wver|0)+1;if(S.fork){S.fork.drv='';S.fork.pal=-1;S.fork.pass=null}
     for(const p of Object.values(S.players)){p.carry=-1;p.stack=[];p.can=false}
     emit({e:'nightDone',n:S.night,sh:S.shelved,q:S.quota,lo:S.lost,ot:!!S.ot});S.ot=false;saveRun()}
   else gameOver('quota')}
@@ -1680,7 +1680,8 @@ function boxWorld(b){if(b.st===0){return{x:BAYS[b.bay].x+b.x,y:b.y,z:S.trucks[b.
 function trailerAt(x,z,m=.2){for(let i=0;i<BAYS.length;i++){const tr=S.trucks[i];if(tr.st!==2)continue;if(Math.abs(x-BAYS[i].x)<TRAIL_HW-m&&z<TZ_DOCK-.05&&z>TZ_DOCK-TRAIL_LEN+m)return i}return -1}
 function inTrailer(p){for(let i=0;i<BAYS.length;i++){const tr=S.trucks[i];if(tr.st!==2&&tr.st!==3)continue;if(Math.abs(p.x-BAYS[i].x)<TRAIL_HW+.15&&p.z<TZ_DOCK-.05)return i}return -1}
 function lampZone(x,z,pad=0){for(let i=0;i<LAMPS.length;i++){if(!S.lamps[i])continue;const L=LAMPS[i];if(Math.hypot(x-L.x,z-L.z)<L.r+pad)return i}return -1}
-function alivePlayers(){return Object.values(S.players).filter(p=>!p.dead)}
+// (someone locked in the janitor's closet is out of play until a crewmate lets them out)
+function alivePlayers(){return Object.values(S.players).filter(p=>!p.dead&&!p.locked)}
 const inWH=p=>p.x>WH.x0-2&&p.x<WH.x1+2; // (the basement is a separate room far off to the east)
 function nearestPlayer(x,z,maxD=1e9,filter){let best=null,bd=maxD;for(const p of alivePlayers()){if(filter&&!filter(p))continue;const d=Math.hypot(p.x-x,p.z-z);if(d<bd){bd=d;best=p}}return best}
 function applyColliders(){if(!S)return;S.trucks.forEach((tr,i)=>{const v=BAYV[i];v.doorCol.on=tr.door<.75;const on=tr.st===2||(tr.st===3&&tr.door>0);for(const c of v.trailCol)c.on=on});
@@ -1710,7 +1711,7 @@ function watched(x,y,z){for(const p of alivePlayers()){const dx=x-p.x,dy=y-eyeY(
 function flashedBy(x,y,z){for(const p of alivePlayers())if(p.togs&&p.togs.length>=2&&litByP(p,x,y,z))return p;return null}
 // floor: the least health this hit can leave you with. Instant kills (999) stay instant kills on every difficulty.
 let DMG_ANY=0; // set around the few hurts that do reach into the elevator car: its own stall, and the cold
-function damage(p,amt,floor=0){if(!p||p.dead)return;if(!DMG_ANY&&elevSafe(p))return;if(amt<999)amt=Math.round(amt*dmgMul());if(floor)amt=Math.min(amt,Math.max(0,p.hp-floor));p.hp-=amt;p.lastHurt=S.t;if(p.hp<=0){p.hp=0;p.dead=true;dropCarry(p);emit({e:'died',p:p.id})}}
+function damage(p,amt,floor=0){if(!p||p.dead||p.locked)return;if(!DMG_ANY&&elevSafe(p))return;if(amt<999)amt=Math.round(amt*dmgMul());if(floor)amt=Math.min(amt,Math.max(0,p.hp-floor));p.hp-=amt;p.lastHurt=S.t;if(p.hp<=0){p.hp=0;p.dead=true;dropCarry(p);emit({e:'died',p:p.id})}}
 function dropOne(p,id){const b=S.boxes.find(x=>x.id===id);if(!b)return;const tb=trailerAt(p.x,p.z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=p.x-BAYS[tb].x+rand(-.2,.2);b.z=p.z-S.trucks[tb].z}else{b.st=3;b.x=p.x+rand(-.3,.3);b.z=p.z+rand(-.3,.3)}b.y=0;b.h='';S.bver++}
 function dropCarry(p){dropOne(p,p.carry);for(const id of p.stack||[])dropOne(p,id);p.stack=[];p.carry=-1;p.can=false;if(S.fork&&S.fork.drv===p.id)S.fork.drv=''}
 function settleTruck(bay){const bs=S.boxes.filter(b=>b.st===0&&b.bay===bay).sort((a,b)=>a.y-b.y);
@@ -1961,7 +1962,7 @@ function lampsUpdate(dt){if(S.ot)return;if(mainsDown()){if(S.lamps.some(x=>x))S.
 // ---------------------------------------------------------------- player actions
 function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
   if(a.a==='buy'||a.a==='start'){shopAct(pid,a);return}
-  if(p.dead||S.phase!=='play'||S.over)return;
+  if(p.dead||p.locked||S.phase!=='play'||S.over)return;
   const B=id=>S.boxes.find(b=>b.id===id&&b.st!==4);
   const near=(w,r)=>Math.hypot(p.x-w.x,p.z-w.z,1.5-w.y)<=r;
   // the forklift carries three loose boxes on its forks, like the carry upgrade (but not while it has a pallet up)
@@ -2121,7 +2122,7 @@ function extrasUpdate(dt){
   // the blind one only walks while the building is actually dark: a running generator sends it away, and it comes
   // back if the generator runs dry
   if(S.outage&&!S.ot){if(genPowered()){for(const m of S.mons)if(m.ty===13&&!m.dead){m.dead=true;emit({e:'fade',id:m.id})}}else if(!S.mons.some(m=>m.ty===13&&!m.dead))spawnBlind()}
-  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);amrUpdate(dt);
+  coldUpdate(dt);convUpdate(dt);elevUpdate(dt);genUpdate(dt);forkUpdate(dt);paUpdate(dt);yardUpdate(dt);roofUpdate(dt);chillUpdate(dt);amrUpdate(dt);janTick(dt);
   if(!HOST.mgr&&S.night>=3&&S.t>=-S.extra+50){HOST.mgr=true;S.mons.push({id:monSeq++,ty:4,x:MGR_SPOT.x,z:MGR_SPOT.z,y:0,ry:Math.PI,st:'walk',a:2,t:0,path:null,rep:0})}
   if(owned('gen')){HOST.nextMoth-=dt;if(HOST.nextMoth<=0){HOST.nextMoth=rand(40,70);spawnMoth()}}}
 
@@ -2498,6 +2499,7 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
       else if(m.ty===0&&m.st!=='bolt'&&Math.hypot(m.x-p.x,m.z-p.z)<10)boltMimic(m);
       else if(m.ty===7&&Math.hypot(m.x-p.x,m.z-p.z)<12)m.stun=6;
       else if(m.ty===12&&Math.hypot(m.x-p.x,m.z-p.z)<12){m.st='leave';m.t=0}
+      else if(m.ty===17&&inCone(m.x,m.z,10))janStrobe(m); // the night janitor flinches and lets go of whoever he has
       else if(m.ty===16&&m.st!=='leave'&&inCone(m.x,m.z,12)){m.st='leave';m.path=null;m.t=0;emit({e:'audOff',x:r2(m.x),z:r2(m.z)})}
       else if(m.ty===2&&inCone(m.x,m.z,12)){m.dead=true;emit({e:'shriek',id:m.id,x:m.x,z:m.z})}}
     for(const b of S.boxes)if(b.roam&&b.st===3&&Math.hypot(b.x-p.x,b.z-p.z)<10)unboxMimic(b,'bolt',p.id);
@@ -2538,7 +2540,10 @@ function act2(pid,p,a){
   case 'amrLoad':amrLoad(p);return true;
   case 'stash':{if(!nearPos(p,STASH.x,STASH.z,2.4))return true;if(!S.stash)return toP(p,'Empty. Someone already went through it tonight.'),true;
     S.stash=false;const k=['batt','flare','drink','horn','strobe'][randi(0,4)];p.inv[k]=(p.inv[k]||0)+1;emit({e:'stash',p:pid,k});return true}
-  case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>m.ty===14&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
+  case 'struggle':{if(S.t-(p.sgT??-1e9)<.06)return true;p.sgT=S.t;if(S.mons.some(m=>(m.ty===14||m.ty===17)&&m.st==='drag'&&m.tg===pid))p.strug=(p.strug||0)+1;return true}
+  case 'slip':janSlip(p);return true;
+  case 'janHelp':janHelp(p);return true;
+  case 'janFree':janFree(p);return true;
   case 'shake':{if(!p.up.shake||S.t-(p.shT??-1e9)<.3)return true;p.shT=S.t;noise(p.x,p.z,10);emit({e:'shake',p:pid,x:p.x,z:p.z});return true}
   case 'can':{if(!owned('gen')||p.carry>=0||cartOf(pid)>=0||p.can||!nearPos(p,FUELR.x,FUELR.z,2.6))return true;p.can=true;emit({e:'canUp',p:pid});return true}
   case 'fuel':{if(!owned('gen')||!p.can||!nearPos(p,GEN.x,GEN.z,2.8))return true;p.can=false;const was=mainsDown();S.gen.fuel=Math.min(100,S.gen.fuel+50);S.gen.out=false;if(was&&!S.ot)powerOn();emit({e:'refuel',x:GEN.x,z:GEN.z,on:was});return true}
@@ -2794,6 +2799,7 @@ function devAct(p,a){if(!p||!isDevName(p.name)||!S||S.over)return;
   case 15:{if(has(15))return here('long-legged thing');let i=S.trucks.findIndex((t,k)=>bayOn(k)&&t.st===0);if(i<0)i=Math.max(0,S.trucks.findIndex((t,k)=>bayOn(k)));
     const tr=S.trucks[i];if(tr.st===0){tr.door=1;tr.stuck=16;emit({e:'stuck',b:i})}
     S.mons.push({id:monSeq++,ty:15,bay:i,x:BAYS[i].x,z:WH.z0-8,y:SP_LOW,ry:0,st:'enter',a:4,t:0,life:0,cd:0,hearT:0});break}
+  case 17:if(has(17))return here('night janitor');HOST.janDone=true;spawnJanitor();break;
   case 16:{if(has(16))return here('auditor');S.mons.push({id:monSeq++,ty:16,x:sp.x,z:sp.z,y:0,ry:rand(-3,3),st:'pick',a:0,t:0,life:0,cd:2,pulled:0,exp:{},path:null,rep:0});break}
   default:return}
   toP(p,`Spawned: ${name}.`)}
@@ -2824,6 +2830,98 @@ function cartUpdate(dt){for(const c of S.carts||[]){if(!c.by)continue;const p=S.
   if(!p||p.dead||!inWH(p)||onRoof(p)||(S.fork&&S.fork.drv===p.id)){cartLetGo(c);continue}
   c.x=p.x-Math.sin(p.yaw)*CART_OFF;c.z=p.z-Math.cos(p.yaw)*CART_OFF;c.ry=p.yaw+Math.PI;
   c.nT=(c.nT||0)-dt;if(c.nT<=0){c.nT=.5;if(p.spd>.8)noise(c.x,c.z,cartLoad(p)?5:4,'cart')}}}
+// ===================================================================== the night janitor (ty 17), night 5 and on (host side)
+// A tall figure in grey overalls who comes out of the closet on the east wall and mops the aisles end to end, pushing a
+// squeaking bucket and humming to himself. The floor behind him stays wet for about a minute. Walking on it is safe; run
+// on it and you slip and go down for a couple of seconds (the fall is loud). He never touches anyone who is standing up.
+// Anyone on the floor within earshot, he comes for, and if he reaches them before they're up he takes them by the ankle
+// and drags them back to his closet. Mash E to kick free; a crewmate next to you can mash E to pull you free; a strobe
+// makes him let go. Once he gets you through the closet door you're shut in (unhurt, no jumpscare) until a crewmate
+// opens it and lets you out; you watch the crew meanwhile. With nobody left to let you out, you don't come out at all.
+const JAN={door:{x:29.5,z:-3.5},from:5,wetR:.95,wetLife:55,wetMax:48,step:1.35,grip:1.4,minDrag:3.5,strugN:20,helpK:1.5,helpR:2.4,
+  walk:.95,come:6.4,drag:1.15,hear:26,freeR:2.6,reach:1.15,grace:10};
+// the aisles he mops: north of the first rack row, between the rows, and south of the last one
+const JAN_AISLES=[-8.5,-3.5,1.5,6.5,11.5],JAN_ENDS=[-25.5,25.5];
+// how long a slip keeps you on the floor: Easy, Normal, Hard
+const slipDur=()=>[2.1,2.6,3.0][S&&DIFFS[S.diff]?S.diff:1];
+let wetSeq=1;
+// a wet patch under (x,z), if there is one
+function wetAt(x,z,pad=0){if(!S||!S.wet)return null;for(const w of S.wet)if(Math.hypot(x-w.x,z-w.z)<JAN.wetR+pad)return w;return null}
+function nightSetupJan(){S.wet=[];S.wver=(S.wver|0)+1;HOST.janAt=S.night>=JAN.from?rand(-S.extra+25,SHIFT_END*.3):1e9;HOST.janDone=false;
+  for(const p of Object.values(S.players))Object.assign(p,{down:0,janCD:0,slipT:-99,locked:false})}
+function addWet(x,z,sign){if(!S.wet)S.wet=[];if(x<WH.x0+.3||x>WH.x1-.3||z<WH.z0+.3||z>WH.z1-.3)return;
+  const old=S.wet.find(w=>Math.hypot(w.x-x,w.z-z)<.6);if(old){old.t=JAN.wetLife;S.wver++;return}
+  S.wet.push({id:wetSeq++,x:r2(x),z:r2(z),t:JAN.wetLife,s:sign?1:0});while(S.wet.length>JAN.wetMax)S.wet.shift();S.wver++}
+function spawnJanitor(){if(S.mons.some(m=>m.ty===17))return;const d=JAN.door;
+  S.mons.push({id:monSeq++,ty:17,x:d.x-.6,z:d.z,y:0,ry:-Math.PI/2,st:'mop',a:2,k:0,t:0,tg:'',path:null,rep:0,trav:0,n:0,leg:null});
+  emit({e:'janIn',x:d.x,z:d.z})}
+// every tick during a shift: the floor dries, people get back up, and he comes out once the shift is under way
+function janTick(dt){
+  if(S.wet&&S.wet.length){const n=S.wet.length;S.wet=S.wet.filter(w=>(w.t-=dt)>0);if(S.wet.length!==n)S.wver++}
+  for(const p of Object.values(S.players)){if(p.down>0)p.down=Math.max(0,p.down-dt);if(p.janCD>0)p.janCD=Math.max(0,p.janCD-dt)}
+  if(!HOST.janDone&&S.t>=HOST.janAt){HOST.janDone=true;spawnJanitor()}
+  // shut in with nobody left out on the floor to open the door: that's the end of them
+  const shut=Object.values(S.players).filter(p=>p.locked&&!p.dead);if(shut.length&&!alivePlayers().length)for(const p of shut){p.locked=false;damage(p,999)}}
+// where you stand to open his closet: just inside the warehouse, in front of the door
+const janDoorAt=()=>({x:JAN.door.x-.9,z:JAN.door.z});
+// dragged through the door: shut in, unhurt, until someone opens it. Alone (nobody else still up), you don't come out.
+function janLock(v){emit({e:'jcloset',p:v.id,n:v.name,x:JAN.door.x,z:JAN.door.z});
+  if(!alivePlayers().some(q=>q.id!==v.id)){damage(v,999);return}
+  dropCarry(v);Object.assign(v,{locked:true,down:0,strug:0,janCD:0,x:JAN.door.x+1.2,z:JAN.door.z,tpT:.5})}
+// a crewmate at the closet door lets everyone in there out
+function janFree(p){if(!p||p.dead||p.locked)return;const d=janDoorAt();if(Math.hypot(p.x-d.x,p.z-d.z)>JAN.freeR)return;
+  const shut=Object.values(S.players).filter(q=>q.locked&&!q.dead);if(!shut.length)return;
+  shut.forEach((q,i)=>{const x=d.x-.4-i*.5,z=d.z+(i%2?.6:-.6);Object.assign(q,{locked:false,x,z,yaw:Math.PI/2,tpT:.6,janCD:JAN.grace});emit({e:'tp',p:q.id,x:r2(x),z:r2(z),yaw:r3(Math.PI/2)})});
+  emit({e:'jout',p:p.id,n:p.name,who:shut.map(q=>q.name).join(' and '),ids:shut.map(q=>q.id),x:JAN.door.x,z:JAN.door.z})}
+// someone ran onto a wet patch (the client that did it says so; the host checks the floor really is wet there)
+function janSlip(p){if(!p||p.dead||S.phase!=='play'||p.down>0||S.t-(p.slipT??-99)<1.5)return;
+  if(!wetAt(p.x,p.z,.6)||!inWH(p)||onRoof(p)||(S.fork&&S.fork.drv===p.id)||S.mons.some(m=>m.ty===17&&m.st==='drag'&&m.tg===p.id))return;
+  p.slipT=S.t;{const ci=cartOf(p.id);if(ci>=0)cartLetGo(S.carts[ci])}dropCarry(p); // whatever you had goes down with you
+  p.down=Math.max(.3,slipDur()-.3); // (a little less than the client's own, so the host never thinks you're still down once you're up)
+  noise(p.x,p.z,12);damage(p,6);emit({e:'slip',p:p.id,x:r2(p.x),z:r2(p.z)})}
+// keep whoever he has by the ankle on the floor behind him
+function janHold(m,v){let x=m.x-Math.sin(m.ry)*1.15,z=m.z-Math.cos(m.ry)*1.15;if(insideAny(x,z,.2)){x=m.x;z=m.z}
+  v.x=clamp(x,WH.x0+.35,WH.x1-.35);v.z=clamp(z,WH.z0+.35,WH.z1-.35);v.down=Math.max(v.down||0,1)}
+// he lets go: kicked free, pulled free, or flashed with a strobe
+function janRelease(m,v,how){if(v){v.down=0;v.strug=0;v.janCD=JAN.grace;if(how==='kick')damage(v,10)}
+  m.st='stun';m.t=0;m.stunT=how==='strobe'?6:3;m.tg='';m.path=null;emit({e:'jfree',p:v?v.id:'',how,x:r2(m.x),z:r2(m.z)})}
+function janStrobe(m){if(m.st==='inside')return;if(m.st==='drag'){janRelease(m,S.players[m.tg],'strobe');return}
+  m.st='stun';m.t=0;m.stunT=5;m.tg='';m.path=null;emit({e:'jstun',x:r2(m.x),z:r2(m.z)})}
+// a crewmate next to someone he's dragging pulls at them
+function janHelp(p){if(!p||p.dead||S.t-(p.hgT??-1e9)<.06)return;p.hgT=S.t;const m=S.mons.find(o=>o.ty===17&&o.st==='drag');if(!m)return;
+  const v=S.players[m.tg];if(!v||v.id===p.id||Math.hypot(p.x-v.x,p.z-v.z)>JAN.helpR+.4)return;v.strug=(v.strug||0)+JAN.helpK;v.sgT=S.t}
+// mop an aisle end to end: the nearer end first, then back along the whole length
+function janAisle(m){if(m.leg){m.tx=m.leg.x;m.tz=m.leg.z;m.leg=null;m.path=null;return}
+  const z=pick(JAN_AISLES),e=JAN_ENDS.slice().sort((a,b)=>Math.abs(a-m.x)-Math.abs(b-m.x));m.tx=e[0];m.tz=z;m.leg={x:e[1],z};m.path=null}
+// a: 0 standing, 1 mopping on the spot, 2 walking and mopping, 3 stunned, 4 hurrying, 5 dragging someone. k: 1 while he's in his closet
+function janitorUpdate(m,dt){m.t+=dt;if(m.st!=='drag')m.v=0;
+  if(m.st==='inside'){m.a=0;m.k=1;m.x=JAN.door.x+.4;m.z=JAN.door.z;if(m.t>m.wait){m.st='mop';m.t=0;m.k=0;m.x=JAN.door.x-.6;m.ry=-Math.PI/2;m.leg=null;m.tx=undefined;emit({e:'janIn',x:JAN.door.x,z:JAN.door.z})}return}
+  if(m.st==='stun'){m.a=3;if(m.t>m.stunT){m.st='pause';m.t=0;m.pauseT=1.5}return}
+  if(m.st==='drag'){const v=S.players[m.tg];
+    if(!v||v.dead||!inWH(v)){m.st='pause';m.t=0;m.pauseT=2;m.tg='';return}
+    if(S.t-(v.sgT??-1e9)>.25)v.strug=Math.max(0,(v.strug||0)-dt*STRUG_DECAY); // stop mashing and his grip comes back
+    m.v=Math.min(JAN.strugN,Math.round(v.strug||0)); // (the snapshot carries how close they are to kicking free, crewmates' help included)
+    if((v.strug||0)>=JAN.strugN){janRelease(m,v,'kick');return}
+    m.a=5;janHold(m,v);if(m.t<JAN.grip)return; // he takes a moment to get a grip
+    const d=monWalk(m,JAN.door.x-.3,JAN.door.z,JAN.drag,dt);janHold(m,v);
+    if(d<.5&&m.t>JAN.grip+JAN.minDrag){ // in through the closet door, and it shuts behind them
+      janLock(v); // (no jumpscare, no harm: the door just shuts on them)
+      m.st='inside';m.t=0;m.wait=rand(18,26);m.k=1;m.tg=''}
+    return}
+  // anyone on the floor within earshot: he leaves the mop and comes for them
+  let tgt=null,bd=JAN.hear;
+  for(const p of alivePlayers()){if(!(p.down>.25)||p.janCD>0||!inWH(p)||onRoof(p)||inTrailer(p)>=0)continue;const d=Math.hypot(p.x-m.x,p.z-m.z);if(d<bd){bd=d;tgt=p}}
+  if(tgt){if(m.st!=='come'){m.st='come';m.path=null;emit({e:'janCome',p:tgt.id,x:r2(m.x),z:r2(m.z)})}m.tg=tgt.id;m.a=4;
+    if(bd<JAN.reach){m.st='drag';m.t=0;tgt.strug=0;tgt.sgT=-1e9;janHold(m,tgt);emit({e:'jgrab',p:tgt.id,n:tgt.name,id:m.id});return}
+    monWalk(m,tgt.x,tgt.z,JAN.come,dt);return}
+  if(m.st==='come'){m.st='pause';m.t=0;m.pauseT=rand(2,3);m.tg='';m.leg=null;m.tx=undefined} // they got up in time
+  if(m.st==='pause'){m.a=1;if(m.t>m.pauseT){m.st='mop';m.t=0}return}
+  if(m.tx===undefined)janAisle(m);
+  m.a=2;const ox=m.x,oz=m.z,left=monWalk(m,m.tx,m.tz,JAN.walk,dt);
+  m.trav+=Math.hypot(m.x-ox,m.z-oz);if(m.trav>=JAN.step){m.trav=0;m.n++;addWet(m.x,m.z,m.n%5===1)} // a yellow sign every so often
+  if(left<.6||(m.path&&!m.path.length&&left<2.5)||m.t>75){addWet(m.x,m.z,false);m.tx=undefined;m.st='pause';m.t=0;m.pauseT=rand(2,4)}}
+MON_UPD[17]=janitorUpdate;
+DEV_MONS.push([17,'Night janitor']);
 // ===================================================================== networking
 // Browser-to-browser over WebRTC (PeerJS). The host runs the simulation; clients send their own
 // position plus action requests, and get snapshots back 20 times a second.
@@ -2863,7 +2961,7 @@ function hostMsg(c,m){if(!m||!NET.conns.has(c.peer))return;
     lobbyBroadcast();return}
   if(m.t==='me'&&S){const p=S.players[c.peer];if(p&&Array.isArray(m.p)){const [x,z,yaw,pitch,light,fx,fz,fry]=m.p;
     if(S.fork&&S.fork.drv===c.peer&&isFinite(fx)&&isFinite(fz)){S.fork.x=fx;S.fork.z=fz;S.fork.ry=+fry||0}
-    if(isFinite(x)&&isFinite(z)&&!(p.tpT>0)){const up=x<-100;p.x=x>60?clamp(x,BASE.x0,BASE.x1):up?clamp(x,ROOF.x0,ROOF.x1):clamp(x,WH.x0,WH.x1);p.z=x>60?clamp(z,BASE.z0,BASE.z1):up?clamp(z,ROOF.z0,ROOF.z1):clamp(z,TZ_DOCK-TRAIL_LEN,WH.z1)}if(isFinite(yaw))p.yaw=yaw;if(isFinite(pitch))p.pitch=clamp(pitch,-1.5,1.5);p.light=!!light}return}
+    if(isFinite(x)&&isFinite(z)&&!(p.tpT>0)&&!p.locked){const up=x<-100;p.x=x>60?clamp(x,BASE.x0,BASE.x1):up?clamp(x,ROOF.x0,ROOF.x1):clamp(x,WH.x0,WH.x1);p.z=x>60?clamp(z,BASE.z0,BASE.z1):up?clamp(z,ROOF.z0,ROOF.z1):clamp(z,TZ_DOCK-TRAIL_LEN,WH.z1)}if(isFinite(yaw))p.yaw=yaw;if(isFinite(pitch))p.pitch=clamp(pitch,-1.5,1.5);p.light=!!light}return}
   if(m.t==='act'&&S){act(c.peer,m.a);return}}
 function hostSend(m){for(const c of NET.conns.values())if(c.open)try{c.send(m)}catch(e){}}
 // snapshots go on the fast connection where there is one
@@ -2887,6 +2985,7 @@ function clientMsg(m){if(!m)return;
   case 'start':clientStart();break;
   case 'tp':ME.x=m.x;ME.z=m.z;ME.ready=true;break;
   case 'b':if(S)applyBoxes(m.b);break;
+  case 'w':if(S)applyWet(m.w);break; // the night janitor's wet floor
   case 's':if(S&&!(m.sq<=NET.lastSq)){NET.lastSq=m.sq;applySnap(m)}break; // (the fast channel can deliver an old one late: skip it)
   case 'ev':for(const e of m.ev||[])EVQ.push(e);break;
   }}
@@ -2916,7 +3015,7 @@ function netClose(){NET.closing=true;pubClose();NET.pub=false;NET.fast.clear();N
 // ---- snapshots
 const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
 function snap(){return{t:'s',tm:r2(S.t),n:S.night,ph:S.phase,ot:S.ot?1:0,it:r2(S.inter),q:S.quota,sh:S.shelved,lo:S.lost,sc:S.score,to:S.total,ai:S.aidLeft,la:S.lamps,bv:S.bver,ov:S.over,
-  pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry,p.inv||{},p.up||{},p.stack||[],p.can?1:0,p.wu|0,Math.round(p.cash||0)]),
+  pl:Object.values(S.players).map(p=>[p.id,p.name,p.col,r2(p.x),r2(p.z),r3(p.yaw),r3(p.pitch),p.light?1:0,Math.ceil(p.hp),p.dead?1:0,p.carry,p.inv||{},p.up||{},p.stack||[],p.can?1:0,p.wu|0,Math.round(p.cash||0),p.down>0?1:0,p.locked?1:0]),
   tr:S.trucks.map(t=>[t.st,r2(t.z),r2(t.door),Math.round(t.t),t.warn?1:0,t.claw?1:0,t.left,t.n,t.reject?1:0,t.kg||0,t.extra||0,r2(t.stuck||0)]),
   mo:S.mons.map(m=>[m.id,m.ty,r2(m.x),r2(m.y||0),r2(m.z),r2(m.ry),m.a|0,m.k|0,m.v|0,m.f?1:0,m.tg||'']),
   // the additions' moving parts
@@ -2937,7 +3036,7 @@ function markSlots(){for(const s of SLOTS){s.box=-1;s.box2=-1}
   for(const p of S.pallets||[])if(p.st===2&&p.s>=0&&SLOTS[p.s])SLOTS[p.s].box=-(1000+p.id)}
 function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,inter:m.it,quota:m.q,shelved:m.sh,lost:m.lo,score:m.sc,total:m.to,aidLeft:m.ai,lamps:m.la,over:m.ov});
   const seen=new Set();
-  for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry,inv,up,stack,can,wu,cash]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry,inv,up,stack,can:!!can,wu,cash:cash|0});
+  for(const a of m.pl){const [id,name,col,x,z,yaw,pitch,light,hp,dead,carry,inv,up,stack,can,wu,cash,down,locked]=a;seen.add(id);let p=S.players[id];if(!p)p=S.players[id]={id};Object.assign(p,{name,col,hp,dead:!!dead,carry,inv,up,stack,can:!!can,wu,cash:cash|0,down:down|0,locked:!!locked});
     if(id!==NET.myId)Object.assign(p,{x,z,yaw,pitch,light:!!light});else if(!p.init){p.init=1;p.x=x;p.z=z}}
   for(const id in S.players)if(!seen.has(id))delete S.players[id];
   m.tr.forEach((a,i)=>{const tr=S.trucks[i];if(tr.z===undefined||Math.abs(tr.z-a[1])>6)tr.z=a[1];Object.assign(tr,{st:a[0],tz:a[1],door:a[2],t:a[3],warn:!!a[4],claw:!!a[5],left:a[6],n:a[7],reject:!!a[8],kg:a[9],extra:a[10],stuck:a[11]})});
@@ -2958,10 +3057,14 @@ function applySnap(m){Object.assign(S,{t:m.tm,night:m.n,phase:m.ph,ot:!!m.ot,int
 function netTick(dt){
   if(NET.mode==='host'&&NET.started&&S){NET.snapT-=dt;
     if(S.bver!==NET.sentBver||NET.boxT<=0){NET.sentBver=S.bver;NET.boxT=3;hostSend({t:'b',b:boxSnap()})}NET.boxT-=dt;
+    NET.wetT=(NET.wetT??0)-dt;if((S.wver|0)!==NET.sentWver||NET.wetT<=0){NET.sentWver=S.wver|0;NET.wetT=3;if(NET.conns.size)hostSend({t:"w",w:wetSnap()})} // (wet floor: on the reliable channel, when it changes and every few seconds)
     if(NETEV.length){if(NET.conns.size)hostSend({t:'ev',ev:NETEV.splice(0)});else NETEV.length=0}
     if(NET.snapT<=0){NET.snapT=Math.max(NET.snapT+1/20,0);if(NET.conns.size)hostSendFast(snap())}} // (carry the remainder over, so a 50 ms timer still sends 20 a second)
   else if(NET.mode==='client'&&NET.hostConn&&NET.hostConn.open&&ME.ready){NET.meT-=dt;if(NET.meT<=0){NET.meT=1/20;try{(NET.fastConn&&NET.fastConn.open?NET.fastConn:NET.hostConn).send({t:'me',p:[r2(ME.x),r2(ME.z),r3(ME.yaw),r3(ME.pitch),ME.lightOn()?1:0].concat(ME.driving&&S.fork?[r2(S.fork.x),r2(S.fork.z),r3(S.fork.ry)]:[])})}catch(e){}}}}
 function doAct(a){if(NET.mode==='client'){try{NET.hostConn&&NET.hostConn.open&&NET.hostConn.send({t:'act',a})}catch(e){}}else act(NET.myId,a)}
+// the night janitor's wet patches: [id, x, z, seconds left to dry, has a sign]
+function wetSnap(){return (S.wet||[]).map(w=>[w.id,w.x,w.z,r2(w.t),w.s|0])}
+function applyWet(arr){if(!Array.isArray(arr))return;S.wet=arr.map(a=>({id:a[0],x:a[1],z:a[2],t:a[3],s:a[4]|0}))}
 // ===================================================================== post-processing: depth outlines, grade, grain, scares
 const RT=new THREE.WebGLRenderTarget(4,4,{type:THREE.HalfFloatType,depthBuffer:true});
 RT.depthTexture=new THREE.DepthTexture(4,4);RT.depthTexture.type=THREE.UnsignedIntType;
@@ -3061,7 +3164,7 @@ addEventListener('keydown',e=>{if(e.target&&e.target.tagName==='INPUT')return;if
   if(GAME.on&&['Space','Tab','KeyF','KeyQ','KeyE','KeyG','KeyH'].includes(code))e.preventDefault()});
 // a key (or touch button) going down: spectating, it switches whose view you watch
 function keyPress(code){if(!GAME.on||GAME.paused)return;const me=S&&S.players[NET.myId];
-  if(me&&me.dead&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(code))specCycle(-1)}else onKey(code)}
+  if(me&&(me.dead||me.locked)&&S.phase==='play'){if(['Space','ArrowRight','KeyD','KeyE'].includes(code))specCycle(1);else if(['ArrowLeft','KeyA','KeyQ'].includes(code))specCycle(-1)}else onKey(code)}
 addEventListener('keyup',e=>{const code=mapKey(e.code);if(code)K[code]=false});
 addEventListener('blur',()=>{for(const k in K)K[k]=false});
 // Chrome sometimes reports one wildly wrong mouse movement while the pointer is locked (most often just after it locks,
@@ -3073,7 +3176,7 @@ document.addEventListener('mousemove',e=>{if(!GAME.on||!locked()||GAME.paused)re
   const s=.0021*SET.sens;ME.yaw-=mx*s;ME.pitch=clamp(ME.pitch-my*s,-1.45,1.45)});
 addEventListener('focus',()=>{lookSkip=3});
 canvas.addEventListener('mousedown',e=>{auInit();if(!GAME.on)return;if(!locked()){reqLock();return}
-  const me=S&&S.players[NET.myId];if(me&&me.dead){specCycle(e.button===2?-1:1);return}
+  const me=S&&S.players[NET.myId];if(me&&(me.dead||me.locked)){specCycle(e.button===2?-1:1);return}
   if(e.button===0)onKey('KeyE');else if(e.button===2){K.Mouse2=true;onKey('UseItem')}});
 addEventListener('mouseup',e=>{if(e.button===2)K.Mouse2=false});
 // the scroll wheel walks the item hotbar
@@ -3085,7 +3188,7 @@ document.addEventListener('pointerlockchange',()=>{if(locked()&&S&&S.phase==='sh
   if(locked()){lookSkip=3;GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
   else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')&&!DEV.open){showPause()}});
 
-function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||S.phase!=='play')return;
+function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||me.locked||ME.scare||S.phase!=='play')return;
   if(ME.grab){if(['KeyE','KeyQ','Space'].includes(code))struggle();return}
   if(code!=='KeyF'&&onKey2(code,me))return;
   if(code==='KeyF'){if(ME.bat>0)ME.light=!ME.light;SFX.click();return}
@@ -3111,7 +3214,7 @@ let BOXPICK=[];
 const GHOST=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1).translate(0,.5,0)),new THREE.LineBasicMaterial({color:0x9dff9a,transparent:true,opacity:.75,fog:false,depthWrite:false}));GHOST.visible=false;scene.add(GHOST);
 function updGhost(me){const t=ME.target;const b=t&&t.kind==='slot'&&me&&me.carry>=0?S.boxes.find(x=>x.id===me.carry):null;GHOST.visible=!!b;if(!b)return;
   const K=BOX_KINDS[b.k];GHOST.scale.set(t.s.rot&&!t.under?K.d:K.w,K.h,t.s.rot&&!t.under?K.w:K.d);if(t.under){GHOST.position.set(t.under.x,t.under.y+BOX_KINDS[t.under.k].h+.01,t.under.z);GHOST.rotation.y=t.under.ry}else{GHOST.position.set(t.s.x,t.s.y+.01,t.s.z);GHOST.rotation.y=0}GHOST.material.color.set(t.ok?0x9dff9a:0xff6a5a);GHOST.material.opacity=.45+Math.sin(performance.now()/160)*.25}
-function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||ME.scare)return;
+function findTarget(me){ME.target=null;GHOST.visible=false;if(!me||me.dead||me.locked||ME.scare)return;
   RC.setFromCamera({x:0,y:0},camera);RC.far=3.1;const carrying=me.carry>=0;
   // in the forklift: pallets first; with no pallet up, loose boxes and shelf slots out past the forks
   const drv=ME.driving,reach=drv?4.8:3.3,cap=ME.cart>=0?CART_MAX-1:((me.up&&me.up.hand)||drv)?2:0;
@@ -3131,8 +3234,9 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
   if(me.hp<ME.lastHp-(chilled()?1.5:.5)){ME.hurt=Math.min(1,ME.hurt+.9);if(!ME.scare)SFX.hurt()}ME.lastHp=me.hp;
   ME.hurt=Math.max(0,ME.hurt-dt*.7);ME.flash=Math.max(0,ME.flash-dt*2.2);ME.kickCD-=dt;ME.kickA=Math.max(0,ME.kickA-dt);
   if(ME.scare)updScare(dt);else ME.shake=Math.max(0,ME.shake-dt*1.4);
-  if(me.dead){ME.deathT+=dt;spectate(dt);findTarget(null);return}
-  ME.deathT=0;localUpdate2(dt,me);if(grabUpdate(dt,me)||rgHeld(dt,me)){findTarget(null);return}
+  // shut in the janitor's closet you watch the crew the same way (straight to the crewmate's view, no fall)
+  if(me.dead||me.locked){ME.deathT=me.locked?Math.max(ME.deathT,2.3)+dt:ME.deathT+dt;ME.slipT=0;ME.grab=false;spectate(dt);findTarget(null);return}
+  ME.deathT=0;localUpdate2(dt,me);if(grabUpdate(dt,me)||rgHeld(dt,me)||janDown(dt,me)){findTarget(null);return}
   const busy=!!ME.scare||S.phase!=='play';
   if(ME.driving){driveUpdate(dt,me);batteryUpdate(dt,busy,me);findTarget(me);return}
   const ax=moveAxes(),fw=busy?0:ax[0],st=busy?0:ax[1];
@@ -3152,6 +3256,7 @@ function localUpdate(dt){const me=S.players[NET.myId];if(!me)return;
       const tr=bi>=0?S.trucks[bi]:null;if(!tr||(tr.st!==2&&tr.st!==3)){if(bi>=0)p.x=BAYS[bi].x;p.z=WH.z0+1.2}}
     p.x=clamp(p.x,WH.x0+.3,WH.x1-.3);p.z=clamp(p.z,TZ_DOCK-TRAIL_LEN+.3,WH.z1-.3)}
   const sp=Math.hypot(p.x-ME.x,p.z-ME.z)/Math.max(dt,1e-4);ME.x=p.x;ME.z=p.z;
+  janSlipCheck(run,sp,me); // running on the night janitor's wet floor
   const fit=me&&me.up?(me.up.stam4?3.3:me.up.stam3?2.6:me.up.stam2?2:me.up.stam?1.5:1):1; // the stamina upgrades
   if(run&&sp>1){if(!(ME.drinkT>0))ME.stam-=dt*21/fit;if(ME.stam<=0){ME.stam=0;ME.exh=true}}else{ME.stam=Math.min(100,ME.stam+dt*(moving?10:16)*fit);if(ME.exh&&ME.stam>35)ME.exh=false}
   // head bob + footsteps
@@ -3178,7 +3283,7 @@ function batteryUpdate(dt,busy,me){
 
 // ---- spectating: a third-person camera behind a crewmate who's still alive. The mouse orbits it;
 // click, Space or the arrow keys switch to the next one. If they go down, it moves on to someone else.
-const specList=()=>Object.values(S.players).filter(p=>!p.dead&&p.id!==NET.myId);
+const specList=()=>Object.values(S.players).filter(p=>!p.dead&&!p.locked&&p.id!==NET.myId);
 function specTarget(){const a=specList();return a.find(p=>p.id===ME.specId)||a[0]||null}
 function specCycle(d){const a=specList();if(!a.length)return;const i=a.findIndex(p=>p.id===ME.specId);ME.specId=a[((i<0?0:i+d)%a.length+a.length)%a.length].id;ME.specSnap=true}
 // can the camera sit here? (inside the walls, out of the racks, in a docked trailer or the basement)
@@ -3246,7 +3351,7 @@ function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
     if(m.userData.tw>0){m.userData.tw-=dt;const k=m.userData.tw;m.rotation.z=Math.sin(k*70)*.07*Math.min(1,k*3);m.rotation.x=Math.cos(k*53)*.05*Math.min(1,k*3);m.position.y+=Math.abs(Math.sin(k*45))*.035}}
   for(const [id,m] of BM)if(!live.has(id)){ROOT.remove(m);BM.delete(id)}
   BOXPICK.length=0;for(const m of BM.values())if(m.visible)BOXPICK.push(m);
-  const cb=me&&me.carry>=0?S.boxes.find(b=>b.id===me.carry):null;setViewBox(me&&!me.dead&&!ME.driving&&!(ME.cart>=0)?cb:null)}
+  const cb=me&&me.carry>=0?S.boxes.find(b=>b.id===me.carry):null;setViewBox(me&&!me.dead&&!me.locked&&!ME.driving&&!(ME.cart>=0)?cb:null)}
 function syncMonsters(dt,time){const live=new Set();
   for(const m of S.mons){live.add(m.id);let v=MV.get(m.id);
     if(!v){const g=makeMonster2(m)||(m.ty===0?makeMimic(m.k,m.v,m.f):m.ty===1?makeLurker():m.ty===3?makeCrawler():makeStalker());if(m.ty===1&&m.k===1)coldify(g);g.position.set(m.x,m.y,m.z);g.rotation.y=m.ry;ROOT.add(g);
@@ -3305,11 +3410,12 @@ function syncAvatars(dt,time){const live=new Set(),lit=[];let si=0;
     const ox=v.x,oz=v.z;v.x=damp(v.x,p.x,11,dt);v.z=damp(v.z,p.z,11,dt);v.yaw=angLerp(v.yaw,p.yaw,1-Math.exp(-12*dt));v.pitch=damp(v.pitch,p.pitch,12,dt);
     const sp=Math.hypot(v.x-ox,v.z-oz)/Math.max(dt,1e-3);const w0=v.walk;v.walk+=dt*sp*2.3;
     if(sp>.4&&Math.floor(w0/Math.PI)!==Math.floor(v.walk/Math.PI)&&Math.hypot(v.x-ME.x,v.z-ME.z)<16)SFX.step(v.z<WH.z0,sp>4,{x:v.x,y:.1,z:v.z});
-    const g=v.g,u=g.userData,drv=S.fork&&S.fork.drv===p.id;g.visible=!p.dead;g.position.set(v.x,drv?.75:0,v.z);
+    const g=v.g,u=g.userData,drv=S.fork&&S.fork.drv===p.id;g.visible=!p.dead&&!p.locked;g.position.set(v.x,drv?.75:0,v.z);
     const held=rgHeldAt(p.id);if(held)g.position.set(held.x,held.y-1.1,held.z); /* in the giant's fist */g.rotation.y=drv?S.fork.ry:v.yaw+Math.PI;if(drv){u.legs.forEach(l=>l.rotation.x=-1.4)}
     const a=Math.min(1,sp/3);u.legs[0].rotation.x=Math.sin(v.walk)*.6*a;u.legs[1].rotation.x=-Math.sin(v.walk)*.6*a;
     if(S.carts&&S.carts.some(c=>c.by===p.id)){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.0,10,dt))} /* both hands on the cart handle */else if(p.carry>=0){u.arms.forEach(x=>x.rotation.x=damp(x.rotation.x,-1.25,10,dt))}else{u.arms[0].rotation.x=-Math.sin(v.walk)*.5*a;u.arms[1].rotation.x=-.9}
     u.torch.rotation.x=-v.pitch;u.head.rotation.x=-v.pitch*.6;u.beam.visible=!!p.light;
+    janAvatar(p,v,dt); // flat on the floor after a slip (or being dragged off)
     if(p.light&&!p.dead)lit.push({v,u,d:Math.hypot(v.x-ME.x,v.z-ME.z)})}
   // only a few real lights to go round: they go to the nearest crewmates' torches
   lit.sort((a,b)=>a.d-b.d);
@@ -3330,7 +3436,7 @@ function syncLamps(dt){
   if(light)light.intensity=(L.light?17:15)*lv;L.bulb.material.color.setRGB(lerp(.1,1,lv),lerp(.08,.85,lv),lerp(.06,.62,lv));L.cone.material.uniforms.lv.value=lv;
   if(AU.ready){if(!L.hum)L.hum=loop('hum',{x:LAMPS[i].x,y:5,z:LAMPS[i].z},.35);L.hum.set(lv*.35,.03)}});
   for(let k=want.length;k<LAMPV.pool.length;k++)LAMPV.pool[k].intensity=0}
-function syncWorld(dt,time){applyColliders();syncTrucks(dt);syncAvatars(dt,time);syncCarts(dt);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time)}
+function syncWorld(dt,time){applyColliders();syncTrucks(dt);syncAvatars(dt,time);syncCarts(dt);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time);syncJan(dt,time)}
 function clearVisuals(){for(const m of BM.values())ROOT.remove(m);BM.clear();for(const v of MV.values()){ROOT.remove(v.g);v.lp&&v.lp.stop();v.gr&&v.gr.stop()}MV.clear();for(const v of AV.values())ROOT.remove(v.g);AV.clear();
   for(const v of TV)v.g.visible=false;for(const s of REMOTE_SPOTS)s.intensity=0;setViewBox(null);if(ME.scare){camera.remove(ME.scare.g);ME.scare=null}
   for(const s of SLOTS)s.box=-1;BOXPICK.length=0;
@@ -3388,7 +3494,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   $('hpb').firstChild.style.width=(me?me.hp:0)+'%';$('batb').firstChild.style.width=ME.bat+'%';$('stb').firstChild.style.width=ME.stam+'%';
   $('batb').style.opacity=ME.charging?(Math.sin(performance.now()/90)>0?1:.5):1;
   const t=ME.target;let pr='';
-  if(me&&!me.dead&&!ME.scare&&S.phase==='play'){const carrying=me.carry>=0;
+  if(me&&!me.dead&&!me.locked&&!ME.scare&&S.phase==='play'){const carrying=me.carry>=0;
     const p2=t&&promptFor(t,me);
     if(p2!==null&&p2!==undefined)pr=p2;
     else if(t){if(t.kind==='box'&&ME.driving)pr='<kbd>E</kbd> Load onto the forks';else if(t.kind==='box'&&ME.cart>=0)pr='<kbd>E</kbd> Load onto the cart';
@@ -3407,7 +3513,8 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
     if(ME.cart>=0&&!t)pr='<kbd>Q</kbd> Let go of the cart'+(carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?(owned('amrl')&&Math.hypot(forkTip().x-AMR.l.x,forkTip().z-AMR.l.z)<1.7?' &nbsp; <kbd>G</kbd> Set the pallet on the robot pad':' &nbsp; <kbd>G</kbd> Set the pallet down'):carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;
-    const hn=hatchNote()||grabNote();if(hn)pr=hn;}
+    const wn=wetNote(me);if(wn)pr+=(pr?"<br>":"")+wn;const sn=shutNote(me);if(sn)pr+=(pr?"<br>":"")+sn;
+    const hn=hatchNote()||grabNote()||janNote(me);if(hn)pr=hn;}
   pr=relabel(pr);if(pr!==GAME.lastPr){$('prompt').innerHTML=pr;GAME.lastPr=pr}
   $('cross').className=`xh x-${SET.cross||'dot'}${t&&(t.kind!=='slot'||t.ok)?' on':''}`;
   // a clock ticks through the last minute and overtime, only while the quota isn't met; double time for the final 10 s
@@ -3431,7 +3538,7 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
   $('tr').innerHTML=h;
   const ps=Object.values(S.players);
   $('plist').innerHTML=ps.length>1?ps.map(p=>`<div style="color:${p.dead?'#666':p.col}">${p.dead?'&#10013; ':''}${esc(p.name)} ${p.dead?'':'&middot; '+Math.ceil(p.hp)}</div>`).join(''):'';
-  const sp=$('spect'),wt=me&&me.dead?specTarget():null;if(wt){const n=specList().length;sp.classList.remove('hide');sp.textContent=`You're down. Watching ${wt.name}${n>1?' · click or ← → to switch':''} · move the mouse to look around. Back on shift next night.`}else sp.classList.add('hide');
+  const sp=$('spect'),wt=me&&(me.dead||me.locked)?specTarget():null;if(wt){const n=specList().length;sp.classList.remove('hide');sp.textContent=me.locked?`Shut in the janitor's closet. A crewmate can let you out at the door on the east wall. Watching ${wt.name}${n>1?' · click or ← → to switch':''}.`:`You're down. Watching ${wt.name}${n>1?' · click or ← → to switch':''} · move the mouse to look around. Back on shift next night.`}else sp.classList.add('hide');
   if(SET.fps)$('fps').textContent=GAME.fps+' fps';}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -3559,10 +3666,10 @@ function frame(now){requestAnimationFrame(frame);let dt=(now-lastT)/1000;lastT=n
     drainEvents();syncWorld(dt,time);netTick(dt);hud(dt);touchTick();near=updFear(dt);checkOver(dt);shopTick();syncScanner();
     const me=S.players[NET.myId];
     const fl2=me&&me.up&&me.up.fl2;FL.angle=fl2?.55:.44;FL.distance=fl2?28:24;
-    FL.intensity=ME.scare?(Math.random()<.45?7:.5):(ME.lightOn()&&me&&!me.dead?(fl2?40:30)*ME.flick:0);
+    FL.intensity=ME.scare?(Math.random()<.45?7:.5):(ME.lightOn()&&me&&!me.dead&&!me.locked?(fl2?40:30)*ME.flick:0);
     REDL.intensity=ME.red&&me&&me.up&&me.up.red&&!me.dead&&!ME.scare?10:0;VM.can.visible=!!(me&&me.can);
     SCARE_L.intensity=ME.scare?(Math.random()<.3?.6:4):0;
-    VM.g.visible=!!(me&&!me.dead);VM.lens.material.color.setScalar(ME.lightOn()?ME.flick:.15);
+    VM.g.visible=!!(me&&!me.dead&&!me.locked);VM.lens.material.color.setScalar(ME.lightOn()?ME.flick:.15);
     BAYV.chargeLed.material.color.set(ME.charging&&!ME.shaking?(Math.sin(time*12)>0?0x37ff8a:0x0a3a1a):0x37ff8a);
   }else{ // title screen: drift through the dark dock
     const t=time*.05;camera.position.set(Math.sin(t)*7,2.1+Math.sin(t*1.7)*.2,-8+Math.cos(t*.8)*2);camera.rotation.set(-.08,Math.sin(t*.9)*.6,0);
@@ -3588,7 +3695,7 @@ async function init(){
   applyQuality();bindUI();saveNote();
   renderer.compile(scene,camera);
   $('loading').classList.add('hide');requestAnimationFrame(frame);
-  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,relabel,toast,applyBoxes,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,truckGone,spiderDoor,spawnAuditor,spFree,kickAim,MV,onKey,priceOf,isTeam,owned,netHost,netJoin,
+  window.GS={get S(){return S},set S(v){S=v},snap,applySnap,boxSnap,applyBoxes,frame,ADDS,SHOP,applyAdds,owned,nightSetup,startNight,FORK3D,ADDV,LAMPV,PV,PALV,ME,NET,GAME,HOST,SLOTS,COL,act,doAct,camera,renderer,scene,BM,MV,AV,LAMPS,BAYS,TV,spawnTruck,spawnStalker,startScare,simUpdate,localUpdate,drainEvents,AU,SFX,EVQ,endNight,gameOver,saveRun,loadSave,restoreRun,startSolo,hostStartGame,forkTip,findTarget,roofUpdate,poseGiant,addPlayer,slotOn,bayOn,boxWorld,relabel,toast,applyBoxes,K2:{SHRED,CAR_UP,CAR_DN,VENT,LADDER,HATCH,STASH,COLD,BASE,ROOF,RROOM,WH,GEN,FUELR,CONV,STATION},get ROOFG(){return ROOFG},get GIANT(){return GIANT},CONV,showMenu,renderShop,K,onKey2,truckGone,spiderDoor,spawnAuditor,spFree,kickAim,MV,onKey,priceOf,isTeam,owned,netHost,netJoin,applyWet,wetSnap,wetAt,slipDur,JAN,WETV,JANV,
 
     shot(){renderer.setRenderTarget(RT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(postScene,postCam);return canvas.toDataURL('image/jpeg',.85)}}}
 init().catch(e=>{console.error(e);$('loading').textContent='Something went wrong while loading: '+(e&&e.message||e)});
@@ -3785,6 +3892,7 @@ function forkTarget(){const f=S.fork,t={x:f.x+Math.sin(f.ry)*1.55,z:f.z+Math.cos
 
 // ---------------------------------------------------------------- input for the new things (returns true if it used the key)
 function onKey2(code,me){
+  if(code==="KeyE"&&janHelpKey(me))return true; // pulling a crewmate away from the night janitor
   if(code==='KeyH'){if(me.up&&me.up.red){ME.red=!ME.red;SFX.click()}else toast('You don\'t have a headlamp.');return true}
   // number keys jump straight to that item on the hotbar; right click uses it
   const k=ITEM_KEYS[code];
@@ -3864,7 +3972,7 @@ function syncScanner(){let i=0;const put=(x,y,z,s)=>{if(i>=SCAN.length)return;co
   for(;i<SCAN.length;i++)SCAN[i].visible=false}
 
 // ---------------------------------------------------------------- monsters added later
-function makeMonster2(m){if(m.ty===15)return makeSpider();if(m.ty===16)return makeAuditor();if(m.ty===13)return makeBlind();if(m.ty===14)return makeHunch();if(m.ty===4)return makeManager();if(m.ty===5)return makeShrink();if(m.ty===6)return makeFrost();if(m.ty===12)return makeMoth();
+function makeMonster2(m){if(m.ty===17)return makeJanitor();if(m.ty===15)return makeSpider();if(m.ty===16)return makeAuditor();if(m.ty===13)return makeBlind();if(m.ty===14)return makeHunch();if(m.ty===4)return makeManager();if(m.ty===5)return makeShrink();if(m.ty===6)return makeFrost();if(m.ty===12)return makeMoth();
   if(m.ty===7){const g=makeDriver();const others=Object.values(S.players).filter(p=>p.id!==NET.myId);
     // in a crew it wears one of your crewmates' names
     if(others.length){const o=others[m.k%others.length],tag=makeTag(o.name,o.col||'#ccc');tag.position.y=2.1;g.add(tag)}return g}
@@ -3900,8 +4008,9 @@ function fearOf(v,d){if(v.ty>=15)return fearOf3(v,d);if(v.ty===4)return v.a===4?
   if(v.ty===6)return clamp(1-d/6,0,1)*(v.a===2?.9:.3);if(v.ty===7)return clamp(1-d/8,0,1)*.8;if(v.ty===12)return clamp(1-d/5,0,1)*.25;return null}
 
 // ---------------------------------------------------------------- jumpscares for the new ones
-function makeScare2(ty){return ty===13?makeBlind():ty===14?makeHunch():ty===4?makeManager():ty===5?makeShrink():ty===6?makeFrost():ty===7?makeDriver():ty===10?makeRoofThing():ty===11?makePassenger():null}
+function makeScare2(ty){return ty===17?makeJanitor():ty===13?makeBlind():ty===14?makeHunch():ty===4?makeManager():ty===5?makeShrink():ty===6?makeFrost():ty===7?makeDriver():ty===10?makeRoofThing():ty===11?makePassenger():null}
 function updScare2(s,k,lunge){const g=s.g,u=g.userData;
+  if(s.ty===17){janScare(s,k,lunge);return}
   if(s.ty===4){g.position.set(rand(-.01,.01),-2.36,lerp(-1.9,-.78,lunge(.18)));g.rotation.y=Math.PI*0;u.clip.position.y=.3;u.clip.rotation.x=1.35;u.head.rotation.set(-.2,0,Math.sin(k*17)*.05+.15);u.arms.forEach(a=>{a.rotation.x=-1.6;a.rotation.z=0})}
   else if(s.ty===5){g.position.set(rand(-.02,.02),-1.9,lerp(-1.4,-.6,lunge(.2)));u.head.rotation.set(-.15,0,Math.sin(k*25)*.2);u.torso.rotation.x=.25}
   else if(s.ty===6){g.position.set(rand(-.02,.02),-1.84,lerp(-1.5,-.62,lunge(.16)));u.arms.forEach((a,i)=>{a.rotation.x=-1.9;a.rotation.z=(i?-1:1)*.3});u.head.rotation.set(-.25,0,0)}
@@ -4089,18 +4198,20 @@ function bindShop(){$('shop').addEventListener('click',e=>{const b=e.target.clos
 
 // ---------------------------------------------------------------- held by the thing in the basement
 // It drags you to the shredder: you can't move, only mash E (or Q, Space, click) to break its grip.
-function grabber(){return S.mons.find(m=>m.ty===14&&m.a===5&&m.tg===NET.myId)}
+// (the night janitor drags you too: see janHeld)
+function grabber(){return S.mons.find(m=>(m.ty===14||m.ty===17)&&m.a===5&&m.tg===NET.myId)}
 function grabUpdate(dt,me){const m=grabber();if(!m){ME.grab=false;return false}
   if(!ME.grab){ME.grab=true;ME.strug=0}
   // (the meter drains once you stop mashing, the same as on the host)
   if(performance.now()-(ME.sgT||0)>250)ME.strug=Math.max(0,(ME.strug||0)-dt*STRUG_DECAY);
+  if(m.ty===17)return janHeld(dt,me,m);
   const v=MV.get(m.id),gx=v?v.g.position.x:m.x,gz=v?v.g.position.z:m.z,ry=v?v.g.rotation.y:m.ry;
   ME.x=gx+Math.sin(ry)*.85;ME.z=gz+Math.cos(ry)*.85;ME.vx=ME.vz=0;
   ME.yaw=angLerp(ME.yaw,Math.atan2(-(SHRED.x-ME.x),-(SHRED.z-ME.z)),dt*4);ME.pitch=damp(ME.pitch,-.3,4,dt);
   const t=performance.now()*.001;camera.position.set(ME.x,1.35+Math.sin(t*9)*.03,ME.z);camera.rotation.set(ME.pitch,ME.yaw+Math.sin(t*7)*.04,Math.sin(t*5)*.08);
   me.x=ME.x;me.z=ME.z;return true}
 function struggle(){const now=performance.now();if(now-(ME.sgT||0)<60)return;ME.sgT=now;ME.strug=(ME.strug||0)+1;ME.shake=Math.max(ME.shake,.25);doAct({a:'struggle'})}
-function grabNote(){if(!ME.grab)return'';const k=clamp((ME.strug||0)/STRUGGLE_N,0,1);
+function grabNote(){if(!ME.grab)return"";const gm=grabber();if(gm&&gm.ty===17)return janGrabNote(gm);const k=clamp((ME.strug||0)/STRUGGLE_N,0,1);
   return`<span class="warnline">IT HAS YOU</span><br>Mash <kbd>E</kbd> to break free <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}
 // ===================================================================== the two later creatures (models, animation, sound)
 Object.assign(SFX,{
@@ -4184,9 +4295,10 @@ function animAuditor(v,dt,time){const u=v.g.userData,a=v.a,t=time+v.ph,mv=a===2;
   v.bt=(v.bt??rand(.5,1.5))-dt;if(v.bt<=0){v.bt=a===1?1.1:2.4;if(Math.hypot(v.g.position.x-ME.x,v.g.position.z-ME.z)<26)SFX.audBeep({x:v.g.position.x,y:2.7,z:v.g.position.z})}}
 
 // ---------------------------------------------------------------- hooks
-function animMonster3(v,dt,time){if(v.ty===15)animSpider(v,dt,time);else if(v.ty===16)animAuditor(v,dt,time)}
-function fearOf3(v,d){if(v.ty===15)return clamp(1-d/14,0,1)*(v.a===2||v.a===3?1.2:.55);if(v.ty===16)return clamp(1-d/10,0,1)*.7;return null}
+function animMonster3(v,dt,time){if(v.ty===17)animJan(v,dt,time);else if(v.ty===15)animSpider(v,dt,time);else if(v.ty===16)animAuditor(v,dt,time)}
+function fearOf3(v,d){if(v.ty===17)return janFear(v,d);if(v.ty===15)return clamp(1-d/14,0,1)*(v.a===2||v.a===3?1.2:.55);if(v.ty===16)return clamp(1-d/10,0,1)*.7;return null}
 function onEvent3(e){const P=(x,z,y=1)=>({x,y,z});
+  if(onEventJan(e))return true;
   switch(e.e){
   case 'spHear':SFX.spVoice(P(e.x,e.z,4.4));return true;
   case 'spStomp':{SFX.spStomp(P(e.x,e.z,.2));const d=Math.hypot(e.x-ME.x,e.z-ME.z);ME.shake=Math.max(ME.shake,clamp(1-d/16,0,1)*.6);return true}
@@ -4283,14 +4395,14 @@ function touchUp(t){const b=TT.btn.get(t.identifier);
   if(TT.stick&&t.identifier===TT.stick.id){TT.stick=null;TJ.x=TJ.y=0;TJ.run=false;TT.base.classList.add('hide');return}
   if(TT.look&&t.identifier===TT.look.id){const L=TT.look;TT.look=null;
     // watching a crewmate after you go down, a tap switches to the next one
-    const me=S&&S.players[NET.myId];if(me&&me.dead&&performance.now()-L.t0<350&&Math.hypot(t.clientX-L.sx,t.clientY-L.sy)<14)specCycle(1)}}
+    const me=S&&S.players[NET.myId];if(me&&(me.dead||me.locked)&&performance.now()-L.t0<350&&Math.hypot(t.clientX-L.sx,t.clientY-L.sy)<14)specCycle(1)}}
 // every frame: show the controls only while you're on shift, and fit the buttons to what you're doing
 const _tl={};
 function touchTick(){const vis=TOUCH.on&&GAME.on&&!$('hud').classList.contains('hide')&&SCREENS.every(s=>$(s).classList.contains('hide'));
   if(vis!==TT.vis){TT.vis=vis;TT.el.classList.toggle('hide',!vis);if(!vis)touchRelease()}
   $('rotate').classList.toggle('hide',!(vis&&!TT.portraitOk&&innerHeight>innerWidth*1.1));
   if(!vis)return;const me=S&&S.players[NET.myId];if(!me)return;
-  const dead=!!me.dead,lab=(id,s)=>{if(_tl[id]!==s){_tl[id]=s;$(id).textContent=s}},hid=(id,h)=>$(id).classList.toggle('hide',h);
+  const dead=!!(me.dead||me.locked),lab=(id,s)=>{if(_tl[id]!==s){_tl[id]=s;$(id).textContent=s}},hid=(id,h)=>$(id).classList.toggle('hide',h);
   const sel=dead?'':curSel(me);
   lab('tUse',dead?'NEXT':ME.grab?'PULL':'USE');lab('tKick',dead?'BACK':ME.grab?'PULL':ME.driving?'GET OUT':ME.cart>=0?'LET GO':'KICK');
   lab('tItem',sel?(ITEM_ICON[sel]||'ITEM').toUpperCase():'ITEM');hid('tItem',dead||!sel);
@@ -4402,6 +4514,203 @@ function cartCollide(p){const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw);
   collideCircle(p,.32)}
 // half the slowdown boxes would give you in your arms
 const cartSlow=s=>1-(1-s)/2;
+// ===================================================================== the night janitor (client side): model, animation, sound, the wet floor, slipping
+Object.assign(SFX,{
+  // the mop turning at the end of a sweep: a wet slap and a slosh
+  janSlosh(pos){if(!AU.ready)return;const d=dest(pos,{rev:.3,gain:.9,ref:2});nz(d,{dur:.32,a:.04,g:.3,type:'lowpass',f:750,f2:280,q:.8});nz(d,{t:.04,dur:.22,a:.02,g:.12,f:1900,q:1.4})},
+  // one of the bucket's wheels
+  janSqueak(pos){if(!AU.ready)return;const d=dest(pos,{rev:.35,gain:.8,ref:2});const f=rand(1300,1750);tone(d,{type:'triangle',f,f2:f*rand(1.05,1.2),dur:rand(.07,.14),a:.005,g:.09})},
+  // humming to himself while he works: three or four low notes that don't quite make a tune
+  janHum(pos){if(!AU.ready)return;const d=dest(pos,{rev:.55,gain:1,ref:2.5});let t=0;
+    for(let i=0,n=randi(3,4);i<n;i++){const dur=rand(.45,.85),f=pick([92,98,104,110,117]);voice(d,{t,dur,f0:f,f1:f*rand(.96,1.02),jit:.01,vib:.015,rasp:6,raspD:.15,v:'oo',noise:.04,sub:.5,drive:1.6,g:.16,a:.1,rel:.2});t+=dur+rand(.05,.2)}},
+  // a short grunt: he's seen someone go down, or he's lost his grip
+  janGrunt(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:1.1,ref:2.5});voice(d,{dur:.5,a:.02,rel:.25,f0:105,f1:80,v:'aw',rasp:28,raspD:.7,jit:.05,noise:.35,sub:.6,g:.4,drive:4})},
+  // his closet door: a long hinge creak
+  janDoor(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1,ref:3});nz(d,{dur:.8,a:.1,g:.22,f:900,f2:560,q:9});tone(d,{type:'sawtooth',f:240,f2:170,dur:.7,a:.08,g:.03})},
+  // feet going out from under you on a wet floor: a shoe squeak, a splash, a body hitting concrete
+  slip(pos){if(!AU.ready)return;const d=dest(pos,{rev:.35,gain:pos?1.2:1,ref:3});tone(d,{type:'triangle',f:1900,f2:2700,dur:.09,a:.004,g:.12});
+    nz(d,{t:.03,dur:.3,a:.01,g:.18,f:2300,q:1});nz(d,{t:.18,dur:.25,g:.3,type:'lowpass',f:600});tone(d,{t:.18,f:85,f2:40,dur:.35,g:.55})}});
+{const sc=SFX.scare;SFX.scare=function(ty){sc.call(this,ty);if(ty!==17||!AU.ready)return; // dragged through the closet door: the door, a wet slap, a low voice right over you
+  const d=dest(null,{rev:.6,gain:.75});nz(d,{dur:.3,g:.3,type:'lowpass',f:700});voice(d,{t:.1,dur:1.4,a:.05,rel:.5,f0:88,f1:58,v:'oo',v2:'aw',rasp:20,raspD:.6,jit:.03,noise:.3,sub:.8,g:.55,drive:4});
+  setTimeout(()=>SFX.slam(null),900)}}
+
+// ---------------------------------------------------------------- model: a tall man in grey overalls with a mop and a yellow bucket
+// A person first: warm skin, stubble, brown hair under a work cap, a rounded chest and shoulders, sleeves rolled to the
+// elbow, worn brown work boots. Only the face stays wrong: always in the shadow of the brim, with two wet glints for eyes.
+function janMats(){if(!MAT.janSuit)Object.assign(MAT,{janSuit:toon(0x646b72),janSuitDk:toon(0x484e55),janSkin:toon(0xc4936f),janStub:toon(0x8a6650),janHair:toon(0x3b2b1f),
+  janCap:toon(0x2f3439),janBoot:toon(0x3d2b1c),janShirt:toon(0x8e9aa3),janBucket:toon(0xe2ac16),janStrand:toon(0xc9c1a9),janWood:toon(0x8a6a3e),janWater:toon(0x2a3a33),
+  janShade:basic(0x0c0907),janGlint:basic(0xd9d2bc)})}
+function makeJanitor(){janMats();const M=MAT,g=new THREE.Group(),body=pivot(0,0,0,g);
+  // legs: thigh and shin in the overalls, a round knee, a heavy rounded boot
+  const legs=[];for(const s of[-1,1]){const hip=pivot(s*.12,1.05,0,body);
+    part(GEO.cyl,M.janSuit,.1,.52,.1,0,-.26,0,hip);part(GEO.sph,M.janSuit,.095,.08,.1,0,-.53,.01,hip);part(GEO.cyl,M.janSuit,.088,.46,.088,0,-.78,0,hip);
+    part(GEO.cyl,M.janSuitDk,.092,.05,.092,0,-.99,0,hip,{cast:false}); // the turned-up hem
+    part(GEO.sph,M.janBoot,.1,.075,.17,0,-1.0,.06,hip);part(GEO.cyl,M.rubber,.1,.02,.17,0,-1.05,.06,hip,{cast:false});legs.push(hip)}
+  // body: hips, a belly, a broad rounded chest and shoulders, all under the overalls
+  const torso=pivot(0,1.05,0,body);
+  part(GEO.sph,M.janSuit,.22,.16,.15,0,.02,0,torso);part(GEO.cyl,M.janSuit,.21,.42,.15,0,.24,0,torso);part(GEO.sph,M.janSuit,.26,.24,.17,0,.55,0,torso);
+  part(GEO.sph,M.janShirt,.13,.06,.08,0,.78,.04,torso,{cast:false}); // the shirt collar showing above the bib
+  part(GEO.box,M.janSuitDk,.3,.3,.02,0,.56,.16,torso,{cast:false});for(const s of[-1,1])part(GEO.box,M.janSuitDk,.05,.36,.02,s*.13,.66,.13,torso,{rx:-.25,cast:false}); // bib and straps
+  for(const s of[-1,1])part(GEO.sph,M.steel,.018,.018,.01,s*.13,.5,.172,torso,{cast:false}); // strap buttons
+  part(GEO.box,M.paper2,.11,.045,.01,.1,.62,.172,torso,{cast:false}); // a name tag with nothing written on it
+  const neck=pivot(0,.82,0,torso);part(GEO.cyl,M.janSkin,.06,.2,.06,0,.08,0,neck);
+  // head: a long face with a heavy jaw and stubble, ears, a nose, hair at the back, the cap pulled low
+  const head=pivot(0,.2,0,neck);part(GEO.sph,M.janSkin,.125,.16,.135,0,.1,0,head);part(GEO.sph,M.janStub,.11,.07,.11,0,.0,.025,head,{cast:false});
+  part(GEO.sph,M.janSkin,.03,.045,.035,0,.08,.135,head,{cast:false});for(const s of[-1,1])part(GEO.sph,M.janSkin,.025,.045,.02,s*.125,.1,0,head,{cast:false});
+  part(GEO.sph,M.janHair,.135,.12,.12,0,.14,-.04,head,{cast:false});
+  part(GEO.cyl,M.janCap,.14,.08,.145,0,.22,0,head);part(GEO.sph,M.janCap,.14,.05,.145,0,.26,0,head,{cast:false});part(GEO.cyl,M.janCap,.13,.012,.11,0,.19,.12,head,{cast:false}); // cap, crown and rounded brim
+  part(GEO.sph,M.janSkin,.1,.025,.035,0,.145,.11,head,{cast:false}); // a heavy brow
+  for(const s of[-1,1]){part(GEO.sph,M.janShade,.03,.022,.02,s*.045,.12,.118,head,{cast:false});part(GEO.sph,M.janGlint,.009,.008,.006,s*.045,.12,.136,head,{cast:false})} // deep-set eyes, two wet glints
+  // arms: rounded shoulders, the overall sleeve to the elbow, then bare forearms and big hands
+  const arms=[];for(const s of[-1,1]){part(GEO.sph,M.janSuit,.1,.09,.1,s*.27,.7,0,torso);const sh=pivot(s*.29,.7,0,torso);
+    part(GEO.cyl,M.janSuit,.07,.5,.07,0,-.25,0,sh);part(GEO.cyl,M.janShirt,.068,.08,.068,0,-.52,0,sh,{cast:false}); // the rolled sleeve
+    const el=pivot(0,-.56,0,sh);part(GEO.sph,M.janSkin,.06,.06,.06,0,0,0,el);part(GEO.cyl,M.janSkin,.05,.5,.05,0,-.26,0,el);
+    part(GEO.sph,M.janSkin,.06,.085,.045,0,-.55,0,el);part(GEO.sph,M.janSkin,.022,.035,.022,s*-.045,-.52,.025,el,{cast:false}); // hand and thumb
+    sh.userData.el=el;arms.push(sh)}
+  // the mop, held out in front, its head on the floor; it sweeps side to side
+  const mop=pivot(0,1.0,.32,body),stick=pivot(0,0,0,mop);stick.rotation.x=-.6;
+  part(GEO.cyl,M.janWood,.022,1.55,.022,0,-.42,0,stick);const mh=pivot(0,-1.2,0,stick);mh.rotation.x=.6;part(GEO.box,M.steel,.26,.04,.06,0,.13,0,mh,{cast:false});
+  for(let i=0;i<9;i++)part(GEO.cyl,M.janStrand,.02,.24,.02,-.12+i*.03,.02,(i%2?.025:-.025),mh,{rz:(i-4)*.06,cast:false}); // loose grey-white strands
+  // the bucket on its castors, beside him: round, with dirty water in it and the wringer on top
+  const bucket=pivot(-.62,0,.5,g);part(GEO.cyl,M.janBucket,.24,.38,.24,0,.27,0,bucket);part(GEO.cyl,M.janBucket,.255,.03,.255,0,.46,0,bucket,{cast:false});
+  part(GEO.cyl,M.janWater,.22,.01,.22,0,.455,0,bucket,{cast:false});part(GEO.box,M.janBucket,.12,.26,.22,0,.6,-.14,bucket);
+  for(const [x,z] of[[-.17,-.17],[.17,-.17],[-.17,.17],[.17,.17]])part(GEO.sph,M.rubber,.045,.045,.045,x,.045,z,bucket,{cast:false});
+  part(GEO.cyl,M.steel,.012,.5,.012,-.24,.7,0,bucket,{rx:Math.PI/2,cast:false});
+  g.scale.setScalar(1.18);g.userData={body,torso,neck,head,legs,arms,mop,bucket,ty:17};return g}
+
+// a: 0 standing, 1 mopping on the spot, 2 walking and mopping, 3 stunned, 4 hurrying, 5 dragging someone. k: 1 while he's in his closet
+function animJan(v,dt,time){const u=v.g.userData,a=v.a,t=time+v.ph;v.g.visible=v.k!==1;
+  const mv=a===2||a===4||a===5,sp=a===4?6.2:a===5?3.4:2.6,p0=v.gp||0;v.gp=p0+(mv?dt*sp:0);
+  u.legs.forEach((l,i)=>l.rotation.x=mv?Math.sin(v.gp+i*Math.PI)*(a===4?.55:.32):damp(l.rotation.x,0,6,dt));
+  const sweep=a===1||a===2;v.mp=(v.mp||0)+(sweep?dt*(a===1?2.6:2.0):0);const sw=Math.sin(v.mp);
+  u.mop.rotation.y=damp(u.mop.rotation.y,sweep?sw*.5:0,8,dt);u.mop.rotation.x=damp(u.mop.rotation.x,a===4?-.35:a===5?.35:0,5,dt); // held up out of the way when he hurries
+  u.torso.rotation.x=damp(u.torso.rotation.x,a===5?.42:a===4?.18:.1,4,dt);u.torso.rotation.y=damp(u.torso.rotation.y,sweep?sw*.12:0,6,dt);
+  // dragging, his right hand reaches back and down to the ankle he's holding; stunned, it comes up over his face
+  u.arms[0].rotation.x=damp(u.arms[0].rotation.x,a===3?-2.4:a===5?.6:-.75,6,dt);u.arms[0].userData.el.rotation.x=damp(u.arms[0].userData.el.rotation.x,a===3?-1.2:a===5?.2:-.4,6,dt);
+  u.arms[1].rotation.x=damp(u.arms[1].rotation.x,a===5?-.2:-.62,6,dt);u.arms[1].userData.el.rotation.x=damp(u.arms[1].userData.el.rotation.x,-.45,6,dt);
+  u.neck.rotation.x=damp(u.neck.rotation.x,a===4?-.1:a===3?-.4:a===5?-.2:.38,4,dt); // head hung low while he works
+  u.neck.rotation.z=a<=1?Math.sin(t*.4)*.12:damp(u.neck.rotation.z,0,4,dt);u.neck.rotation.y=a===3?damp(u.neck.rotation.y,.7,6,dt):damp(u.neck.rotation.y,0,4,dt);
+  if(!v.g.visible)return;
+  // what you hear: the mop turning, a castor squeaking, heavy boots, and every so often a hum
+  const pos={x:v.g.position.x,y:.3,z:v.g.position.z},d=Math.hypot(pos.x-ME.x,pos.z-ME.z),dir=Math.cos(v.mp)>0;
+  if(sweep&&dir!==v.mdir&&d<24)SFX.janSlosh(pos);v.mdir=dir;
+  if(mv&&d<28){v.sq=(v.sq??rand(.4,1))-dt;if(v.sq<=0){v.sq=rand(.35,1.1);SFX.janSqueak(pos)}}
+  if(mv&&a!==2&&Math.floor(p0/Math.PI)!==Math.floor(v.gp/Math.PI)&&d<22)SFX.step(false,a===4,{x:pos.x,y:.05,z:pos.z});
+  if(a<=2&&d<30){v.hm=(v.hm??rand(2,5))-dt;if(v.hm<=0){v.hm=rand(7,12);SFX.janHum({x:pos.x,y:2.2,z:pos.z})}}}
+function janFear(v,d){if(v.k===1)return 0;return v.a===4||v.a===5?clamp(1-d/10,0,1)*1.1:clamp(1-d/7,0,1)*.3}
+// the jumpscare: he leans down over you in the closet doorway
+function janScare(s,k,lunge){const g=s.g,u=g.userData;g.position.set(rand(-.01,.01),-2.25,lerp(-1.4,-.6,lunge(.2)));g.rotation.y=0;u.mop.visible=false;u.bucket.visible=false;
+  u.torso.rotation.x=.55;u.neck.rotation.set(.45,0,Math.sin(k*15)*.06);u.arms.forEach(a=>{a.rotation.x=-1.5;a.userData.el.rotation.x=-.4})}
+
+// ---------------------------------------------------------------- his closet on the east wall
+const JANV={built:false,door:null,glow:null,open:0,night:0};
+function buildJanCloset(){JANV.built=true;const x=WH.x1,z=JAN.door.z,g=new THREE.Group();ROOT.add(g);
+  for(const s of[-1,1])part(GEO.box,MAT.dark,.1,2.45,.1,x-.05,1.22,z+s*.66,g);part(GEO.box,MAT.dark,.1,.1,1.42,x-.05,2.42,z,g);
+  part(GEO.box,basic(0x020202),.01,2.3,1.2,x-.012,1.15,z,g,{cast:false}); // the dark inside, when the door is open
+  const hinge=pivot(x-.07,0,z-.6,g);part(GEO.box,MAT.door,.06,2.3,1.2,0,1.15,.6,hinge);part(GEO.box,MAT.steel,.05,.06,.14,-.05,1.05,1.05,hinge,{cast:false});
+  // light under the door while he's in there
+  const glow=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.04),basic(0xffd88a,{transparent:true,opacity:0}));glow.position.set(x-.11,.02,z);glow.rotation.y=-Math.PI/2;g.add(glow);
+  const sign=new THREE.Mesh(new THREE.PlaneGeometry(1.0,.32),toon(0xffffff,{map:signTex([{t:'JANITOR',bold:true,size:96}],{w:384,h:128,bg:'#2a2d33',fg:'#d8d2bd'})}));
+  sign.position.set(x-.03,2.75,z);sign.rotation.y=-Math.PI/2;g.add(sign);JANV.door=hinge;JANV.glow=glow}
+
+// ---------------------------------------------------------------- the wet floor: a dark sheen on the concrete, and a yellow sign every so often
+const WETV=new Map();let WETG=null;
+function wetGfx(){if(WETG)return WETG;const R=JAN.wetR;
+  const tex=ctex(128,128,(g,w,h)=>{g.clearRect(0,0,w,h);for(let i=0;i<7;i++){const x=rand(36,92),y=rand(36,92),r=rand(22,38),gr=g.createRadialGradient(x,y,0,x,y,r);
+    gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.7,'rgba(255,255,255,.7)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,w,h)}},{srgb:false,aniso:1});
+  const off={transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2};
+  const sTex=signTex([{t:'CAUTION',bold:true,size:58},{t:'WET',bold:true,size:80},{t:'FLOOR',bold:true,size:80}],{w:256,h:384,bg:'#f2c81e',fg:'#141005',dirt:false});
+  WETG={geo:new THREE.PlaneGeometry(R*2.2,R*2.2).rotateX(-Math.PI/2),
+    dark:toon(0x16222b,{...off,alphaMap:tex,opacity:.6}), // wet concrete, darker where the light hits it
+    sheen:new THREE.MeshBasicMaterial({...off,color:0x5d7f98,alphaMap:tex,opacity:.13,blending:THREE.AdditiveBlending}), // and a faint shine, so you can see it in the dark close up
+    sign:toon(0xffffff,{map:sTex,side:THREE.DoubleSide}),signGeo:new THREE.PlaneGeometry(.36,.56).translate(0,-.28,0)};return WETG}
+function makeWetSign(){const G=wetGfx(),g=new THREE.Group();for(const s of[-1,1]){const p=pivot(0,.56,0,g);p.rotation.set(s*.3,s>0?Math.PI:0,0); /* each panel's printed side faces out, so the words read the right way round */const m=new THREE.Mesh(G.signGeo,G.sign);p.add(m)}
+  part(GEO.box,MAT.dark,.38,.03,.03,0,.56,0,g,{cast:false});return g}
+function syncJan(dt,time){if(!S)return;if(!JANV.built&&ROOT)buildJanCloset();
+  // closet door: swings open when he goes in or out
+  JANV.open=Math.max(0,JANV.open-dt);if(JANV.door)JANV.door.rotation.y=damp(JANV.door.rotation.y,JANV.open>0?-1.25:0,JANV.open>0?5:3,dt);
+  const j=S.mons.find(m=>m.ty===17);if(JANV.glow)JANV.glow.material.opacity=j&&j.k===1?.55+Math.sin(time*13)*.08+(Math.random()<.04?-.4:0):0;
+  // a crewmate's copy dries the patches itself between updates from the host
+  if(NET.mode==='client'&&S.wet)S.wet=S.wet.filter(w=>(w.t-=dt)>0);
+  const live=new Set();
+  for(const w of S.wet||[]){live.add(w.id);let v=WETV.get(w.id);const G=wetGfx();
+    if(v&&(v.x!==w.x||v.z!==w.z)){ROOT.remove(v.g);if(v.sign)ROOT.remove(v.sign);WETV.delete(w.id);v=null} // (an id reused by a new run)
+    if(!v){const g=new THREE.Group(),ry=rand(0,TAU),d=new THREE.Mesh(G.geo,G.dark),s=new THREE.Mesh(G.geo,G.sheen);d.position.y=.012;s.position.y=.014;d.rotation.y=s.rotation.y=ry;d.renderOrder=s.renderOrder=1;g.add(d,s);
+      g.position.set(w.x,0,w.z);ROOT.add(g);v={g,sign:null,x:w.x,z:w.z};if(w.s){v.sign=makeWetSign();v.sign.position.set(w.x+rand(-.3,.3),0,w.z+rand(-.3,.3));v.sign.rotation.y=rand(0,TAU);ROOT.add(v.sign)}WETV.set(w.id,v)}
+    const k=clamp(w.t/14,.3,1);v.g.scale.set(k,1,k); // drying, it shrinks
+    if(v.sign)v.sign.scale.setScalar(w.t<1.2?Math.max(.01,w.t/1.2):1)}
+  for(const [id,v] of WETV)if(!live.has(id)){ROOT.remove(v.g);if(v.sign)ROOT.remove(v.sign);WETV.delete(id)}}
+
+// ---------------------------------------------------------------- slipping
+// Running on a wet patch: your feet go, you hit the floor, and you're down for a couple of seconds. Walking is safe.
+function janSlipCheck(run,sp,me){if(!run||sp<2.2||ME.slipT>0||ME.driving||!S.wet||!S.wet.length||S.phase!=='play'||me.dead)return;
+  if(performance.now()-(ME.slipAt||0)<1600||!wetAt(ME.x,ME.z))return;
+  ME.slipAt=performance.now();ME.slipT=slipDur();ME.vx=ME.vz=0;ME.shake=Math.max(ME.shake,.7);SFX.slip(null);doAct({a:'slip'});
+  if(!GAME.hints.slip){GAME.hints.slip=1;setTimeout(()=>GAME.on&&toast('Wet floor. Walk across it: only running makes you slip.',4.5),900)}}
+// on the floor: the camera drops, you can look around, then you get back up
+function janDown(dt,me){if(!(ME.slipT>0))return false;if(S.phase!=='play'||me.dead){ME.slipT=0;return false}
+  ME.slipT=Math.max(0,ME.slipT-dt);const T=slipDur(),k=T-ME.slipT,fall=easeOut(Math.min(1,k/.35)),rise=ME.slipT<.6?easeIO(1-ME.slipT/.6):0;
+  ME.vx=ME.vz=0;const h=lerp(lerp(1.62,.3,fall),1.62,rise),tilt=fall*(1-rise),sh=ME.shake*ME.shake;
+  camera.position.set(ME.x,h,ME.z);camera.rotation.set(ME.pitch+.45*tilt+rand(-1,1)*sh*.05,ME.yaw,.35*tilt+rand(-1,1)*sh*.06);VM.g.position.set(0,-.35*tilt,0);
+  batteryUpdate(dt,true,me);me.x=ME.x;me.z=ME.z;me.yaw=ME.yaw;me.pitch=ME.pitch;me.light=ME.lightOn();return true}
+// dragged by the ankle: flat on your back behind him, looking up at him
+function janHeld(dt,me,m){const v=MV.get(m.id),gx=v?v.g.position.x:m.x,gz=v?v.g.position.z:m.z,ry=v?v.g.rotation.y:m.ry;
+  ME.x=gx-Math.sin(ry)*1.15;ME.z=gz-Math.cos(ry)*1.15;ME.vx=ME.vz=0;ME.slipT=0;
+  ME.yaw=angLerp(ME.yaw,Math.atan2(-(gx-ME.x),-(gz-ME.z)),dt*5);ME.pitch=damp(ME.pitch,.45,4,dt);
+  const t=performance.now()*.001;camera.position.set(ME.x,.32+Math.abs(Math.sin(t*5))*.04,ME.z);camera.rotation.set(ME.pitch,ME.yaw+Math.sin(t*4)*.05,Math.sin(t*3)*.12);
+  VM.g.position.set(0,-.35,0);batteryUpdate(dt,true,me);me.x=ME.x;me.z=ME.z;return true}
+// a crewmate is being dragged and you're right by them: E pulls at them (handled before anything else E would do)
+function janVictimNear(){const m=S.mons.find(o=>o.ty===17&&o.a===5&&o.tg&&o.tg!==NET.myId);if(!m)return null;const p=S.players[m.tg];if(!p||p.dead)return null;
+  return Math.hypot(p.x-ME.x,p.z-ME.z)<JAN.helpR?{m,p}:null}
+// crewmates shut in his closet, and whether you're at its door
+const janShut=()=>S?Object.values(S.players).filter(p=>p.locked&&!p.dead&&p.id!==NET.myId):[];
+function janAtDoor(){const d={x:JAN.door.x-.9,z:JAN.door.z};return Math.hypot(ME.x-d.x,ME.z-d.z)<JAN.freeR-.2}
+function janHelpKey(me){if(!S||ME.slipT>0)return false;
+  if(janShut().length&&janAtDoor()){doAct({a:'janFree'});return true} // E at the closet door lets them out
+  const n=janVictimNear();if(!n)return false;const now=performance.now();if(now-(ME.hgT||0)<60)return true;ME.hgT=now;
+  ME.shake=Math.max(ME.shake,.15);doAct({a:'janHelp'});return true}
+
+// ---------------------------------------------------------------- what the prompt line says
+const janMeter=k=>`<span class="meter"><i style="width:${Math.round(clamp(k,0,1)*100)}%"></i></span>`;
+function janGrabNote(m){const k=Math.max(ME.strug||0,m.v|0)/JAN.strugN;
+  return`<span class="warnline">HE HAS YOU BY THE ANKLE</span><br>Mash <kbd>E</kbd> to kick free ${janMeter(k)}`}
+function janNote(me){if(!S||!me||me.dead)return'';
+  if(ME.slipT>0){const j=S.mons.find(m=>m.ty===17&&m.a===4&&m.tg===NET.myId);
+    return`<span class="warnline">YOU SLIPPED</span><br>Getting up&hellip; ${janMeter(1-ME.slipT/slipDur())}${j?'<br><span class="warnline">Heavy footsteps, coming fast</span>':''}`}
+  // someone is shut in his closet: at the door it's E, anywhere else the prompt points the way
+  const shut=janShut();if(shut.length&&janAtDoor())return`<kbd>E</kbd> Open the closet: let ${esc(shut.map(p=>p.name||'someone').join(' and '))} out`;
+  const n=janVictimNear();if(n)return`<span class="warnline">THE JANITOR HAS ${esc(String(n.p.name||'them').toUpperCase())}</span><br>Mash <kbd>E</kbd> to pull them free ${janMeter((n.m.v|0)/JAN.strugN)}${haveItem(me,'strobe')?' &middot; or flash him with the strobe':''}`;
+  return''}
+// anywhere else, an extra line under the usual prompt says who is shut in and which way the door is
+function shutNote(me){if(!S||!me||me.dead||me.locked)return'';const shut=janShut();if(!shut.length||janAtDoor())return'';const who=esc(shut.map(p=>p.name||'someone').join(' and '));
+  return`<span class="warnline">${who} ${shut.length>1?'are':'is'} shut in the janitor's closet</span> &middot; let them out at the door on the east wall ${dirTo(JAN.door.x-.9,JAN.door.z)}`}
+function wetNote(me){if(!S||!S.wet||!S.wet.length||!me||me.dead||ME.slipT>0||ME.driving)return'';return wetAt(ME.x,ME.z,.5)?'<span style="color:#9fd4ff">Wet floor: walk, don\'t run</span>':''}
+
+// ---------------------------------------------------------------- crewmates: flat on the floor after a slip, or dragged off feet first
+function janAvatar(p,v,dt){const g=v.g;if(g.rotation.order!=='YXZ')g.rotation.order='YXZ';
+  const held=S.mons.find(m=>m.ty===17&&m.a===5&&m.tg===p.id),down=!!p.down||!!held&&!p.dead;
+  g.rotation.x=damp(g.rotation.x,down?-1.45:0,9,dt);
+  if(held){const mv=MV.get(held.id);if(mv)g.rotation.y=mv.g.rotation.y} // feet toward him, head away
+  if(down)g.userData.legs.forEach(l=>l.rotation.x=0)}
+
+// ---------------------------------------------------------------- events
+function onEventJan(e){const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
+  switch(e.e){
+  case 'janIn':SFX.janDoor(P(e.x,e.z,1.2));JANV.open=1.8;
+    if(S&&JANV.night!==S.night){JANV.night=S.night;setTimeout(()=>GAME.on&&S&&S.phase==='play'&&toast('Somewhere in the aisles a bucket squeaks and someone starts to mop. On a wet floor, walk: don\'t run.',6),1500)}return true;
+  case 'slip':if(e.p===me){if(!(ME.slipT>0)){ME.slipT=slipDur();ME.shake=Math.max(ME.shake,.7);SFX.slip(null)}}else SFX.slip(P(e.x,e.z,.3));return true;
+  case 'janCome':if(e.p===me)toast('Heavy footsteps, coming fast. Get up!',2.5);SFX.janGrunt(P(e.x,e.z,2));return true;
+  case 'jgrab':if(e.p===me){ME.grab=true;ME.strug=0;ME.shake=.8;SFX.hurt();toast('He has you by the ankle. Mash E!',3)}
+    else{const v=AV.get(e.p);if(v&&Math.hypot(v.x-ME.x,v.z-ME.z)<35)toast(`The janitor has ${e.n} by the ankle! Get to them and mash E to pull them free.`,4.5)}
+    {const p=evPos(e);if(p)SFX.janGrunt(p)}return true;
+  case 'jfree':if(e.p===me){ME.grab=false;ME.slipT=0;ME.strug=0;toast(e.how==='strobe'?'The flash makes him let go. Move!':'You\'re free. Get away from him.',3)}SFX.janGrunt(P(e.x,e.z,2));return true;
+  case 'jstun':SFX.janGrunt(P(e.x,e.z,2));return true;
+  case 'jcloset':JANV.open=1.4;SFX.janDoor(P(e.x,e.z,1.2));setTimeout(()=>SFX.slam(P(e.x,e.z,1.2)),700);
+    if(e.p===me){ME.grab=false;ME.slipT=0;ME.strug=0;setTimeout(()=>{const p=S&&S.players[me];if(p&&p.locked)toast('The door shuts behind you. You\'re shut in the janitor\'s closet until a crewmate lets you out.',5)},400)}
+    else toast(`${e.n} was dragged into the janitor's closet. Let them out: the door on the east wall.`,5);return true;
+  case 'jout':JANV.open=1.6;SFX.janDoor(P(e.x,e.z,1.2));
+    if((e.ids||[]).includes(me))toast(`${e.p===me?'You':e.n} opened the closet. You're out.`,3.5);else if(e.p===me)toast(`You let ${e.who} out.`,3);else toast(`${e.n} let ${e.who} out of the closet.`,3.5);return true}
+  return false}
 </script>
 </body>
 </html>

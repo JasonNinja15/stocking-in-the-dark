@@ -80,9 +80,10 @@ function animAuditor(v,dt,time){const u=v.g.userData,a=v.a,t=time+v.ph,mv=a===2;
   v.bt=(v.bt??rand(.5,1.5))-dt;if(v.bt<=0){v.bt=a===1?1.1:2.4;if(Math.hypot(v.g.position.x-ME.x,v.g.position.z-ME.z)<26)SFX.audBeep({x:v.g.position.x,y:2.7,z:v.g.position.z})}}
 
 // ---------------------------------------------------------------- hooks
-function animMonster3(v,dt,time){if(v.ty===15)animSpider(v,dt,time);else if(v.ty===16)animAuditor(v,dt,time)}
-function fearOf3(v,d){if(v.ty===15)return clamp(1-d/14,0,1)*(v.a===2||v.a===3?1.2:.55);if(v.ty===16)return clamp(1-d/10,0,1)*.7;return null}
+function animMonster3(v,dt,time){if(v.ty===17)animJan(v,dt,time);else if(v.ty===15)animSpider(v,dt,time);else if(v.ty===16)animAuditor(v,dt,time)}
+function fearOf3(v,d){if(v.ty===17)return janFear(v,d);if(v.ty===15)return clamp(1-d/14,0,1)*(v.a===2||v.a===3?1.2:.55);if(v.ty===16)return clamp(1-d/10,0,1)*.7;return null}
 function onEvent3(e){const P=(x,z,y=1)=>({x,y,z});
+  if(onEventJan(e))return true;
   switch(e.e){
   case 'spHear':SFX.spVoice(P(e.x,e.z,4.4));return true;
   case 'spStomp':{SFX.spStomp(P(e.x,e.z,.2));const d=Math.hypot(e.x-ME.x,e.z-ME.z);ME.shake=Math.max(ME.shake,clamp(1-d/16,0,1)*.6);return true}

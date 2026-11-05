@@ -31,9 +31,9 @@ function startNight(){
   S.trucks.forEach(tr=>Object.assign(tr,{st:0,z:TZ_FAR,door:0,t:0,warn:false,claw:false,n:0,left:0,reject:false,lurk:false,crawl:false,emptyT:undefined,honk:0,stuck:0}));
   HOST.lampT=LAMPS.map(()=>0);HOST.lampNext=LAMPS.map((L,i)=>rand(20,45)/diffEv()*(i===0?1.8:i===3?.6:1));
   HOST.nextTruck=6;HOST.nextStalker=(rand(42,55)-Math.min(20,(S.night-1)*6))/diffEv();HOST.trucksTonight=0;HOST.lastTruck=false;S.ot=false;
-  S.quota=calcQuota();nightSetup();nightSetup3();
+  S.quota=calcQuota();nightSetup();nightSetup3();nightSetupJan();
   markSlots(); // again now last night's pallets are gone, or the slots they sat in stay marked full all night
-  const pos={};Object.values(S.players).forEach((p,i)=>{const sp=spawnPoint(i);Object.assign(p,{x:sp.x,z:sp.z,yaw:0,pitch:0,hp:100,dead:false,carry:-1,lastHurt:-99,tpT:.8});pos[p.id]=[sp.x,sp.z]});
+  const pos={};Object.values(S.players).forEach((p,i)=>{const sp=spawnPoint(i);Object.assign(p,{x:sp.x,z:sp.z,yaw:0,pitch:0,hp:100,dead:false,locked:false,carry:-1,lastHurt:-99,tpT:.8});pos[p.id]=[sp.x,sp.z]});
   emit({e:'night',n:S.night,q:S.quota,pos,ex:S.extra,df:S.diff});
 }
 function endNight(){
@@ -49,7 +49,7 @@ function endNight(){
     S.mons=[];
     for(const b of S.boxes)if(b.st===3){b.x=clamp(b.x,WH.x0+.4,b.x>60?1e9:WH.x1-.4);if(b.x<60)b.z=clamp(b.z,WH.z0+.6,WH.z1-.4)}
     S.boxes=S.boxes.filter(b=>b.st===2||(b.st===3&&!b.fz));S.bver++;
-    S.parcels=[];S.flares=[];S.yard=null;if(S.fork){S.fork.drv='';S.fork.pal=-1;S.fork.pass=null}
+    S.parcels=[];S.flares=[];S.yard=null;S.wet=[];S.wver=(S.wver|0)+1;if(S.fork){S.fork.drv='';S.fork.pal=-1;S.fork.pass=null}
     for(const p of Object.values(S.players)){p.carry=-1;p.stack=[];p.can=false}
     emit({e:'nightDone',n:S.night,sh:S.shelved,q:S.quota,lo:S.lost,ot:!!S.ot});S.ot=false;saveRun()}
   else gameOver('quota')}
@@ -73,7 +73,8 @@ function boxWorld(b){if(b.st===0){return{x:BAYS[b.bay].x+b.x,y:b.y,z:S.trucks[b.
 function trailerAt(x,z,m=.2){for(let i=0;i<BAYS.length;i++){const tr=S.trucks[i];if(tr.st!==2)continue;if(Math.abs(x-BAYS[i].x)<TRAIL_HW-m&&z<TZ_DOCK-.05&&z>TZ_DOCK-TRAIL_LEN+m)return i}return -1}
 function inTrailer(p){for(let i=0;i<BAYS.length;i++){const tr=S.trucks[i];if(tr.st!==2&&tr.st!==3)continue;if(Math.abs(p.x-BAYS[i].x)<TRAIL_HW+.15&&p.z<TZ_DOCK-.05)return i}return -1}
 function lampZone(x,z,pad=0){for(let i=0;i<LAMPS.length;i++){if(!S.lamps[i])continue;const L=LAMPS[i];if(Math.hypot(x-L.x,z-L.z)<L.r+pad)return i}return -1}
-function alivePlayers(){return Object.values(S.players).filter(p=>!p.dead)}
+// (someone locked in the janitor's closet is out of play until a crewmate lets them out)
+function alivePlayers(){return Object.values(S.players).filter(p=>!p.dead&&!p.locked)}
 const inWH=p=>p.x>WH.x0-2&&p.x<WH.x1+2; // (the basement is a separate room far off to the east)
 function nearestPlayer(x,z,maxD=1e9,filter){let best=null,bd=maxD;for(const p of alivePlayers()){if(filter&&!filter(p))continue;const d=Math.hypot(p.x-x,p.z-z);if(d<bd){bd=d;best=p}}return best}
 function applyColliders(){if(!S)return;S.trucks.forEach((tr,i)=>{const v=BAYV[i];v.doorCol.on=tr.door<.75;const on=tr.st===2||(tr.st===3&&tr.door>0);for(const c of v.trailCol)c.on=on});
@@ -103,7 +104,7 @@ function watched(x,y,z){for(const p of alivePlayers()){const dx=x-p.x,dy=y-eyeY(
 function flashedBy(x,y,z){for(const p of alivePlayers())if(p.togs&&p.togs.length>=2&&litByP(p,x,y,z))return p;return null}
 // floor: the least health this hit can leave you with. Instant kills (999) stay instant kills on every difficulty.
 let DMG_ANY=0; // set around the few hurts that do reach into the elevator car: its own stall, and the cold
-function damage(p,amt,floor=0){if(!p||p.dead)return;if(!DMG_ANY&&elevSafe(p))return;if(amt<999)amt=Math.round(amt*dmgMul());if(floor)amt=Math.min(amt,Math.max(0,p.hp-floor));p.hp-=amt;p.lastHurt=S.t;if(p.hp<=0){p.hp=0;p.dead=true;dropCarry(p);emit({e:'died',p:p.id})}}
+function damage(p,amt,floor=0){if(!p||p.dead||p.locked)return;if(!DMG_ANY&&elevSafe(p))return;if(amt<999)amt=Math.round(amt*dmgMul());if(floor)amt=Math.min(amt,Math.max(0,p.hp-floor));p.hp-=amt;p.lastHurt=S.t;if(p.hp<=0){p.hp=0;p.dead=true;dropCarry(p);emit({e:'died',p:p.id})}}
 function dropOne(p,id){const b=S.boxes.find(x=>x.id===id);if(!b)return;const tb=trailerAt(p.x,p.z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=p.x-BAYS[tb].x+rand(-.2,.2);b.z=p.z-S.trucks[tb].z}else{b.st=3;b.x=p.x+rand(-.3,.3);b.z=p.z+rand(-.3,.3)}b.y=0;b.h='';S.bver++}
 function dropCarry(p){dropOne(p,p.carry);for(const id of p.stack||[])dropOne(p,id);p.stack=[];p.carry=-1;p.can=false;if(S.fork&&S.fork.drv===p.id)S.fork.drv=''}
 function settleTruck(bay){const bs=S.boxes.filter(b=>b.st===0&&b.bay===bay).sort((a,b)=>a.y-b.y);
@@ -354,7 +355,7 @@ function lampsUpdate(dt){if(S.ot)return;if(mainsDown()){if(S.lamps.some(x=>x))S.
 // ---------------------------------------------------------------- player actions
 function act(pid,a){const p=S&&S.players[pid];if(!p||!a)return;
   if(a.a==='buy'||a.a==='start'){shopAct(pid,a);return}
-  if(p.dead||S.phase!=='play'||S.over)return;
+  if(p.dead||p.locked||S.phase!=='play'||S.over)return;
   const B=id=>S.boxes.find(b=>b.id===id&&b.st!==4);
   const near=(w,r)=>Math.hypot(p.x-w.x,p.z-w.z,1.5-w.y)<=r;
   // the forklift carries three loose boxes on its forks, like the carry upgrade (but not while it has a pallet up)
