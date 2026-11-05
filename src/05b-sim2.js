@@ -28,7 +28,7 @@ const SHOP={
   stam4:{name:'Stamina upgrade IV',price:1800,once:true,needs:'stam3',night:10,desc:'Sprint more than three times as long as you could at the start, and recover that much faster.'},
   stock2:{name:'Better Stocking',price:500,once:true,desc:'Stack a second box on top of one already on a shelf, as long as the two fit under the shelf above.'},
   remote:{name:'Bay door remote',price:90,give:1,key:8,desc:'Shuts the nearest bay door from anywhere. Its truck leaves at once.'},
-  bulb:{name:'Lamp bulb',price:50,give:1,key:9,desc:'Use it under a dead light fixture to fix it for the rest of the run.'},
+  bulb:{name:'Lamp bulb',price:50,give:1,key:9,desc:'Put it in any light fixture that hasn\'t had one. A dead light comes back on; a working one stops going out. Lasts the rest of the run.'},
   hand:{name:'Carry Upgrade',price:110,once:true,desc:'Carry up to three boxes at once. Slower, and noisier.'},
   red:{name:'Red headlamp',price:80,once:true,key:'H',desc:'A dim red light (H) that monsters don\'t notice.'},
   cart:{name:'Hand cart',price:300,team:true,desc:'A flat cart with a push handle, parked at the west end of the dock. Push it to carry five boxes at once, at half the slowdown of carrying them. The wheels rattle a little.'},
@@ -90,7 +90,6 @@ function shopAct(pid,a){const p=S.players[pid];if(!p)return;
   if(it.needs&&!p.up[it.needs])return no(`Buy the ${SHOP[it.needs].name} first.`);
   if(it.night&&S.night+1<it.night)return no(`Not sold until night ${it.night}.`);
   if(k==='aid'&&(S.aidBonus||0)>=aidCap())return no('The cabinet is already stocked for tomorrow.');
-  if(k==='bulb'){const held=Object.values(S.players).reduce((a,q)=>a+(q.inv.bulb||0),0);if(S.fixed.length+held>=MAX_BULBS)return no('There are no more fixtures worth fixing.')}
   {const own=Math.min(p.cash||0,pr);p.cash=(p.cash||0)-own;S.cash-=pr-own} // (alone, the rest comes out of the one pot)
   if(it.once)p.up[k]=true;else p.inv[k]=(p.inv[k]||0)+it.give;
   emit({e:'bought',k,p:pid,n:p.name});saveRun()}
@@ -219,7 +218,7 @@ function genUpdate(dt){if(!owned('gen')||S.ot||!S.outage)return;const g=S.gen;
 const genPowered=()=>owned('gen')&&S.gen&&S.gen.fuel>0;
 const mainsDown=()=>!!S.outage&&!genPowered(); // lamps dead, charger at a tenth of its speed
 function powerOn(){S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);HOST.lampT=LAMPS.map(()=>0)}
-function spawnMoth(){if(S.mons.filter(m=>m.ty===12).length>=2)return;const lit=LAMPS.map((L,i)=>i).filter(i=>S.lamps[i]);if(!lit.length)return;
+function spawnMoth(){if(S.mons.filter(m=>m.ty===12).length>=2)return;let lit=LAMPS.map((L,i)=>i).filter(i=>S.lamps[i]);if(!lit.length)return;{const nb=lit.filter(i=>!(S.fixed||[]).includes(i));if(nb.length)lit=nb} // (they go for lights they can break)
   const li=pick(lit),L=LAMPS[li];S.mons.push({id:monSeq++,ty:12,x:L.x+1.2,z:L.z,y:4.4,ry:0,st:'circle',li,t:0,ph:rand(0,TAU),a:2,lt:0})}
 function mothUpdate(m,dt){m.t+=dt;const L=LAMPS[m.li];
   if(m.st==='leave'){m.y+=dt*1.5;m.x+=Math.sin(m.ph)*dt*3;m.z+=Math.cos(m.ph)*dt*3;if(m.t>4){m.dead=true;emit({e:'fade',id:m.id})}return}
@@ -470,8 +469,8 @@ function driverUpdate(m,dt){m.life-=dt;m.stun-=dt;
   m.a=2;if(m.tx===undefined||walkTo(m.tx,m.tz,1.3)<.5){for(let k=0;k<30;k++){const i=randi(0,GRID.nx-1),j=randi(3,GRID.nz-1);if(GRID.blk[j*GRID.nx+i])continue;m.tx=GRID.x0+i+.5;m.tz=GRID.z0+j+.5;m.path=null;break}}}
 
 // ---------------------------------------------------------------- items
-// the dead light fixture (no bulb yet) nearest to (x,z), if one is overhead or close to it; -1 if none
-function deadLampAt(x,z){let fi=-1,bd=3;LAMPS.forEach((L,i)=>{const d=Math.hypot(x-L.x,z-L.z);if(L.dead&&!(S.fixed||[]).includes(i)&&d<bd){bd=d;fi=i}});return fi}
+// the light fixture without a new bulb yet nearest to (x,z), if one is overhead or close to it; -1 if none
+function bulbLampAt(x,z){let fi=-1,bd=3;LAMPS.forEach((L,i)=>{const d=Math.hypot(x-L.x,z-L.z);if(!(S.fixed||[]).includes(i)&&d<bd){bd=d;fi=i}});return fi}
 function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,no=m=>toP(p,m);
   const take=()=>{if(!(inv[k]>0))return false;inv[k]--;return true};
   const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw);
@@ -508,12 +507,10 @@ function useItem(p,a){const k=a.a==='use'?a.k:null;if(!k)return;const inv=p.inv,
     inv.remote--;tr.reject=true;tr.st=3;tr.t=0;tr.door=0;
     for(const m of S.mons){if(m.bay!==bi)continue;if(m.ty===3&&m.st!=='inside'&&m.st!=='home'){m.dead=true;emit({e:'vanish',x:m.x,y:m.y,z:m.z})}if(m.ty===1){m.st='sleep';m.lx=LURK_LX;m.lz=LURK_HOME;m.ry=Math.PI/2}}
     emit({e:'slam',x:BAYS[bi].x,z:WH.z0});emit({e:'horn',b:bi});no(`Bay ${nm} slammed shut. The truck is leaving.`);break}
-  case 'bulb':{if(!(inv.bulb>0))return;const fi=deadLampAt(p.x,p.z);
-    // a working light that's only out for the moment looks just like a dead one, so say which it is
-    if(fi<0){const w=LAMPS.findIndex((L,i)=>!L.dead&&Math.hypot(p.x-L.x,p.z-L.z)<3);
-      return no(w>=0?(S.ot||mainsDown()?'This light isn\'t broken: the power is off. It needs no bulb.':'This light isn\'t broken, only out for a moment. It needs no bulb.'):'Stand under a dead light fixture to put the bulb in.')}
-    if(S.fixed.length>=MAX_BULBS)return no('That\'s as many fixtures as the wiring will take.');
-    const live=!S.ot&&!mainsDown();inv.bulb--;S.fixed.push(fi);if(live)S.lamps[fi]=1;emit({e:'bulbOn',i:fi,on:live?1:0,p:p.id});break}
+  // any light that hasn't had a new bulb yet: a dead one comes back, a working one stops going out
+  case 'bulb':{if(!(inv.bulb>0))return;const fi=bulbLampAt(p.x,p.z);
+    if(fi<0)return no(LAMPS.some(L=>Math.hypot(p.x-L.x,p.z-L.z)<3)?'This light already has a new bulb.':'Stand under a light fixture to put the bulb in.');
+    const live=!S.ot&&!mainsDown();inv.bulb--;S.fixed.push(fi);if(live){S.lamps[fi]=1;if(HOST.lampT)HOST.lampT[fi]=0}emit({e:'bulbOn',i:fi,on:live?1:0,p:p.id});break}
   }}
 
 // ---------------------------------------------------------------- the actions additions add (returns true if handled)

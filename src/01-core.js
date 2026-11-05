@@ -23,10 +23,10 @@ const DOOR_HW=1.7, DOOR_H=3.6;
 const HOUR=60, SHIFT_HOURS=6, DOCK_TIME=115, SHIFT_END=HOUR*SHIFT_HOURS, OVERTIME=60, LAST_TRUCK_AT=HOUR*5+8;
 const CEIL_Y=6.25; // where the crawler hangs, just under the trusses
 const RACK_ROWS=[-6,-1,4,9], RACK_COLS=[-27,-8,11], RACK_LEN=16, RACK_LEVELS=[0.14,1.34,2.54];
-// four working lamps, then the dead fixtures a bought bulb can bring back (up to MAX_BULBS of them)
+// four working lamps, then the dead fixtures a bought bulb can bring back. A new bulb in a working lamp keeps it from going out.
 const LAMPS=[{x:0,z:-13.5,r:3.6},{x:-9.5,z:1.5,r:3.2},{x:9.5,z:6.5,r:3.2},{x:-3,z:15.5,r:3.4},
   ...[[-19,-13.5],[19,-13.5],[-19,6.5],[19,1.5],[0,6.5],[0,-3.5],[19,11.5],[-19,11.5]].map(([x,z])=>({x,z,r:3.0,dead:true}))];
-const MAX_BULBS=3;
+const LAMP_POOL=4; // real lights shared by the brought-back fixtures nearest you (the rest still glow and cast their beam)
 // the additions' footprints
 const COLD={x0:21,x1:WH.x1,z0:WH.z0,z1:-12.5,dx0:24.6,dx1:26.0};           // freezer room, door in its south wall
 const CONV={z:18.4,x0:-12.6,x1:-2.75,y:.85,bx:-2.2,bins:[17.25,18.4,19.55],lever:{x:-5.2,z:16.95},jam:{x:-3.05,z:17.7}};

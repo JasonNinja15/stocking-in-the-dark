@@ -160,7 +160,7 @@ function buildWorld(){
     const cone=new THREE.Mesh(new THREE.ConeGeometry(2.6,5.1,24,1,true),beamMat());
     cone.position.set(L.x,2.6,L.z);ROOT.add(cone);
     LAMPV.push({light,bulb,cone,lvl:1,hum:null});}
-  LAMPV.pool=[];for(let i=0;i<MAX_BULBS;i++){const l=new THREE.PointLight(0xffc68a,0,12,1.7);ROOT.add(l);LAMPV.pool.push(l)}
+  LAMPV.pool=[];for(let i=0;i<LAMP_POOL;i++){const l=new THREE.PointLight(0xffc68a,0,12,1.7);ROOT.add(l);LAMPV.pool.push(l)}
 
   buildRoof();
   flushStatics(ROOT);

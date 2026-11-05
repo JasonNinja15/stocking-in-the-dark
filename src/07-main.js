@@ -353,16 +353,19 @@ function syncAvatars(dt,time){const live=new Set(),lit=[];let si=0;
   for(;si<REMOTE_SPOTS.length;si++)REMOTE_SPOTS[si].intensity=0;
   for(const [id,v] of AV)if(!live.has(id)){ROOT.remove(v.g);AV.delete(id)}}
 const MENU_LAMPS=LAMPS.map(L=>({on:L.dead?0:1,t:L.dead?1e9:rand(2,8)}));
-function syncLamps(dt){let pool=0;LAMPV.forEach((L,i)=>{let on;
+function syncLamps(dt){
+  // the brought-back fixtures share a few real lights, given to the ones nearest you
+  const fx=S?S.fixed||[]:[],want=S?LAMPS.map((L,i)=>i).filter(i=>!LAMPV[i].light&&S.lamps[i]).sort((a,b)=>Math.hypot(LAMPS[a].x-ME.x,LAMPS[a].z-ME.z)-Math.hypot(LAMPS[b].x-ME.x,LAMPS[b].z-ME.z)).slice(0,LAMPV.pool.length):[];
+  LAMPV.forEach((L,i)=>{let on;
   if(S)on=S.lamps[i];else{const m=MENU_LAMPS[i];m.t-=dt;if(m.t<=0){m.on=1-m.on;m.t=m.on?rand(4,12):rand(.3,2.5)}on=m.on}
   if(L.prev!==undefined&&L.prev!==on){L.sput=.45;if(AU.ready&&GAME.on)SFX.creak({x:LAMPS[i].x,y:5,z:LAMPS[i].z})}L.prev=on;
   let lv=on?1:0;if(L.sput>0){L.sput-=dt;lv=Math.random()<.5?1:.05}
-  if(on&&Math.random()<(i===3?.035:.008))L.fl=rand(.05,.25);if(L.fl>0){L.fl-=dt;lv*=Math.random()<.5?.12:1}
+  if(on&&!fx.includes(i)&&Math.random()<(i===3?.035:.008))L.fl=rand(.05,.25);if(L.fl>0){L.fl-=dt;lv*=Math.random()<.5?.12:1} // (a new bulb doesn't flicker)
   // a dead fixture with a new bulb borrows one of the pooled lights
-  let light=L.light;if(!light&&on&&pool<LAMPV.pool.length){light=LAMPV.pool[pool++];light.position.set(LAMPS[i].x,5,LAMPS[i].z)}
+  let light=L.light;if(!light&&on){const k=want.indexOf(i);if(k>=0){light=LAMPV.pool[k];light.position.set(LAMPS[i].x,5,LAMPS[i].z)}}
   if(light)light.intensity=(L.light?17:15)*lv;L.bulb.material.color.setRGB(lerp(.1,1,lv),lerp(.08,.85,lv),lerp(.06,.62,lv));L.cone.material.uniforms.lv.value=lv;
   if(AU.ready){if(!L.hum)L.hum=loop('hum',{x:LAMPS[i].x,y:5,z:LAMPS[i].z},.35);L.hum.set(lv*.35,.03)}});
-  for(;pool<LAMPV.pool.length;pool++)LAMPV.pool[pool].intensity=0}
+  for(let k=want.length;k<LAMPV.pool.length;k++)LAMPV.pool[k].intensity=0}
 function syncWorld(dt,time){applyColliders();syncTrucks(dt);syncAvatars(dt,time);syncCarts(dt);syncBoxes(dt);syncMonsters(dt,time);syncExtras(dt,time)}
 function clearVisuals(){for(const m of BM.values())ROOT.remove(m);BM.clear();for(const v of MV.values()){ROOT.remove(v.g);v.lp&&v.lp.stop();v.gr&&v.gr.stop()}MV.clear();for(const v of AV.values())ROOT.remove(v.g);AV.clear();
   for(const v of TV)v.g.visible=false;for(const s of REMOTE_SPOTS)s.intensity=0;setViewBox(null);if(ME.scare){camera.remove(ME.scare.g);ME.scare=null}
@@ -432,11 +435,11 @@ function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(
       else if(t.kind==='panel'){const tr=S.trucks[t.bay];pr=!bayOn(t.bay)?`Bay ${BAYS[t.bay].name}: not in service`:tr.st===0&&tr.stuck>0?`<kbd>E</kbd> Close the Bay ${BAYS[t.bay].name} door`:tr.st===2?(tr.reject?'Truck is leaving':`<kbd>E</kbd> Refuse delivery: send Bay ${BAYS[t.bay].name} away`):`Bay ${BAYS[t.bay].name}: no truck docked`}
       else if(t.kind==='exit')pr='<kbd>E</kbd> Exit';}
     if(carrying&&(!t||t.kind!=='slot'))pr+=(pr?' &nbsp; ':'')+'<kbd>G</kbd> Set down';
-    // a bulb on you: under a dead light it's E; with the bulb picked anywhere else, point the way to the nearest one
-    if(!t&&!ME.driving&&me&&haveItem(me,'bulb')){if(deadLampAt(ME.x,ME.z)>=0)pr='<kbd>E</kbd> or <kbd>Right click</kbd> Put the new bulb in this light';
-      else if(curSel(me)==='bulb'&&ME.x<60&&!onRoof(ME)){let bi=-1,bd=1e9;LAMPS.forEach((L,i)=>{const d=Math.hypot(ME.x-L.x,ME.z-L.z);if(L.dead&&!(S.fixed||[]).includes(i)&&d<bd){bd=d;bi=i}});
-        const ok=LAMPS.some(L=>!L.dead&&Math.hypot(ME.x-L.x,ME.z-L.z)<3); // (under a working light that's only out)
-        if(bi>=0)pr=`${ok?'This light isn\'t broken. ':''}Lamp bulb: nearest broken light ${dirTo(LAMPS[bi].x,LAMPS[bi].z)}`}}
+    // a bulb on you: under a light without one it's E; with the bulb picked anywhere else, point the way to the nearest one
+    if(!t&&!ME.driving&&me&&haveItem(me,'bulb')){if(bulbLampAt(ME.x,ME.z)>=0)pr='<kbd>E</kbd> or <kbd>Right click</kbd> Put the new bulb in this light';
+      else if(curSel(me)==='bulb'&&ME.x<60&&!onRoof(ME)){let bi=-1,bd=1e9;LAMPS.forEach((L,i)=>{const d=Math.hypot(ME.x-L.x,ME.z-L.z);if(!(S.fixed||[]).includes(i)&&d<bd){bd=d;bi=i}});
+        const has=LAMPS.some((L,i)=>(S.fixed||[]).includes(i)&&Math.hypot(ME.x-L.x,ME.z-L.z)<3);
+        if(bi>=0)pr=`${has?'This light already has a new bulb. ':''}Lamp bulb: nearest light without one ${dirTo(LAMPS[bi].x,LAMPS[bi].z)}`;else pr='Every light has a new bulb'}}
     if(ME.cart>=0&&!t)pr='<kbd>Q</kbd> Let go of the cart'+(carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     if(ME.driving&&!t)pr='<kbd>Q</kbd> Get out'+(S.fork.pal>=0?(owned('amrl')&&Math.hypot(forkTip().x-AMR.l.x,forkTip().z-AMR.l.z)<1.7?' &nbsp; <kbd>G</kbd> Set the pallet on the robot pad':' &nbsp; <kbd>G</kbd> Set the pallet down'):carrying?' &nbsp; <kbd>G</kbd> Set a box down':'');
     const cn=carryNote(me);if(cn)pr+=(pr?'<br>':'')+cn;

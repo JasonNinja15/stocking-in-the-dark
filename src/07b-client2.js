@@ -207,8 +207,8 @@ function onKey2(code,me){
       else if(t&&t.kind==='box')doAct({a:'pick',b:t.b.id});else if(t&&t.kind==='slot'){if(t.ok)doAct({a:'place',s:t.s.id});else SFX.deny()}else SFX.deny();return true}
     if(code==='KeyG'){const f=S.fork;if(f.pal>=0)doAct({a:'fdrop'});else if(me.carry>=0)doAct({a:'drop',x:r2(f.x+Math.sin(f.ry)*1.55),z:r2(f.z+Math.cos(f.ry)*1.55),ry:r2(f.ry)});return true}
     return true}
-  // E under a dead light, with a bulb on you, puts it in (as well as Space or right click with the bulb picked)
-  if(code==='KeyE'&&!ME.target&&haveItem(me,'bulb')&&deadLampAt(ME.x,ME.z)>=0){doAct({a:'use',k:'bulb'});return true}
+  // E under a light without a new bulb, with a bulb on you, puts it in (as well as Space or right click with the bulb picked)
+  if(code==='KeyE'&&!ME.target&&haveItem(me,'bulb')&&bulbLampAt(ME.x,ME.z)>=0){doAct({a:'use',k:'bulb'});return true}
   if(code==='KeyE'){const t=ME.target;if(!t)return false;
     switch(t.kind){
     case 'fork':if(ME.cart>=0)toast('Let go of the cart first.',2.5);else if(!owned('fork')){toast('The forklift is broken. It can be repaired between nights.',3);SFX.locked()}else if(me.carry>=0||me.can)toast('Put down what you\'re carrying first.',2.5);else doAct({a:'fork'});return true;
@@ -237,7 +237,7 @@ function scrollItem(dir){const me=S&&S.players[NET.myId];if(!me||me.dead||S.phas
 function useSel(me){const k=curSel(me);if(!k){SFX.deny();toast('No items. They\'re sold between nights.',2.5);return}
   // under a dark light with a bulb on you, right click (or Space) puts it in whatever is picked, unless it's
   // something you might need in a hurry (the strobe, the air horn, a flare)
-  if(k!=='bulb'&&!['strobe','horn','flare'].includes(k)&&haveItem(me,'bulb')&&deadLampAt(ME.x,ME.z)>=0){doAct({a:'use',k:'bulb'});return}
+  if(k!=='bulb'&&!['strobe','horn','flare'].includes(k)&&haveItem(me,'bulb')&&bulbLampAt(ME.x,ME.z)>=0){doAct({a:'use',k:'bulb'});return}
   if(k==='scanner')return; // held, see localUpdate2
   if(k==='cutter'){const t=ME.target;if(t&&t.kind==='box')doAct({a:'use',k,b:t.b.id});else if(t&&t.kind==='parcel')doAct({a:'use',k,pc:t.id});
     else{const m=looseMimic();if(m)doAct({a:'use',k,m:m.id});else toast('Look at a box to cut it open.',2)}return}
@@ -380,13 +380,13 @@ function onEvent2(e){if(onEvent3(e))return;const me=NET.myId,P=(x,z,y=1)=>({x,y,
   case 'forkIn':if(e.p===me){ME.yaw=S.fork.ry+Math.PI;ME.pitch=-.1;ME.fv=0;toast('W/S drive, A/D steer. E lifts or sets down a pallet, Q gets out.',4)}break;
   case 'forkOut':break;
   case 'pa2':SFX.pa(e.fake);toast(`Loudspeaker: "Priority parcel ${e.n}. Double pay."`,6,e.fake?'radio fake':'radio');break;
-  case 'bulbOn':SFX.bulb({x:LAMPS[e.i].x,y:5,z:LAMPS[e.i].z});if(!e.p||e.p===NET.myId)toast(e.on===0?(S.ot?'The bulb is in. It will light tomorrow night: the lights are off for overtime.':'The bulb is in. It will light when the power comes back.'):'The light flickers on and stays on.',3.5);break;
+  case 'bulbOn':SFX.bulb({x:LAMPS[e.i].x,y:5,z:LAMPS[e.i].z});if(!e.p||e.p===NET.myId)toast(e.on===0?(S.ot?'The bulb is in. It will light tomorrow night: the lights are off for overtime.':'The bulb is in. It will light when the power comes back.'):LAMPS[e.i].dead?'The light flickers on and stays on.':'New bulb in. This light won\'t go out on its own now.',3.5);break;
   case 'skitter':SFX.skitter(P(e.x,e.z,e.y));break;
   }}
 
 // ---------------------------------------------------------------- HUD bits
 const ITEM_ICON={batt:'Battery',flare:'Flare',cutter:'Cutter',strobe:'Strobe',scanner:'Scanner',horn:'Horn',drink:'Drink',remote:'Remote',bulb:'Bulb'};
-const ITEM_USE={batt:'swap in a fresh battery',flare:'light a flare',cutter:'cut open the box you\'re looking at',strobe:'flash it',scanner:'hold to see warm bodies',horn:'blast it',drink:'drink it',remote:'shut the nearest bay door',bulb:'fit it under a dead fixture'};
+const ITEM_USE={batt:'swap in a fresh battery',flare:'light a flare',cutter:'cut open the box you\'re looking at',strobe:'flash it',scanner:'hold to see warm bodies',horn:'blast it',drink:'drink it',remote:'shut the nearest bay door',bulb:'fit it in the light above you'};
 function hotbarHTML(me){if(!me||!me.inv)return'';const sel=curSel(me),items=[];
   for(const [code,k] of Object.entries(ITEM_KEYS)){if(!haveItem(me,k))continue;const n=k==='cutter'||k==='scanner'?'':me.inv[k];
     items.push(`<span data-k="${k}" class="hb${k===sel?' sel':''}"><small>${code.slice(5)}</small>${ITEM_ICON[k]}${n?`<b>${n}</b>`:''}</span>`)}
