@@ -115,7 +115,10 @@ addEventListener('mouseup',e=>{if(e.button===2)K.Mouse2=false});
 // the scroll wheel walks the item hotbar
 canvas.addEventListener('wheel',e=>{if(!GAME.on||!locked()||GAME.paused)return;e.preventDefault();if(e.deltaY)scrollItem(Math.sign(e.deltaY))},{passive:false});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-document.addEventListener('pointerlockchange',()=>{if(locked()){lookSkip=3;GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
+// between nights (a saved run picks up in the shop) the mouse stays free: a lock the browser grants late used to
+// hide the shop and leave nothing on screen, with no way to move
+document.addEventListener('pointerlockchange',()=>{if(locked()&&S&&S.phase==='shop'&&GAME.on){if(document.pointerLockElement)document.exitPointerLock();return}
+  if(locked()){lookSkip=3;GAME.wasLocked=true;$('lockmsg').classList.add('hide');if(GAME.on){hideScreens();GAME.paused=false}}
   else if(GAME.on&&!GAME.overShown&&!(S&&S.phase==='shop')){showPause()}});
 
 function onKey(code){const me=S&&S.players[NET.myId];if(!me||me.dead||ME.scare||S.phase!=='play')return;
@@ -517,7 +520,7 @@ function checkOver(dt){if(!S.over||GAME.overShown)return;if(ME.scare)return;GAME
 function enterGame(){clearVisuals();applyAdds();markSlots();hideScreens();$('hud').classList.remove('hide');GAME.on=true;GAME.paused=false;GAME.overShown=false;GAME.overT=0;GAME.lastPr=null;
   Object.assign(ME,{vx:0,vz:0,stam:100,exh:false,bat:100,light:true,kickCD:0,scare:null,shake:0,hurt:0,flash:0,fear:0,deathT:0,lastHp:100,specId:'',red:false,drinkT:0,driving:false,scan:false});shopShown=false;
   const me=S.players[NET.myId];if(me){ME.x=me.x;ME.z=me.z;ME.yaw=me.yaw||0;ME.pitch=0}
-  auInit();reqLock();setTimeout(()=>{if(GAME.on&&!locked()&&!GAME.overShown)$('lockmsg').classList.remove('hide')},600)}
+  auInit();if(S.phase!=='shop'){reqLock();setTimeout(()=>{if(GAME.on&&!locked()&&!GAME.overShown&&S&&S.phase!=='shop')$('lockmsg').classList.remove('hide')},600)}}
 // sv: a saved run to pick up (in the shop, before its next night)
 function startSolo(sv){netClose();NET.mode='solo';NET.myId='me';S=newState();addPlayer('me',myName(),VEST[0]);if(sv)restoreRun(sv);else startNight();enterGame()}
 function hostStartGame(sv){S=newState();for(const p of NET.lobby)addPlayer(p.id,p.name,p.col);NET.started=true;NET.sentBver=-1;NETEV.length=0;if(sv)restoreRun(sv);else startNight();hostSend({t:'start'});lobbyBroadcast();enterGame()}

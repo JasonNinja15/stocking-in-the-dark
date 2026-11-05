@@ -4,7 +4,8 @@ let S=null;
 const HOST={nextTruck:0,nextStalker:0,trucksTonight:0,lampT:[],lampNext:[]};
 let boxSeq=1,monSeq=1;
 const EVQ=[],NETEV=[];
-function emit(e){EVQ.push(e);if(NET.host)NETEV.push(e)}
+function emit(e){if(e.e==='scare'&&!DMG_ANY&&S&&elevSafe(S.players[e.p]))return; // no jumpscares inside the elevator car
+  EVQ.push(e);if(NET.host)NETEV.push(e)}
 // both behind the blanket pile at the nose. The sleeper lies curled sideways against the front wall.
 const LURK_HOME=-TRAIL_LEN+.75, LURK_LX=-1.0, CRAWL_HOME=-TRAIL_LEN+1.3;
 
@@ -94,7 +95,8 @@ function watched(x,y,z){for(const p of alivePlayers()){const dx=x-p.x,dy=y-1.6,d
 // a flashlight clicked off and on again while pointed at (x,y,z)
 function flashedBy(x,y,z){for(const p of alivePlayers())if(p.togs&&p.togs.length>=2&&litByP(p,x,y,z))return p;return null}
 // floor: the least health this hit can leave you with. Instant kills (999) stay instant kills on every difficulty.
-function damage(p,amt,floor=0){if(!p||p.dead)return;if(amt<999)amt=Math.round(amt*dmgMul());if(floor)amt=Math.min(amt,Math.max(0,p.hp-floor));p.hp-=amt;p.lastHurt=S.t;if(p.hp<=0){p.hp=0;p.dead=true;dropCarry(p);emit({e:'died',p:p.id})}}
+let DMG_ANY=0; // set around the few hurts that do reach into the elevator car: its own stall, and the cold
+function damage(p,amt,floor=0){if(!p||p.dead)return;if(!DMG_ANY&&elevSafe(p))return;if(amt<999)amt=Math.round(amt*dmgMul());if(floor)amt=Math.min(amt,Math.max(0,p.hp-floor));p.hp-=amt;p.lastHurt=S.t;if(p.hp<=0){p.hp=0;p.dead=true;dropCarry(p);emit({e:'died',p:p.id})}}
 function dropOne(p,id){const b=S.boxes.find(x=>x.id===id);if(!b)return;const tb=trailerAt(p.x,p.z,.3);if(tb>=0){b.st=0;b.bay=tb;b.x=p.x-BAYS[tb].x+rand(-.2,.2);b.z=p.z-S.trucks[tb].z}else{b.st=3;b.x=p.x+rand(-.3,.3);b.z=p.z+rand(-.3,.3)}b.y=0;b.h='';S.bver++}
 function dropCarry(p){dropOne(p,p.carry);for(const id of p.stack||[])dropOne(p,id);p.stack=[];p.carry=-1;p.can=false;if(S.fork&&S.fork.drv===p.id)S.fork.drv=''}
 function settleTruck(bay){const bs=S.boxes.filter(b=>b.st===0&&b.bay===bay).sort((a,b)=>a.y-b.y);
@@ -111,7 +113,7 @@ function simUpdate(dt){
   applyColliders();
   for(const p of Object.values(S.players)){if(p._l===undefined)p._l=p.light;if(p.light!==p._l){p._l=p.light;(p.togs||(p.togs=[])).push(S.t)}
     if(p.togs)while(p.togs.length&&S.t-p.togs[0]>1.6)p.togs.shift()}
-  trucksUpdate(dt);boxesUpdate(dt);monstersUpdate(dt);lampsUpdate(dt);extrasUpdate(dt);
+  trucksUpdate(dt);boxesUpdate(dt);monstersUpdate(dt);lampsUpdate(dt);extrasUpdate(dt);elevGuard();
   for(const p of Object.values(S.players))if(!p.dead&&p.hp<60&&S.t-p.lastHurt>12)p.hp=Math.min(60,p.hp+dt*2.5);
   const ps=Object.values(S.players);if(ps.length&&ps.every(p=>p.dead))gameOver('dead');
 }

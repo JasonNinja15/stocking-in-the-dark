@@ -101,3 +101,13 @@ function audUpdate(m,dt){m.t+=dt;m.life+=dt;m.cd-=dt;
     m.lookRy=m.ry+Math.PI+rand(-.6,.6);return}
   if(m.st==='look'){m.a=1;m.ry=angLerp(m.ry,m.lookRy,dt*2);if(m.t>3.5){m.st='pick';m.t=0}}}
 MON_UPD[15]=spiderUpdate;MON_UPD[16]=audUpdate;
+
+// ---------------------------------------------------------------- the freight elevator is a safe room
+// Nothing from outside gets into either car or hurts anyone standing in one (damage and jumpscares are
+// dropped, see damage() and emit()). Monsters that wander up to a car are pushed back out through its gate,
+// which is on the east side of both. The elevator's own stall, and the cold, still reach you in there.
+const ELEV_PAD=.55;
+const elevSafe=p=>!!p&&!p.dead&&owned('base')&&(inCar(p,CAR_UP)||inCar(p,CAR_DN));
+function elevGuard(){if(!owned('base'))return;
+  for(const m of S.mons)for(const C of [CAR_UP,CAR_DN])
+    if(m.x>C.x0-ELEV_PAD&&m.x<C.x1+ELEV_PAD&&m.z>C.z0-ELEV_PAD&&m.z<C.z1+ELEV_PAD){m.x=C.x1+ELEV_PAD;if(m.path)m.path=null}}

@@ -472,6 +472,8 @@ function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)retu
 function shopTick(){if(!GAME.on||!S)return;const want=S.phase==='shop'&&!GAME.overShown;
   if(want&&!shopShown){shopShown=true;if(document.pointerLockElement)document.exitPointerLock();show('shop');$('hud').classList.add('hide');renderShop(true)}
   else if(!want&&shopShown){shopShown=false;hideScreens();$('hud').classList.remove('hide');if(!locked())$('lockmsg').classList.remove('hide')}
+  // anything else that hid the shop while it's still between nights: put it back
+  if(shopShown&&$('shop').classList.contains('hide')&&SCREENS.every(s=>$(s).classList.contains('hide'))){show('shop');$('hud').classList.add('hide');$('lockmsg').classList.add('hide');renderShop(true)}
   if(shopShown)renderShop(false)}
 function bindShop(){$('shop').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b){auInit();doAct({a:'buy',k:b.dataset.buy});return}});
   $('bShopGo').onclick=()=>{auInit();const going=Object.keys(S.players).length<2;doAct({a:'start'});if(going)reqLock()}}

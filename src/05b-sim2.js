@@ -197,7 +197,7 @@ function elevUpdate(dt){if(!owned('base'))return;const e=S.elev;
     if(inside.some(p=>p.light&&!p.dead&&(p.pitch>.6||litByP(p,hx,2.6,hz))))e.hl+=dt;
     if(e.hl>=ELEV_HOLD){e.st='ride';e.stallDone=true;emit({e:'unstall'});return}
     // you can't run from inside a stopped car, so the hatch hurts but never kills
-    if(e.ht>=ELEV_WAIT){e.stallDone=true;e.st='ride';if(inside.length){const v=pick(inside);emit({e:'scare',p:v.id,ty:10});damage(v,45,12)}}}}
+    if(e.ht>=ELEV_WAIT){e.stallDone=true;e.st='ride';if(inside.length){const v=pick(inside);DMG_ANY=1;emit({e:'scare',p:v.id,ty:10});damage(v,45,12);DMG_ANY=0}}}}
 const ELEV_HOLD=2.5,ELEV_WAIT=18;
 function elevStart(lvl){const e=S.elev;if(e.st!=='idle')return;const C=lvl===0?CAR_UP:CAR_DN;
   e.lvl=lvl;e.st='ride';e.t=0;e.stallDone=false;e.pass=alivePlayers().filter(p=>inCar(p,C)).map(p=>p.id);
@@ -361,7 +361,7 @@ function chillUpdate(dt){
   const c=S.chill;if(!c)return;
   if(c.st==='warn'){c.t-=dt;if(c.t<=0){c.st='cold';c.t=0;HOST.frzT=0;emit({e:'frozen'})}return}
   HOST.frzT+=dt;if(HOST.frzT<1)return;HOST.frzT-=1;
-  for(const p of alivePlayers()){p.hp-=1;if(p.hp<=0){p.hp=1;damage(p,999)}}}
+  for(const p of alivePlayers()){p.hp-=1;if(p.hp<=0){p.hp=1;DMG_ANY=1;damage(p,999);DMG_ANY=0}}}
 function fixVent(p){if(!S.chill||!nearPos(p,VENT.x,VENT.z,3.4))return;const was=S.chill.st;S.chill=null;emit({e:'warm',p:p.id,n:p.name,was})}
 
 // ---------------------------------------------------------------- the warehouse robots (AMR S and AMR L)
