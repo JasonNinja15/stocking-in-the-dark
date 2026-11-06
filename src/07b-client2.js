@@ -323,7 +323,7 @@ function updScare2(s,k,lunge){const g=s.g,u=g.userData;
 // ---------------------------------------------------------------- events
 function onEvent2(e){if(onEvent3(e))return;const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   switch(e.e){
-  case 'bought':SFX.buy();if(e.team)toast(`The crew voted to buy ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);else if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);renderShop(true);break;
+  case 'bought':SFX.buy();if(NET.mode==='client')clientSave();if(e.team)toast(`The crew voted to buy ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);else if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);renderShop(true);break;
   case 'stuck':toast(`Bay ${BAYS[e.b].name}'s door motor jammed. The door is stuck open.`,4.5);break;
   case 'slam':SFX.slam(P(e.x,e.z,2));break;
   case 'shake':if(e.p!==me)SFX.shake({x:e.x,y:1.2,z:e.z});break;

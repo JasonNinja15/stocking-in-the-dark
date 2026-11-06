@@ -77,7 +77,7 @@ After each night you survive, the pay buys things. **From night 4, prices rise 1
 
 When you're finished, press **Done**. Once more than half the crew is done, the next night starts (or it starts by itself after 150 seconds). Press it again to take your vote back.
 
-**Saving.** The run saves after every night you survive, and again after every purchase. **Continue** on the main menu picks it up in the shop, before the next night. In a crew, the host's browser keeps the save: the host presses **Continue the saved run** in the crew room, and everyone gets their own gear back by name. When the run ends (the crew dies, or misses quota), the save is deleted. Starting a new run leaves an older save alone until the new run gets through a night, then replaces it.
+**Saving.** The run saves after every night you survive, and again after every purchase. Every crewmate's browser keeps the same save, not just the host's: your own items, upgrades and fund are in it, and if the host is gone you can Continue the run yourself. **Continue** on the main menu picks it up in the shop, before the next night. In a crew, the host's browser keeps the save: the host presses **Continue the saved run** in the crew room, and everyone gets their own gear back by name. When the run ends (the crew dies, or misses quota), the save is deleted. Starting a new run leaves an older save alone until the new run gets through a night, then replaces it.
 
 **Leftovers.** Boxes left on the floor at 6 AM are still there the next night, and so are mimics: a loose one folds itself back into a box wherever it stopped. Boxes still in someone's arms are set down where they stood. Shelves are emptied by the day shift as before.
 
@@ -119,7 +119,7 @@ When you're finished, press **Done**. Once more than half the crew is done, the 
 | Carry Upgrade | $110 | | Carry up to three boxes at once. Crewmates see the whole stack. Slower, and loud enough for the shrink-wrap to hear. |
 | Red headlamp | $80 | H | A dim red light that monsters don't notice: it doesn't scare them off and doesn't set them off. |
 | First-aid refill | $30 | | One more first-aid use next night (two at most, three with the Medkit Upgrade). |
-| Hand cart | $300 | | A platform cart, parked at the west end of the dock (the far end of the bays from the forklift). One alone, up to two in a crew. E takes the handle; boxes you pick up go on the deck, five at most, and slow you half as much as carrying them. E shelves the top one, G sets one down beside it, Q lets go (anything still on it is set down beside it). It won't go up the ladder or in the elevator. The casters rattle: quiet, but anything close by that hunts by ear can hear it. |
+| Hand cart | $300 | | A platform cart, parked at the west end of the dock (the far end of the bays from the forklift). One alone, up to two in a crew. E takes the handle; boxes you pick up go on the deck, five at most, and slow you half as much as carrying them. E shelves the top one, G sets one down beside it, Q lets go (anything still on it is set down beside it). It won't go up the ladder or in the elevator. While you push it, the boxes on it are see-through for you, so the stack never blocks your view. The casters rattle softly: only something hunting by ear very close by hears it. |
 
 ## Controls
 

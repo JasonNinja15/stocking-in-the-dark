@@ -185,4 +185,4 @@ function cartLetGo(c){const p=S.players[c.by];c.by='';if(!p)return;const ids=[p.
 function cartUpdate(dt){for(const c of S.carts||[]){if(!c.by)continue;const p=S.players[c.by];
   if(!p||p.dead||!inWH(p)||onRoof(p)||(S.fork&&S.fork.drv===p.id)){cartLetGo(c);continue}
   c.x=p.x-Math.sin(p.yaw)*CART_OFF;c.z=p.z-Math.cos(p.yaw)*CART_OFF;c.ry=p.yaw+Math.PI;
-  c.nT=(c.nT||0)-dt;if(c.nT<=0){c.nT=.5;if(p.spd>.8)noise(c.x,c.z,cartLoad(p)?5:4,'cart')}}}
+  c.nT=(c.nT||0)-dt;if(c.nT<=0){c.nT=.5;if(p.spd>.8)noise(c.x,c.z,cartLoad(p)?3.2:2.4,'cart') /* quiet: only something close by hears it */}}}

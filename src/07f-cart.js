@@ -22,7 +22,7 @@ function syncCarts(dt){const n=S&&S.carts?S.carts.length:0;
     const sp=d/Math.max(dt,1e-3);for(const w of u.wheels)w.rotation.x+=(lz<0?-d:d)/.09;
     if(sp>.2){let a=Math.atan2(lx,lz);if(a>Math.PI/2)a-=Math.PI;else if(a<-Math.PI/2)a+=Math.PI;v.sw=damp(v.sw,a,6,dt)}
     for(const s of u.swivel)s.rotation.y=v.sw;
-    if(AU.ready){if(!v.snd)v.snd=loop('cart',{x:P.x,y:.2,z:P.z},.9);if(v.snd){v.snd.pos({x:g.position.x,y:.2,z:g.position.z});v.snd.set(sp>.25?clamp(sp/3.2,.25,1):0,.08)}}}}
+    if(AU.ready){if(!v.snd)v.snd=loop('cart',{x:P.x,y:.2,z:P.z},.35);if(v.snd){v.snd.pos({x:g.position.x,y:.2,z:g.position.z});v.snd.set(sp>.25?clamp(sp/3.2,.2,.8):0,.08)}}}}
 // a box riding on someone's cart: two piles along the deck, filled in the order they were loaded
 function cartBoxPose(b,h){const i=S.carts?S.carts.findIndex(c=>c.by===b.h):-1,v=CARTV[i];if(i<0||!v||!h)return null;
   const pile=[...(h.stack||[]),h.carry].map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),k=pile.indexOf(b);if(k<0)return null;
@@ -38,3 +38,7 @@ function cartCollide(p){const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw);
   collideCircle(p,.32)}
 // half the slowdown boxes would give you in your arms
 const cartSlow=s=>1-(1-s)/2;
+// boxes on the cart you're pushing turn see-through for you (and only you), so the stack never blocks your view
+function boxGhost(m,on){const u=m.userData;if(!!u.gh===on)return;
+  if(on){if(!u.ghMat){const mk=x=>{const c=x.clone();c.transparent=true;c.opacity=.22;c.depthWrite=false;return c};u.solidMat=m.material;u.ghMat=Array.isArray(m.material)?m.material.map(mk):mk(m.material)}
+    m.material=u.ghMat;m.castShadow=false}else{m.material=u.solidMat||m.material;m.castShadow=true}u.gh=on}

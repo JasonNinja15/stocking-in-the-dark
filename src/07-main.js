@@ -272,8 +272,9 @@ function syncTrucks(dt){S.trucks.forEach((tr,i)=>{const v=TV[i],b=BAYS[i],bv=BAY
     const dm=Math.abs(tr.door-v.pd)>1e-4;v.door.set(dm?.45:0,.04);v.pd=tr.door}})}
 function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
   for(const b of S.boxes){if(b.st===4)continue;live.add(b.id);let m=BM.get(b.id);if(!m){m=makeBoxMesh(b);BM.set(b.id,m);ROOT.add(m);m.userData.tw=0}
+    boxGhost(m,false);
     if(b.st===1){const f=S.fork,onF=!!(f&&f.drv&&f.drv===b.h&&FORK3D),h=S.players[b.h];
-      {const cp=cartBoxPose(b,h);if(cp){m.visible=true;m.position.set(cp.x,cp.y,cp.z);m.rotation.set(0,cp.ry,0);continue}} // (riding on a hand cart)
+      {const cp=cartBoxPose(b,h);if(cp){boxGhost(m,b.h===NET.myId);m.visible=true;m.position.set(cp.x,cp.y,cp.z);m.rotation.set(0,cp.ry,0);continue}} // (riding on a hand cart)
       // the box in their arms (or on the forks), with anything stacked on top of it
       const pile=(h?[h.carry,...(h.stack||[]).slice().reverse()]:[]).map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),lv=Math.max(0,pile.indexOf(b));
       if(onF){let y=FORK3D.userData.lift.position.y+.08;for(let i=0;i<lv;i++)y+=BOX_KINDS[pile[i].k].h;const P=FORK3D.position,fr=FORK3D.rotation.y;        m.visible=true;m.position.set(P.x+Math.sin(fr)*1.45,y,P.z+Math.cos(fr)*1.45);m.rotation.set(0,fr+lv*.1,0);continue}
@@ -389,7 +390,7 @@ function onEvent(e){const me=NET.myId;
   case 'finalHour':SFX.pa();toast(e.need>0?`Loudspeaker: "Final hour. ${e.need} more box${e.need>1?'es':''} to make quota."`:'Loudspeaker: "Final hour."',5,'radio');break;
   case 'overtime':SFX.powerDown();big('OVERTIME',`${e.need} more box${e.need>1?'es':''} in 60 seconds. The lights are out.`,5);
     if(e.b>=0)setTimeout(()=>GAME.on&&toast(`One last truck is backing into Bay ${BAYS[e.b].name}.`,4,'radio'),2500);break;
-  case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
+  case 'nightDone':if(NET.mode==='client')clientSave();big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
   case 'hour':SFX.bell();toast(`${e.h||12}:00 AM`,2.5);break;
   case 'truck':if(e.last&&!S.ot){SFX.pa();toast(`Loudspeaker: "Last truck of the night, Bay ${BAYS[e.b].name}."`,5,'radio')}else if(!e.last)toast(`Truck inbound: Bay ${BAYS[e.b].name}`,3);break;
   case 'brake':SFX.brake({x:BAYS[e.b].x,y:1,z:TZ_DOCK-6});break;
@@ -523,7 +524,7 @@ async function joinCode(code){auInit();NET.code=code;NET.lobby=[];NET.mode='clie
 function saveNote(){const sv=loadSave();$('bCont').classList.toggle('hide',!sv);$('contNote').classList.toggle('hide',!sv);if(!sv)return;
   $('bCont').textContent=`Continue: night ${sv.night+1}`;
   $('contNote').textContent=`${DIFFS[sv.diff]?DIFFS[sv.diff].name:'Normal'}, ${sv.night} night${sv.night>1?'s':''} survived, $${Math.round(sv.cash||0)} in the kitty${sv.crew>1?' (a crew run: host a crew to carry on together)':''}. A new run replaces it once it gets through a night.`}
-function showOver(o){GAME.overShown=true;gameSound(false);if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
+function showOver(o){GAME.overShown=true;gameSound(false);if(NET.mode==='client'&&S&&S.saved&&o&&o.why!=='host')dropSave(); /* (a run that's over is over for crewmates too; one whose host left can still be continued) */if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
   const crew=S&&Object.keys(S.players).length>1;
   const T={dead:[crew?'THE CREW IS GONE':'YOU DIDN\'T MAKE IT',crew?'Nobody clocked out this morning.':'Something in the dark got you.'],quota:['FIRED',`You missed the quota${o.ot?', even on overtime':''}: ${o.shelved} of ${o.quota} boxes shelved.`],host:['DISCONNECTED','The host left the crew room.']}[o.why]||['SHIFT OVER',''];
   $('overTitle').textContent=T[0];$('overWhy').textContent=T[1];

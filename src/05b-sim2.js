@@ -665,6 +665,10 @@ function saveRun(){if(!S||S.over)return;const pl={};for(const p of Object.values
   S.saved=true;try{localStorage.setItem(SAVE_KEY,JSON.stringify(sv))}catch(e){}}
 function loadSave(){try{const sv=JSON.parse(localStorage.getItem(SAVE_KEY));return sv&&sv.v===1&&sv.night>=1?sv:null}catch(e){return null}}
 function dropSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}}
+// A crewmate who isn't hosting keeps the same save in their own browser: their copy of the run (from the host's
+// snapshots) after every night and every purchase. Their own gear comes back by name wherever the run continues, and
+// if the host is gone for good they can Continue it themselves. (A moment's delay lets the next snapshot land first.)
+function clientSave(){setTimeout(()=>{if(NET.mode==='client'&&S&&!S.over&&S.phase!=='play')saveRun()},1200)}
 // players get their own gear back by name; anyone new to the crew picks up gear nobody claimed, or starts empty
 function restoreRun(sv){Object.assign(S,{night:sv.night,diff:DIFFS[sv.diff]?sv.diff:1,total:sv.total|0,score:sv.score||0,cash:sv.cash||0,adds:(sv.adds||[]).filter(k=>ADDS[k]),fixed:sv.fixed||[],aidBonus:sv.aidBonus|0,
     conv:{sel:sv.sel|0,next:12,jam:false},phase:'shop',shopT:150,votes:[],saved:true});

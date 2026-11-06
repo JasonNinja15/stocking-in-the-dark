@@ -2672,6 +2672,10 @@ function saveRun(){if(!S||S.over)return;const pl={};for(const p of Object.values
   S.saved=true;try{localStorage.setItem(SAVE_KEY,JSON.stringify(sv))}catch(e){}}
 function loadSave(){try{const sv=JSON.parse(localStorage.getItem(SAVE_KEY));return sv&&sv.v===1&&sv.night>=1?sv:null}catch(e){return null}}
 function dropSave(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}}
+// A crewmate who isn't hosting keeps the same save in their own browser: their copy of the run (from the host's
+// snapshots) after every night and every purchase. Their own gear comes back by name wherever the run continues, and
+// if the host is gone for good they can Continue it themselves. (A moment's delay lets the next snapshot land first.)
+function clientSave(){setTimeout(()=>{if(NET.mode==='client'&&S&&!S.over&&S.phase!=='play')saveRun()},1200)}
 // players get their own gear back by name; anyone new to the crew picks up gear nobody claimed, or starts empty
 function restoreRun(sv){Object.assign(S,{night:sv.night,diff:DIFFS[sv.diff]?sv.diff:1,total:sv.total|0,score:sv.score||0,cash:sv.cash||0,adds:(sv.adds||[]).filter(k=>ADDS[k]),fixed:sv.fixed||[],aidBonus:sv.aidBonus|0,
     conv:{sel:sv.sel|0,next:12,jam:false},phase:'shop',shopT:150,votes:[],saved:true});
@@ -2870,7 +2874,7 @@ function cartLetGo(c){const p=S.players[c.by];c.by='';if(!p)return;const ids=[p.
 function cartUpdate(dt){for(const c of S.carts||[]){if(!c.by)continue;const p=S.players[c.by];
   if(!p||p.dead||!inWH(p)||onRoof(p)||(S.fork&&S.fork.drv===p.id)){cartLetGo(c);continue}
   c.x=p.x-Math.sin(p.yaw)*CART_OFF;c.z=p.z-Math.cos(p.yaw)*CART_OFF;c.ry=p.yaw+Math.PI;
-  c.nT=(c.nT||0)-dt;if(c.nT<=0){c.nT=.5;if(p.spd>.8)noise(c.x,c.z,cartLoad(p)?5:4,'cart')}}}
+  c.nT=(c.nT||0)-dt;if(c.nT<=0){c.nT=.5;if(p.spd>.8)noise(c.x,c.z,cartLoad(p)?3.2:2.4,'cart') /* quiet: only something close by hears it */}}}
 // ===================================================================== the night janitor (ty 17), night 5 and on (host side)
 // A tall figure in grey overalls who comes out of the closet on the east wall and mops the aisles end to end, pushing a
 // squeaking bucket and humming to himself. The floor behind him stays wet for about a minute. Walking on it is safe; run
@@ -3380,8 +3384,9 @@ function syncTrucks(dt){S.trucks.forEach((tr,i)=>{const v=TV[i],b=BAYS[i],bv=BAY
     const dm=Math.abs(tr.door-v.pd)>1e-4;v.door.set(dm?.45:0,.04);v.pd=tr.door}})}
 function syncBoxes(dt){const me=S.players[NET.myId];const live=new Set();
   for(const b of S.boxes){if(b.st===4)continue;live.add(b.id);let m=BM.get(b.id);if(!m){m=makeBoxMesh(b);BM.set(b.id,m);ROOT.add(m);m.userData.tw=0}
+    boxGhost(m,false);
     if(b.st===1){const f=S.fork,onF=!!(f&&f.drv&&f.drv===b.h&&FORK3D),h=S.players[b.h];
-      {const cp=cartBoxPose(b,h);if(cp){m.visible=true;m.position.set(cp.x,cp.y,cp.z);m.rotation.set(0,cp.ry,0);continue}} // (riding on a hand cart)
+      {const cp=cartBoxPose(b,h);if(cp){boxGhost(m,b.h===NET.myId);m.visible=true;m.position.set(cp.x,cp.y,cp.z);m.rotation.set(0,cp.ry,0);continue}} // (riding on a hand cart)
       // the box in their arms (or on the forks), with anything stacked on top of it
       const pile=(h?[h.carry,...(h.stack||[]).slice().reverse()]:[]).map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),lv=Math.max(0,pile.indexOf(b));
       if(onF){let y=FORK3D.userData.lift.position.y+.08;for(let i=0;i<lv;i++)y+=BOX_KINDS[pile[i].k].h;const P=FORK3D.position,fr=FORK3D.rotation.y;        m.visible=true;m.position.set(P.x+Math.sin(fr)*1.45,y,P.z+Math.cos(fr)*1.45);m.rotation.set(0,fr+lv*.1,0);continue}
@@ -3497,7 +3502,7 @@ function onEvent(e){const me=NET.myId;
   case 'finalHour':SFX.pa();toast(e.need>0?`Loudspeaker: "Final hour. ${e.need} more box${e.need>1?'es':''} to make quota."`:'Loudspeaker: "Final hour."',5,'radio');break;
   case 'overtime':SFX.powerDown();big('OVERTIME',`${e.need} more box${e.need>1?'es':''} in 60 seconds. The lights are out.`,5);
     if(e.b>=0)setTimeout(()=>GAME.on&&toast(`One last truck is backing into Bay ${BAYS[e.b].name}.`,4,'radio'),2500);break;
-  case 'nightDone':big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
+  case 'nightDone':if(NET.mode==='client')clientSave();big(e.ot?'MADE IT':'6:00 AM',`Night ${e.n} survived${e.ot?' on overtime':''} · ${e.sh} / ${e.q} shelved${e.lo?` · ${e.lo} lost`:''}`,7);SFX.bell();break;
   case 'hour':SFX.bell();toast(`${e.h||12}:00 AM`,2.5);break;
   case 'truck':if(e.last&&!S.ot){SFX.pa();toast(`Loudspeaker: "Last truck of the night, Bay ${BAYS[e.b].name}."`,5,'radio')}else if(!e.last)toast(`Truck inbound: Bay ${BAYS[e.b].name}`,3);break;
   case 'brake':SFX.brake({x:BAYS[e.b].x,y:1,z:TZ_DOCK-6});break;
@@ -3631,7 +3636,7 @@ async function joinCode(code){auInit();NET.code=code;NET.lobby=[];NET.mode='clie
 function saveNote(){const sv=loadSave();$('bCont').classList.toggle('hide',!sv);$('contNote').classList.toggle('hide',!sv);if(!sv)return;
   $('bCont').textContent=`Continue: night ${sv.night+1}`;
   $('contNote').textContent=`${DIFFS[sv.diff]?DIFFS[sv.diff].name:'Normal'}, ${sv.night} night${sv.night>1?'s':''} survived, $${Math.round(sv.cash||0)} in the kitty${sv.crew>1?' (a crew run: host a crew to carry on together)':''}. A new run replaces it once it gets through a night.`}
-function showOver(o){GAME.overShown=true;gameSound(false);if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
+function showOver(o){GAME.overShown=true;gameSound(false);if(NET.mode==='client'&&S&&S.saved&&o&&o.why!=='host')dropSave(); /* (a run that's over is over for crewmates too; one whose host left can still be continued) */if(document.pointerLockElement)document.exitPointerLock();$('hud').classList.add('hide');
   const crew=S&&Object.keys(S.players).length>1;
   const T={dead:[crew?'THE CREW IS GONE':'YOU DIDN\'T MAKE IT',crew?'Nobody clocked out this morning.':'Something in the dark got you.'],quota:['FIRED',`You missed the quota${o.ot?', even on overtime':''}: ${o.shelved} of ${o.quota} boxes shelved.`],host:['DISCONNECTED','The host left the crew room.']}[o.why]||['SHIFT OVER',''];
   $('overTitle').textContent=T[0];$('overWhy').textContent=T[1];
@@ -4067,7 +4072,7 @@ function updScare2(s,k,lunge){const g=s.g,u=g.userData;
 // ---------------------------------------------------------------- events
 function onEvent2(e){if(onEvent3(e))return;const me=NET.myId,P=(x,z,y=1)=>({x,y,z});
   switch(e.e){
-  case 'bought':SFX.buy();if(e.team)toast(`The crew voted to buy ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);else if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);renderShop(true);break;
+  case 'bought':SFX.buy();if(NET.mode==='client')clientSave();if(e.team)toast(`The crew voted to buy ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);else if(e.p!==me)toast(`${e.n} bought ${(ADDS[e.k]||SHOP[e.k]).name.toLowerCase()}.`,3);renderShop(true);break;
   case 'stuck':toast(`Bay ${BAYS[e.b].name}'s door motor jammed. The door is stuck open.`,4.5);break;
   case 'slam':SFX.slam(P(e.x,e.z,2));break;
   case 'shake':if(e.p!==me)SFX.shake({x:e.x,y:1.2,z:e.z});break;
@@ -4555,7 +4560,7 @@ function syncCarts(dt){const n=S&&S.carts?S.carts.length:0;
     const sp=d/Math.max(dt,1e-3);for(const w of u.wheels)w.rotation.x+=(lz<0?-d:d)/.09;
     if(sp>.2){let a=Math.atan2(lx,lz);if(a>Math.PI/2)a-=Math.PI;else if(a<-Math.PI/2)a+=Math.PI;v.sw=damp(v.sw,a,6,dt)}
     for(const s of u.swivel)s.rotation.y=v.sw;
-    if(AU.ready){if(!v.snd)v.snd=loop('cart',{x:P.x,y:.2,z:P.z},.9);if(v.snd){v.snd.pos({x:g.position.x,y:.2,z:g.position.z});v.snd.set(sp>.25?clamp(sp/3.2,.25,1):0,.08)}}}}
+    if(AU.ready){if(!v.snd)v.snd=loop('cart',{x:P.x,y:.2,z:P.z},.35);if(v.snd){v.snd.pos({x:g.position.x,y:.2,z:g.position.z});v.snd.set(sp>.25?clamp(sp/3.2,.2,.8):0,.08)}}}}
 // a box riding on someone's cart: two piles along the deck, filled in the order they were loaded
 function cartBoxPose(b,h){const i=S.carts?S.carts.findIndex(c=>c.by===b.h):-1,v=CARTV[i];if(i<0||!v||!h)return null;
   const pile=[...(h.stack||[]),h.carry].map(id=>S.boxes.find(x=>x.id===id)).filter(Boolean),k=pile.indexOf(b);if(k<0)return null;
@@ -4571,6 +4576,10 @@ function cartCollide(p){const fx=-Math.sin(ME.yaw),fz=-Math.cos(ME.yaw);
   collideCircle(p,.32)}
 // half the slowdown boxes would give you in your arms
 const cartSlow=s=>1-(1-s)/2;
+// boxes on the cart you're pushing turn see-through for you (and only you), so the stack never blocks your view
+function boxGhost(m,on){const u=m.userData;if(!!u.gh===on)return;
+  if(on){if(!u.ghMat){const mk=x=>{const c=x.clone();c.transparent=true;c.opacity=.22;c.depthWrite=false;return c};u.solidMat=m.material;u.ghMat=Array.isArray(m.material)?m.material.map(mk):mk(m.material)}
+    m.material=u.ghMat;m.castShadow=false}else{m.material=u.solidMat||m.material;m.castShadow=true}u.gh=on}
 // ===================================================================== the night janitor (client side): model, animation, sound, the wet floor, slipping
 Object.assign(SFX,{
   // the mop turning at the end of a sweep: a wet slap and a slosh
