@@ -256,6 +256,7 @@ function findTarget2(me,hit){const ud=hit.object.userData;
   if(ud.kind==='parcel'){ME.target={kind:'parcel',id:ud.id};return true}
   if(ud.kind==='pallet'){ME.target={kind:'pallet',id:ud.id};return true}
   if(ud.kind==='fork'){ME.target={kind:'fork'};return true}
+  if(ud.kind==='cart'){ME.target={kind:'cart',i:ud.i};return true} // (which cart: E and the prompt both need it)
   if(ud.kind==='elevIn'||ud.kind==='elevCall'){ME.target={kind:ud.kind,lvl:ud.lvl};return true}
   return false}
 

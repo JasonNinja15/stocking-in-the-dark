@@ -82,6 +82,13 @@ T['running onto a wet floor (real keys) slips you; walking does not']=()=>{const
   return walked&&slipped?true:`walked ok: ${walked}, slipped when running: ${slipped}`};
 T['dead with a crewmate still up: you watch them, and the screen says so']=()=>{const S=fresh({crew:1}),p=me();let Tm=performance.now()+6e5;GS.GAME.paused=false;p.dead=true;
   for(let i=0;i<90;i++){Tm+=33;S.mons=[];GS.frame(Tm)}GS.GAME.paused=true;const t=document.getElementById('spect').textContent;return/Watching Crew 1/.test(t)?true:'spectate text: '+t};
+T['hand cart with real keys: look at it and E takes the handle, E loads a box, W pushes, E shelves, Q lets go']=()=>{const S=fresh(),p=me(),ME=GS.ME;GS.GAME.paused=false;S.carts=[{x:0,z:-11,ry:0,by:''}];
+  let Tm=performance.now()+7e5;const fr=n=>{for(let i=0;i<n;i++){Tm+=33;S.mons=[];GS.frame(Tm)}},key=c=>{dispatchEvent(new KeyboardEvent('keydown',{code:c}));dispatchEvent(new KeyboardEvent('keyup',{code:c}))},look=(x,y,z)=>{const dx=x-ME.x,dz=z-ME.z;ME.yaw=Math.atan2(-dx,-dz);ME.pitch=Math.atan2(y-1.62,Math.hypot(dx,dz))};
+  const done=r=>{GS.GAME.paused=true;return r};fr(3);ME.x=p.x=0;ME.z=p.z=-13;look(0,.5,-11);fr(3);key('KeyE');fr(3);if(!(ME.cart>=0))return done('E on the cart did not take the handle (target '+JSON.stringify(ME.target)+')');
+  const b=box({x:ME.x+.9,z:ME.z+1.2});fr(2);look(b.x,.3,b.z);fr(3);key('KeyE');fr(2);if(p.carry!==b.id)return done('E did not load the box');
+  const z0=ME.z;ME.yaw=Math.PI;ME.pitch=-.3;dispatchEvent(new KeyboardEvent('keydown',{code:'KeyW'}));fr(30);dispatchEvent(new KeyboardEvent('keyup',{code:'KeyW'}));if(!(ME.z-z0>1))return done('W did not push');
+  const s=slot(s=>s.y<1&&!s.cold);ME.x=p.x=s.x;ME.z=p.z=s.z+(s.rot?0:1.9);fr(2);look(s.x,s.y+.4,s.z);fr(3);const sh=S.shelved;key('KeyE');fr(2);if(S.shelved!==sh+1)return done('E did not shelve from the cart');
+  key('KeyQ');fr(2);return done(S.carts[0].by===''?true:'Q did not let go')};
 F.run=()=>{F.results=[];for(const [name,fn] of Object.entries(T)){let r;try{r=fn()}catch(e){r='threw '+e.message+' @'+(e.stack||'').split('\n')[1]}F.results.push((r===true?'PASS ':'FAIL ')+name+(r===true?'':' -> '+r))}
   return F.results};
 export default F;
