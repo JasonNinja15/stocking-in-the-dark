@@ -10,8 +10,8 @@ const ADDS={
   bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'},
   heat:{name:'Warehouse Heater',price:250,q:0,time:0,desc:'A gas heater high on the east wall. The warehouse holds its warmth an extra night between cold spells.'},
   medkit:{name:'Medkit Upgrade',price:300,q:0,time:0,desc:'A bigger first-aid cabinet: the crew can buy a third first-aid refill each night.'},
-  amrs:{name:'Autonomous Mobile Robot S',price:2000,q:0,time:0,desc:'A small robot with a pad on the dock near the bays. Put a box on the pad and it drives it to a free bottom or middle shelf and shelves it, one box at a time. Slow, and it stops for anyone in its way.'},
-  amrl:{name:'Autonomous Mobile Robot L',price:5000,q:0,time:0,desc:'A big pallet robot with a pad on the dock. Set a pallet on the pad with the forklift and it carries it to a free top shelf and lifts it in, one pallet at a time. Trucks bring pallets a little more often.'}};
+  amrs:{name:'Autonomous Mobile Robot S',price:2000,q:0,time:0,night:7,desc:'A small robot that shelves boxes on its own: it fetches loose boxes off the floor and from docked trucks, or takes one you put on its pad, and shelves each on the furthest free bottom or middle shelf. Slow, one box at a time, and it stops for anyone in its way.'},
+  amrl:{name:'Autonomous Mobile Robot L',price:5000,q:0,time:0,night:9,desc:'A big pallet robot that fetches pallets on its own, off the floor or from the truck doors (or takes one the forklift sets on its pad), and lifts each onto the furthest free top shelf. One pallet at a time. Trucks bring pallets a little more often.'}};
 const SHOP={
   fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam. The battery lasts twice as long.'},
   shake:{name:'Shake flashlight',price:100,once:true,key:'R',desc:'Hold R to shake your flashlight and charge it anywhere. Anything listening hears it.'},
@@ -54,6 +54,7 @@ function addExtras(){let q=0,t=0;for(const k of S.adds){q+=ADDS[k].q;t+=ADDS[k].
 function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.aidLeft=2+(S.aidBonus||0);S.aidBonus=0;
   S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);
+  for(const b of S.boxes)if(b.amr)b.amr=0; // (whatever a robot had on its deck at 6 AM is just a box on the floor now)
   S.parcels=[];S.pallets=[];S.flares=[];S.cold={door:0,open:false,t:0};S.conv={sel:S.conv?S.conv.sel:0,next:12,jam:false};
   S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.amr=['s','l'].filter(k=>owned('amr'+k)).map(k=>({k,x:AMR[k].x,z:AMR[k].z,ry:Math.PI,st:'home',load:-1,slot:-1,t:0,path:null,rep:0,stop:0}));for(const b of S.boxes)if(b.amr){b.amr=1;b.x=AMR.s.x;b.z=AMR.s.z;b.y=owned('amrs')?AMR.s.deck:0}S.rg=null;S.stash=true;HOST.rgT=0;S.chill=null;HOST.frzT=0;HOST.chillAt=coldNight(S.night)?(SHIFT_END-S.extra)/2:Infinity;S.paN=0;S.outage=false;
   HOST.outageAt=S.night>=3&&Math.random()<Math.min(.6,.22+.07*S.night)*diffEv()?rand(SHIFT_END*.12,SHIFT_END*.8):1e9;
@@ -81,6 +82,7 @@ function shopAct(pid,a){const p=S.players[pid];if(!p)return;
   if(a.a!=='buy'||S.phase!=='shop')return;const k=a.k;
   const no=m=>emit({e:'msg',m,p:pid});
   if(isTeam(k)){const it=ADDS[k]||SHOP[k];if(ADDS[k]&&owned(k))return no('Already built.');
+    if(it.night&&S.night+1<it.night&&!(ADDS[k]&&owned(k)))return no(`Not sold until night ${it.night}.`);
     if(k==='cart'&&(S.carts||[]).length>=cartMax())return no(cartMax()>1?'The crew already has two carts.':'You already have a cart.');
     if(k==='aid'&&(S.aidBonus||0)>=aidCap())return no('The cabinet is already stocked for tomorrow.');
     const tv=S.tvotes||(S.tvotes={}),v=tv[k]||(tv[k]=[]);if(v.includes(pid)){tv[k]=v.filter(x=>x!==pid);return}
@@ -373,13 +375,36 @@ function fixVent(p){if(!S.chill||!nearPos(p,VENT.x,VENT.z,3.4))return;const was=
 // Each waits on its pad on the dock. Load it (a box on the S pad by hand, a pallet on the L pad with the forklift) and
 // it picks a free shelf (bottom or middle for S, top for L), drives there slowly down the aisles, lifts the load in,
 // shelves it, and comes back. One load at a time. It stops for anyone standing in front of it.
-const AMR_ST=['home','go','lift','back'];
-const AMR_LIFT=1.8;
+// With nothing on its pad, each robot also goes looking for work on its own: the small one fetches a loose box off the
+// floor or from just inside a docked trailer, the big one a pallet off the floor or from a trailer door. Either way
+// it shelves the load on the free shelf furthest from its pad, so the near shelves stay free for the crew.
+const AMR_ST=['home','go','lift','back','fetch','grab'];
+const AMR_LIFT=1.8,AMR_GRAB=1.1;
 const amrAt=A=>(S.amr||[]).some(r=>r.k===(A===AMR.s?'s':'l')&&r.st==='home');
-// a free shelf for a robot's load, nearest the pad first, and the aisle spot in front of it
-function amrSlot(r){const A=AMR[r.k],taken=new Set((S.amr||[]).map(o=>o.slot));let best=null,bd=1e9;
+// a free shelf for a robot's load, furthest from its pad, and the aisle spot in front of it
+function amrSlot(r){const A=AMR[r.k],taken=new Set((S.amr||[]).map(o=>o.slot));let best=null,bd=-1;
   for(const s of SLOTS){if(s.old||s.cold||!slotOn(s)||s.box!==-1||taken.has(s.id))continue;if(r.k==='s'?s.y>2:s.y<2)continue;
-    const d=Math.hypot(s.x-A.x,s.z-A.z);if(d<bd){const ap=amrAisle(s,r.x,r.z);if(ap){bd=d;best={s,ap}}}}return best}
+    const d=Math.hypot(s.x-A.x,s.z-A.z);if(d>bd){const ap=amrAisle(s,r.x,r.z);if(ap){bd=d;best={s,ap}}}}return best}
+// where a robot parks to reach into a docked trailer at bay i
+const amrDoor=i=>({x:BAYS[i].x,z:WH.z0+1.5});
+const amrFree=(x,z)=>{if(x<WH.x0+1||x>WH.x1-1||z<WH.z0+1||z>WH.z1-1)return false;const [i,j]=cellOf(x,z);return!GRID.blk[j*GRID.nx+i]};
+// something worth fetching: the nearest loose load on the floor, or the front of a docked trailer (never frozen crates
+// or returns, never a load another robot or a person already has)
+function amrFind(r){const A=AMR[r.k],busy=new Set((S.amr||[]).filter(o=>o!==r&&o.ft).map(o=>o.ft.kind+o.ft.id));let best=null,bd=1e9;
+  const consider=(ft,x,z)=>{if(busy.has(ft.kind+ft.id))return;const d=Math.hypot(x-r.x,z-r.z);if(d<bd){bd=d;best={...ft,x,z}}};
+  const docked=i=>bayOn(i)&&S.trucks[i].st===2&&!S.trucks[i].reject&&S.trucks[i].door>=.75;
+  if(r.k==='s'){for(const b of S.boxes){if(b.amr||b.fz||b.ret||b.h)continue;
+      if(b.st===3&&b.y<.05&&amrFree(b.x,b.z)&&!inCold(b))consider({kind:'floor',id:b.id},b.x,b.z);}
+    BAYS.forEach((B,i)=>{if(!docked(i))return;const front=S.boxes.filter(b=>b.st===0&&b.bay===i&&!b.fz&&!b.ret&&!b.amr).sort((a,b)=>b.z-a.z||b.y-a.y)[0];
+      if(front){const d=amrDoor(i);consider({kind:'truck',id:front.id,bay:i},d.x,d.z)}})}
+  else{for(const p of S.pallets){if(p.amr||p.st===2||p.st===1)continue;const f=S.fork;if(f&&f.pal===p.id)continue;
+      if(p.st===3&&amrFree(p.x,p.z))consider({kind:'floor',id:p.id},p.x,p.z);
+      else if(p.st===0&&docked(p.bay)){const d=amrDoor(p.bay);consider({kind:'truck',id:p.id,bay:p.bay},d.x,d.z)}}}
+  return best}
+// is what it set out for still there to take?
+function amrStill(r){const ft=r.ft;if(!ft)return null;
+  if(r.k==='s'){const b=S.boxes.find(x=>x.id===ft.id);if(!b||b.amr||b.h||b.st===1||b.st===2||b.st===4)return null;if(ft.kind==='floor'?b.st!==3:b.st!==0)return null;return b}
+  const p=S.pallets.find(x=>x.id===ft.id);if(!p||p.amr||p.st===1||p.st===2||(S.fork&&S.fork.pal===p.id))return null;if(ft.kind==='floor'?p.st!==3:p.st!==0)return null;return p}
 function amrAisle(s,fx,fz){const free=(x,z)=>{const [i,j]=cellOf(x,z);return!GRID.blk[j*GRID.nx+i]&&x>WH.x0+1&&x<WH.x1-1&&z>WH.z0+1&&z<WH.z1-1};
   const c=[[s.x,s.z-1.4],[s.x,s.z+1.4]].filter(([x,z])=>free(x,z)).sort((a,b)=>Math.hypot(a[0]-fx,a[1]-fz)-Math.hypot(b[0]-fx,b[1]-fz));return c[0]?{x:c[0][0],z:c[0][1]}:null}
 function amrDrive(r,tx,tz,sp,dt){r.rep-=dt;if(r.rep<=0||!r.path){r.rep=.8;r.path=astar(r.x,r.z,tx,tz)}let px=tx,pz=tz;
@@ -399,8 +424,22 @@ function amrUpdate(dt){for(const r of S.amr||[]){const A=AMR[r.k];
   case 'home':{r.ry=angLerp(r.ry,Math.PI,dt*2);
     // something waiting on the pad?
     const w=r.k==='s'?S.boxes.find(b=>b.st===3&&b.amr===1&&Math.hypot(b.x-A.x,b.z-A.z)<1):S.pallets.find(p=>p.st===3&&p.amr===1&&Math.hypot(p.x-A.x,p.z-A.z)<1.2);
-    if(!w)break;const sl=amrSlot(r);if(!sl){if((r.t-=dt)<=0){r.t=8;emit({e:'msg',m:`${A.name}: no free ${r.k==='s'?'lower':'top'} shelf to take it to.`})}break}
+    if(!w){ // nothing on the pad: go and find something, every couple of seconds while there's a free shelf for it
+      if((r.look=(r.look||0)-dt)>0||S.phase!=='play')break;r.look=2;if(!amrSlot(r))break;const ft=amrFind(r);if(!ft)break;
+      r.ft=ft;r.path=null;r.st='fetch';r.t=0;emit({e:'amrGo',k:r.k,x:r.x,z:r.z});break}
+    const sl=amrSlot(r);if(!sl){if((r.t-=dt)<=0){r.t=8;emit({e:'msg',m:`${A.name}: no free ${r.k==='s'?'lower':'top'} shelf to take it to.`})}break}
     w.amr=2;w.y=A.deck;r.load=w.id;r.slot=sl.s.id;r.goal=sl.ap;r.path=null;r.st='go';if(r.k==='s')S.bver++;emit({e:'amrGo',k:r.k,x:r.x,z:r.z});break}
+  // off to pick something up: drive up to it (or to the trailer door), then load it on the deck
+  case 'fetch':{const it=amrStill(r);if(!it){r.ft=null;r.st='back';r.path=null;break}
+    const reach=r.ft.kind==='truck'?.3:(r.k==='l'?1.1:.75);if(amrDrive(r,r.ft.x,r.ft.z,A.speed,dt)<reach){r.st='grab';r.t=0;r.ry=r.ft.kind==='truck'?Math.PI:r.ry}
+    if((r.t+=dt)>60){r.ft=null;r.st='back';r.path=null}break}
+  case 'grab':{const it=amrStill(r);if(!it){r.ft=null;r.st='back';break}r.t+=dt;if(r.t<AMR_GRAB)break;
+    const sl=amrSlot(r);if(!sl){r.ft=null;r.st='back';break}
+    if(r.k==='s'){const b=it,bay=b.st===0?b.bay:-1;
+      if(b.m){r.ft=null;r.st='back';unboxMimic(b,'run');emit({e:'amrBeep',x:r.x,z:r.z});break} // a mimic: it jumps off the deck and runs
+      b.st=3;b.amr=2;b.h='';b.s=-1;b.x=r.x;b.z=r.z;b.y=A.deck;delete b.bay;if(bay>=0)settleTruck(bay);S.bver++}
+    else{const p=it;p.st=3;p.amr=2;p.x=r.x;p.z=r.z;p.y=A.deck;p.ry=r.ry}
+    emit({e:'pick',p:'',x:r.x,y:A.deck,z:r.z});r.load=it.id;r.slot=sl.s.id;r.goal=sl.ap;r.path=null;r.ft=null;r.st='go';r.t=0;break}
   case 'go':{if(!load){r.st='back';break}carry();const s=SLOTS[r.slot];
     if(s.box!==-1){const sl=amrSlot(r);if(!sl){r.st='back';break}r.slot=sl.s.id;r.goal=sl.ap;r.path=null} // someone filled it first
     if(amrDrive(r,r.goal.x,r.goal.z,A.speed,dt)<.25){r.st='lift';r.t=0;r.ry=Math.atan2(s.x-r.x,s.z-r.z)}break}

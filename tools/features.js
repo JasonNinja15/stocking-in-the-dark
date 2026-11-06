@@ -1,0 +1,87 @@
+// Feature checks for Stocking In The Dark: each one sets up a fresh solo run and drives one system through the real
+// host actions, then says whether it did what it should. Load into a running page (local server) with:
+//   const F=(await import('/tools/features.js?'+Date.now())).default; F.run()
+// Nothing in the game loads this file. Synchronous: works in a background tab.
+const F={results:[]};
+const tick=(n=1,dt=.1)=>{for(let i=0;i<n;i++){GS.S.mons=GS.S.mons.filter(m=>F.keep&&F.keep(m));GS.simUpdate(dt)}};
+const fresh=({adds=[],night=3,crew=0}={})=>{GS.startSolo();GS.GAME.paused=true;const S=GS.S;for(let i=1;i<=crew;i++)GS.addPlayer('c'+i,'Crew '+i,'#38d4e8');
+  S.adds=adds.slice();GS.applyAdds();S.night=night;GS.startNight();GS.EVQ.length=0;S.mons=[];F.keep=null;GS.HOST.nextStalker=1e9;GS.HOST.outageAt=1e9;return S};
+const me=()=>GS.S.players.me,put=(p,x,z)=>{p.x=x;p.z=z};
+const events=()=>GS.EVQ.splice(0).map(e=>e.e);
+const box=(o={})=>{const S=GS.S,b=Object.assign({id:90000+Math.floor(Math.random()*9999),st:3,x:0,y:0,z:-10,ry:0,k:1,f:false,v:0,h:'',s:-1,m:false},o);S.boxes.push(b);S.bver++;return b};
+const slot=pred=>GS.SLOTS.find(s=>!s.old&&s.box===-1&&GS.slotOn(s)&&pred(s));
+const T={};
+T['forklift: drive in, lift a pallet, shelve it on a top shelf (8 boxes), carry loose boxes, get out']=()=>{const S=fresh({adds:['fork']}),p=me(),f=S.fork;
+  put(p,f.x,f.z);GS.act('me',{a:'fork'});if(f.drv!=='me')return'did not get in';f.pass=null;
+  const s=slot(s=>s.y>2&&!s.cold);f.x=s.x;f.z=s.z-2.6;f.ry=0;const t=GS.forkTip();S.pallets.push({id:777,st:3,x:t.x,z:t.z,ry:0});
+  GS.act('me',{a:'fpick'});if(f.pal!==777)return'pallet not lifted';const sh=S.shelved;GS.act('me',{a:'fplace',s:s.id});if(S.shelved!==sh+8)return'pallet not shelved';
+  const ids=[1,2,3,4].map(i=>box({x:t.x,z:t.z}).id);for(const id of ids)GS.act('me',{a:'pick',b:id});const held=1+p.stack.length;if(held!==3)return'forks held '+held+' boxes, not 3';
+  GS.act('me',{a:'fork'});if(f.drv)return'did not get out';const down=ids.filter(id=>S.boxes.find(b=>b.id===id).st===3).length;return down===4?true:'loose boxes not set down on getting out ('+down+')'};
+T['conveyor: the lever changes colour, a matching parcel sorts and pays, a jam clears']=()=>{const S=fresh({adds:['conv']}),p=me(),C=GS.K2.CONV;
+  put(p,C.lever.x,C.lever.z);const s0=S.conv.sel;GS.act('me',{a:'lever'});if(S.conv.sel===s0)return'lever did nothing';
+  S.parcels=[{id:5001,x:C.x1-.2,c:S.conv.sel,m:false,jam:false,tw:2}];const sh=S.shelved;tick(3);if(S.shelved!==sh+1)return'matching parcel not sorted';
+  S.conv.jam=true;S.parcels=[{id:5002,x:C.x1-.2,c:0,m:false,jam:true,tw:2}];put(p,C.jam.x,C.jam.z);GS.act('me',{a:'jam'});return S.conv.jam?'jam not cleared':true};
+T['cold storage: the door opens and shuts, frozen crates only go in the freezer, they thaw if left out']=()=>{const S=fresh({adds:['cold']}),p=me();
+  const o=S.cold.open;GS.act('me',{a:'cold'});if(S.cold.open===o)return'door did not move';
+  const cs=slot(s=>s.cold),ws=slot(s=>!s.cold&&s.y<1);const b=box({fz:true,th:60,x:p.x,z:p.z});GS.act('me',{a:'pick',b:b.id});put(p,ws.x,ws.z+1.2);GS.act('me',{a:'place',s:ws.id});
+  if(b.st===2)return'frozen crate went on a warm shelf';put(p,cs.x,cs.z+1.2);GS.act('me',{a:'place',s:cs.id});if(b.st!==2)return'frozen crate not shelved in the freezer';
+  const b2=box({fz:true,th:2,x:5,z:-5});tick(40);return S.boxes.find(x=>x.id===b2.id&&x.st!==4)&&!S.boxes.find(x=>x.id===b2.id).spoiled&&b2.th>0?'crate did not thaw':true};
+T['basement: the elevator takes you down, returns go in the shredder and count']=()=>{const S=fresh({adds:['base']}),p=me(),U=GS.K2.CAR_UP;
+  put(p,(U.x0+U.x1)/2,(U.z0+U.z1)/2);GS.act('me',{a:'elevIn',lvl:0});let n=0;while(S.elev.st!=='idle'&&n++<200){tick(1);if(S.elev.st==='stall'){S.elev.hl=99}}
+  if(!(p.x>60))return'not in the basement after the ride (x='+p.x.toFixed(1)+')';
+  const r=S.boxes.find(b=>b.ret&&b.st===3);if(!r)return'no returns in the cage';const sh=S.shelved;put(p,r.x,r.z);GS.act('me',{a:'pick',b:r.id});const K=GS.K2.SHRED;put(p,K.x,K.z+1.6);GS.act('me',{a:'shred'});
+  return S.shelved===sh+1?true:'shredding a return did not count'};
+T['generator: an outage kills the lamps, a jerry can refuels it and the power comes back']=()=>{const S=fresh({adds:['gen'],night:4}),p=me();
+  S.gen.fuel=0;GS.HOST.outageAt=S.t;tick(2);if(!S.outage)return'no outage';if(S.lamps.some(x=>x))return'lamps still on with no fuel';
+  const R=GS.K2.FUELR,G=GS.K2.GEN;put(p,R.x,R.z);GS.act('me',{a:'can'});if(!p.can)return'no jerry can';put(p,G.x,G.z);GS.act('me',{a:'fuel'});tick(2);
+  return S.lamps.filter(x=>x).length>=4?true:'lamps did not come back after refuelling'};
+T['roof: the ladder goes up and down, the supply crate gives one item a night']=()=>{const S=fresh(),p=me(),L=GS.K2.LADDER,H=GS.K2.HATCH,ST=GS.K2.STASH;
+  put(p,L.x,L.z);GS.act('me',{a:'climb'});if(!(p.x<-100))return'did not climb up';put(p,ST.x,ST.z);const inv0=JSON.stringify(p.inv);GS.act('me',{a:'stash'});if(JSON.stringify(p.inv)===inv0)return'crate gave nothing';
+  const inv1=JSON.stringify(p.inv);GS.act('me',{a:'stash'});if(JSON.stringify(p.inv)!==inv1)return'crate gave a second item';put(p,H.x,H.z);GS.act('me',{a:'climb'});return p.x>-100?true:'did not climb down'};
+T['items: battery, drink, flare, horn, cutter, strobe and remote each do their thing']=()=>{const S=fresh(),p=me();p.inv={batt:1,drink:1,flare:1,horn:1,strobe:1,remote:1};p.up.cutter=true;const out=[];
+  GS.act('me',{a:'use',k:'batt'});if(p.inv.batt!==0)out.push('battery');GS.act('me',{a:'use',k:'drink'});if(p.inv.drink!==0)out.push('drink');
+  GS.act('me',{a:'use',k:'flare'});if(!S.flares.length)out.push('flare');GS.HOST.noise=[];GS.act('me',{a:'use',k:'horn'});if(!(GS.HOST.noise||[]).some(n=>n.r>=40))out.push('horn');
+  const b=box({x:p.x+1,z:p.z});const lost=S.lost;GS.act('me',{a:'use',k:'cutter',b:b.id});if(S.lost!==lost+1)out.push('cutter');
+  S.mons.push({id:4242,ty:2,x:p.x,y:0,z:p.z-4,ry:0,st:'creep',a:0,litT:0,life:80,path:null,rep:0,lampT:0});p.yaw=0;GS.act('me',{a:'use',k:'strobe'});if(S.mons.some(m=>m.id===4242&&!m.dead))out.push('strobe');
+  GS.spawnTruck(0);let n=0;while(S.trucks[0].st!==2&&n++<300)tick(1);GS.act('me',{a:'use',k:'remote'});if(S.trucks[0].st!==3)out.push('remote');
+  return out.length?'failed: '+out.join(', '):true};
+T['first-aid cabinet heals and runs out; refusing a delivery sends the truck away']=()=>{const S=fresh(),p=me();p.hp=40;GS.act('me',{a:'aid'});if(p.hp!==100)return'not healed';const left=S.aidLeft;
+  p.hp=40;GS.act('me',{a:'aid'});p.hp=40;GS.act('me',{a:'aid'});if(S.aidLeft!==0)return'cabinet did not run out';
+  GS.spawnTruck(1);let n=0;while(S.trucks[1].st!==2&&n++<300)tick(1);GS.act('me',{a:'panel',b:1});return S.trucks[1].reject?true:'delivery not refused'};
+T['the cold: the vent fix in the plant room ends a cold spell']=()=>{const S=fresh({night:3}),p=me();if(!GS.K2.VENT)return'no vent';S.chill={st:'cold',t:60};const V=GS.K2.VENT;
+  put(p,-200+V.x-(-200),V.z);p.x=V.x;p.z=V.z+1.2;GS.act('me',{a:'vent'});return!S.chill||S.chill.st!=='cold'?true:'vent fix did nothing ('+JSON.stringify(S.chill)+')'};
+T['overtime: missing the quota at 6 AM starts overtime, missing it again gets you fired']=()=>{const S=fresh(),p=me();S.shelved=0;S.t=1e4;tick(1);if(!S.ot)return'no overtime';tick(2);return S.over&&S.over.why==='quota'?true:'not fired ('+JSON.stringify(S.over)+')'};
+T['meeting the quota by 6 AM ends the night and opens the shop, which saves the run']=()=>{const S=fresh(),p=me();try{localStorage.removeItem('sitd-run')}catch(e){}S.shelved=S.quota;S.t=1e4;tick(1);let n=0;while(S.phase!=='shop'&&n++<200)tick(1);
+  if(S.phase!=='shop')return'no shop';const sv=GS.loadSave();return sv&&sv.night===S.night?true:'not saved'};
+T['save and Continue: expansions, carts, fixed lights and gear come back']=()=>{const S=fresh({adds:['fork','cold']}),p=me();S.carts=[{x:-26.7,z:-16.9,ry:0,by:''}];S.fixed=[4,1];p.inv={flare:2};p.up.fl2=true;
+  S.shelved=S.quota;S.t=1e4;tick(1);let n=0;while(S.phase!=='shop'&&n++<200)tick(1);const sv=GS.loadSave();if(!sv)return'no save';GS.startSolo(sv);const R=GS.S,q=R.players.me;
+  const bad=[];if(R.phase!=='shop')bad.push('phase '+R.phase);if(!R.adds.includes('fork')||!R.adds.includes('cold'))bad.push('expansions');if((R.carts||[]).length!==1)bad.push('cart');
+  if(!R.fixed.includes(4))bad.push('fixed lights');if(!(q.inv.flare>=2)||!q.up.fl2)bad.push('gear');return bad.length?'lost: '+bad.join(', '):true};
+T['shop: personal gear comes out of your fund; in a crew, a team purchase needs a majority vote']=()=>{const S=fresh({crew:2});S.phase='shop';const p=me();p.cash=500;S.cash=5000;
+  GS.act('me',{a:'buy',k:'flare'});if(!(p.inv.flare>0))return'personal buy failed';const pr=GS.priceOf('cold');GS.act('me',{a:'buy',k:'cold'});if(GS.owned('cold'))return'one vote of three bought it';
+  GS.act('c1',{a:'buy',k:'cold'});return GS.owned('cold')&&Math.round(S.cash)===Math.round(5000-pr)?true:'two votes of three did not buy it'};
+T['everyone dead ends the run']=()=>{const S=fresh({crew:1});for(const p of Object.values(S.players)){p.hp=1}GS.S.players.me.dead=true;GS.S.players.c1.dead=true;tick(1);return S.over&&S.over.why==='dead'?true:'run did not end'};
+T['Bay C: once built, its bay takes trucks']=()=>{const S=fresh({adds:['bayc']});if(!GS.bayOn(2))return'bay C not in service';GS.spawnTruck(2);let n=0;while(S.trucks[2].st!==2&&n++<300)tick(1);return S.trucks[2].st===2?true:'no truck docked at C'};
+T['snapshots: a crewmate copy of the state matches the host (players, boxes, carts, wet floor, lock)']=()=>{const S=fresh({adds:['fork'],crew:1});S.carts=[{x:-26.7,z:-16.9,ry:0,by:''}];S.wet=[{id:1,x:2,z:3,t:20,s:1}];S.players.c1.locked=true;
+  const m=JSON.parse(JSON.stringify(GS.snap())),w=JSON.parse(JSON.stringify(GS.wetSnap()));const host=JSON.stringify({c:S.carts,n:Object.keys(S.players).length});
+  GS.applySnap(m);GS.applyWet(w);const bad=[];if(JSON.stringify({c:GS.S.carts.map(c=>({x:c.x,z:c.z,ry:c.ry,by:c.by})),n:Object.keys(GS.S.players).length})!==host)bad.push('carts/players');
+  if(!GS.S.players.c1.locked)bad.push('lock flag');if(!(GS.S.wet||[]).length)bad.push('wet floor');return bad.length?'differs: '+bad.join(', '):true};
+T['night manager: standing idle in front of him gets you written up (and costs pay)']=()=>{const S=fresh({night:3}),p=me();S.cash=100;
+  // (out on the open dock floor, so no rack is in the way of his view)
+  const m={id:4300,ty:4,x:0,z:-14,y:0,ry:0,st:'walk',a:2,t:0,path:null,rep:0};S.mons.push(m);F.keep=x=>x.id===4300;p.spd=0;p.carry=-1;
+  for(let i=0;i<60;i++){m.x=0;m.z=-14;m.ry=0;p.x=0;p.z=-10;tick(1)}return p.wu>=1&&S.cash<100?true:'no write-up (wu='+p.wu+', cash '+S.cash+')'};
+T['elevator stall: light on the roof hatch makes it go away; left dark, it hurts but never kills']=()=>{const S=fresh({adds:['base']}),p=me(),U=GS.K2.CAR_UP;
+  const ride=()=>{put(p,(U.x0+U.x1)/2,(U.z0+U.z1)/2);S.elev.lvl=0;S.elev.st='idle';S.elev.gate=1;GS.act('me',{a:'elevIn',lvl:0});S.elev.stall=true;S.elev.stallDone=false;let n=0;while(S.elev.st!=='stall'&&n++<200){put(p,(U.x0+U.x1)/2,(U.z0+U.z1)/2);tick(1)}return S.elev.st==='stall'};
+  if(!ride())return'no stall';p.light=true;p.pitch=1;let n=0;while(S.elev.st==='stall'&&n++<200)tick(1);if(S.elev.st==='stall')return'light did not end the stall';
+  n=0;while(S.elev.st!=='idle'&&n++<300)tick(1);put(p,(U.x0+U.x1)/2,(U.z0+U.z1)/2);p.hp=100;
+  if(!ride())return'no second stall';p.light=false;n=0;while(S.elev.st==='stall'&&n++<400)tick(1);return!p.dead&&p.hp<100?true:'dark stall: hp '+p.hp+', dead '+p.dead};
+T['running onto a wet floor (real keys) slips you; walking does not']=()=>{const S=fresh({night:5}),p=me(),ME=GS.ME;GS.GAME.paused=false;let Tm=performance.now()+5e5;const fr=n=>{for(let i=0;i<n;i++){Tm+=33;S.mons=[];GS.frame(Tm)}};
+  ME.x=p.x=0;ME.z=p.z=-8;ME.yaw=Math.PI;fr(2);S.wet=[{id:1,x:0,z:-6.5,t:50,s:0},{id:2,x:0,z:-5.5,t:50,s:0},{id:3,x:0,z:-4.5,t:50,s:0}];S.wver=(S.wver|0)+1;
+  const key=(c,dn)=>dispatchEvent(new KeyboardEvent(dn?'keydown':'keyup',{code:c}));key('KeyW',true);fr(40);key('KeyW',false);const walked=!(ME.slipT>0)&&!(p.down>0);
+  ME.x=p.x=0;ME.z=p.z=-8;ME.vx=ME.vz=0;fr(2);key('ShiftLeft',true);key('KeyW',true);fr(30);key('KeyW',false);key('ShiftLeft',false);const slipped=ME.slipT>0||p.down>0;GS.GAME.paused=true;
+  return walked&&slipped?true:`walked ok: ${walked}, slipped when running: ${slipped}`};
+T['dead with a crewmate still up: you watch them, and the screen says so']=()=>{const S=fresh({crew:1}),p=me();let Tm=performance.now()+6e5;GS.GAME.paused=false;p.dead=true;
+  for(let i=0;i<90;i++){Tm+=33;S.mons=[];GS.frame(Tm)}GS.GAME.paused=true;const t=document.getElementById('spect').textContent;return/Watching Crew 1/.test(t)?true:'spectate text: '+t};
+F.run=()=>{F.results=[];for(const [name,fn] of Object.entries(T)){let r;try{r=fn()}catch(e){r='threw '+e.message+' @'+(e.stack||'').split('\n')[1]}F.results.push((r===true?'PASS ':'FAIL ')+name+(r===true?'':' -> '+r))}
+  return F.results};
+export default F;

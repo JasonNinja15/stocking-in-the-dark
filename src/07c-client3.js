@@ -1,14 +1,25 @@
 // ===================================================================== the two later creatures (models, animation, sound)
 Object.assign(SFX,{
-  // the long-legged thing hears something: one long, very deep voice, more chest than throat
-  spVoice(pos){if(!AU.ready)return;const d=dest(pos,{rev:.7,gain:1.5,ref:7,roll:.8});
-    voice(d,{dur:2.6,f0:46,f1:31,jit:.03,vib:.025,vibF:3,rasp:14,raspD:.55,v:'oo',v2:'aw',noise:.12,sub:1,drive:3,g:.85,a:.25,rel:1});
-    tone(d,{f:38,f2:27,dur:2.4,a:.3,g:.45});nz(d,{t:.1,dur:2.2,a:.4,g:.12,type:'lowpass',f:180,f2:90})},
-  // one leg tip touching down
-  spTap(pos){if(!AU.ready)return;const d=dest(pos,{rev:.35,gain:.6,ref:3});nz(d,{dur:.05,g:.35,f:1500,q:3});tone(d,{f:160,f2:90,dur:.08,g:.18})},
-  // the legs coming down hard
+  // The long-legged thing is no person and has no voice. Everything it makes is shell and air: a rasp of plates
+  // rubbed together (the way crickets call, but the size of a car), mandibles clacking, joints creaking, and air
+  // wheezing in and out of holes along its body.
+  // It hears something: the plates rasp faster and higher over a deep hollow drone from the body, then three clacks.
+  spVoice(pos){if(!AU.ready)return;const d=dest(pos,{rev:.7,gain:1.6,ref:7,roll:.8});
+    let t=0;for(let i=0;i<64;i++){const k=i/64;t+=lerp(.034,.017,k)*rand(.85,1.15);nz(d,{t,dur:.013,a:.001,g:(.16+.22*Math.sin(k*Math.PI))*rand(.7,1),f:lerp(2100,3300,k)*rand(.9,1.1),q:7})}
+    tone(d,{type:'sawtooth',f:33,f2:44,dur:t+.3,a:.25,g:.22});tone(d,{type:'triangle',f:66,f2:88,dur:t+.2,a:.3,g:.12}); // the body resonating like a drum
+    nz(d,{dur:t,a:.3,g:.07,type:'highpass',f:4800}); // breath hissing out of the spiracles
+    for(let i=0;i<3;i++){const c=t+.12+i*.13;nz(d,{t:c,dur:.03,g:.55,f:1700,q:5});tone(d,{t:c,f:420,f2:180,dur:.06,g:.2})}},
+  // mandibles working while it waits and listens: a short run of uneven clicks
+  spChitter(pos){if(!AU.ready)return;const d=dest(pos,{rev:.45,gain:1,ref:4});let t=0;
+    for(let i=0,n=randi(5,9);i<n;i++){t+=rand(.028,.075);nz(d,{t,dur:.016,g:rand(.14,.26),f:rand(1700,2700),q:6})}nz(d,{t:t+.04,dur:.12,g:.05,f:3600,q:2})},
+  // a leg joint flexing: a dry, rising creak, like an old hinge made of horn
+  spCreak(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:.8,ref:3.5});const f=rand(120,170);
+    tone(d,{type:'sawtooth',f,f2:f*rand(1.6,2.1),dur:rand(.25,.4),a:.05,g:.035});nz(d,{dur:.35,a:.05,g:.1,f:rand(650,800),f2:rand(1000,1250),q:14})},
+  // one leg tip touching down: a hard, hollow tick of shell on concrete
+  spTap(pos){if(!AU.ready)return;const d=dest(pos,{rev:.35,gain:.65,ref:3});nz(d,{dur:.02,g:.32,f:4200,q:6});tone(d,{type:'triangle',f:950,f2:620,dur:.04,g:.08});tone(d,{f:120,f2:70,dur:.07,g:.14})},
+  // the legs coming down hard: a heavy thud and the shell cracking against the floor
   spStomp(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.5,ref:8,roll:.7});tone(d,{f:70,f2:30,dur:.55,a:.004,g:.8});nz(d,{dur:.3,a:.003,g:.55,type:'lowpass',f:500,f2:120});
-    for(let i=0;i<4;i++)nz(d,{t:i*.045,dur:.06,g:.3,f:1300,q:2})},
+    for(let i=0;i<5;i++)nz(d,{t:i*.035,dur:.03,g:.32,f:rand(2400,3600),q:4});tone(d,{type:'triangle',t:.02,f:340,f2:150,dur:.12,g:.12})},
   // the auditor's scanner: a short two-note beep
   audBeep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:.7,ref:3});tone(d,{type:'square',f:1860,dur:.07,g:.12});tone(d,{type:'square',f:1240,t:.11,dur:.09,g:.12})},
   // the error tone when it marks someone, loud and wrong
@@ -40,6 +51,8 @@ function animSpider(v,dt,time){const g=v.g,u=g.userData,a=v.a,ry=g.rotation.y,c=
   const vx=(gx-(v.px??gx))/Math.max(dt,1e-3),vz=(gz-(v.pz??gz))/Math.max(dt,1e-3);v.px=gx;v.pz=gz;
   const low=gy<2.6,stomp=a===3;v.stT=stomp?(v.stT||0)+dt:0;const near=Math.hypot(gx-ME.x,gz-ME.z)<22;
   let stepping=u.legs.filter(l=>l.st>=0).length;
+  // its mandibles work while it stands and listens (and now and then as it walks)
+  if(near&&!stomp){v.chT=(v.chT??rand(1,3))-dt*(a===0?1:.4);if(v.chT<=0){v.chT=rand(2.2,5.5);SFX.spChitter({x:gx,y:gy-.3,z:gz})}}
   u.body.rotation.z=damp(u.body.rotation.z,stomp?Math.sin(v.stT*18)*.06:0,10,dt);u.body.position.y=stomp?Math.abs(Math.sin(v.stT*9))*-.15:damp(u.body.position.y,0,6,dt);
   u.head.rotation.x=damp(u.head.rotation.x,a===0?Math.sin(time*.8)*.15:a===2?.2:.05,4,dt);u.head.rotation.y=a===0?Math.sin(time*.5+v.ph)*.3:damp(u.head.rotation.y,0,3,dt);
   u.legs.forEach((l,i)=>{const R=low?2.6:4.1,lead=.32;
@@ -47,7 +60,7 @@ function animSpider(v,dt,time){const g=v.g,u=g.userData,a=v.a,ry=g.rotation.y,c=
     if(!l.foot){l.foot={x:ix,z:iz}}
     // a leg whose foot would come down on a rack (or anything else) folds up into the body, and they all fold in to crouch
     const blocked=insideAny(ix,iz,.12)||insideAny(l.foot.x,l.foot.z,.05);l.r=damp(l.r,low?.72:blocked?1:0,blocked?7:4,dt);
-    if(l.st<0&&!stomp){const far=Math.hypot(ix-l.foot.x,iz-l.foot.z);if((far>1.25||(blocked&&far>.3))&&stepping<4&&(i%2)===((Math.floor(time*3.3)+(i>>1))%2)){l.st=0;l.from={...l.foot};stepping++}}
+    if(l.st<0&&!stomp){const far=Math.hypot(ix-l.foot.x,iz-l.foot.z);if((far>1.25||(blocked&&far>.3))&&stepping<4&&(i%2)===((Math.floor(time*3.3)+(i>>1))%2)){l.st=0;l.from={...l.foot};stepping++;if(near&&Math.random()<.12)SFX.spCreak({x:gx,y:gy,z:gz})}}
     let fy=0;if(l.st>=0){l.st+=dt/(a===2?.2:.3);const k=Math.min(1,l.st);l.foot.x=lerp(l.from.x,ix,k);l.foot.z=lerp(l.from.z,iz,k);fy=Math.sin(k*Math.PI)*.9;
       if(k>=1){l.st=-1;if(near&&l.r<.5&&Math.random()<.5)SFX.spTap({x:l.foot.x,y:0,z:l.foot.z})}}
     if(stomp){fy=Math.max(0,Math.sin(v.stT*9+(i%2)*Math.PI))*1.5;l.foot.x=damp(l.foot.x,ix,6,dt);l.foot.z=damp(l.foot.z,iz,6,dt)}

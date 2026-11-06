@@ -290,7 +290,7 @@ function syncMonsters(dt,time){const live=new Set();
     if(!v){const g=makeMonster2(m)||(m.ty===0?makeMimic(m.k,m.v,m.f):m.ty===1?makeLurker():m.ty===3?makeCrawler():makeStalker());if(m.ty===1&&m.k===1)coldify(g);g.position.set(m.x,m.y,m.z);g.rotation.y=m.ry;ROOT.add(g);
       v={g,ty:m.ty,lp:null,ph:Math.random()*10,a:0,fade:1};MV.set(m.id,v)}
     if(AU.ready&&!v.lp&&(m.ty===1||m.ty===2))v.lp=loop(m.ty===1?'breath':'whisper',{x:m.x,y:1.5,z:m.z},m.ty===1?1.3:1);
-    if(AU.ready&&loopFor(m)){const [kind,vol]=loopFor(m);if(!v.l2)v.l2=loop(kind,{x:m.x,y:1,z:m.z},vol);v.l2.pos({x:v.g.position.x,y:v.g.position.y+1,z:v.g.position.z});v.l2.set(m.ty===12||m.a===2?1:0,.15)}
+    if(AU.ready&&loopFor(m)){const [kind,vol]=loopFor(m);if(!v.l2)v.l2=loop(kind,{x:m.x,y:1,z:m.z},vol);v.l2.pos({x:v.g.position.x,y:v.g.position.y+1,z:v.g.position.z});v.l2.set(m.ty===12||m.a===2?1:m.ty===15?.45:0,.15)}
     if(AU.ready&&m.ty===1){if(!v.gr)v.gr=loop('growl',{x:m.x,y:1.6,z:m.z},1.4);v.gr.pos({x:v.g.position.x,y:1.6,z:v.g.position.z});v.gr.set(m.a===1?1:0,.12)} // growls for as long as the light is on it
     const g=v.g;if(Math.hypot(g.position.x-m.x,g.position.z-m.z,g.position.y-m.y)>3){g.position.set(m.x,m.y,m.z)}
     else{g.position.x=damp(g.position.x,m.x,15,dt);g.position.z=damp(g.position.z,m.z,15,dt);g.position.y=damp(g.position.y,m.y,15,dt)}
@@ -423,6 +423,8 @@ function big(a,b,d=4){const el=$('big');el.innerHTML=`${a}<small>${b||''}</small
 function fmtClock(t){let mins=Math.floor(t/HOUR*60);if(mins<0)mins+=1440;const h=Math.floor(mins/60)%24,m=mins%60;return`${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`}
 const mmss=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(bigT<=0)$('big').style.opacity=0;
+  // on a short screen (a phone held sideways) the big night card and a message can land on top of each other: put the message just under the card
+  {const te=$('toast'),be=$('big');if(toastT>0&&bigT>0){if(!te.style.top){const b=be.getBoundingClientRect(),t=te.getBoundingClientRect();if(t.bottom>b.top&&t.top<b.bottom)te.style.top=Math.round(b.bottom+8)+'px'}}else if(te.style.top&&bigT<=0)te.style.top=''}
   const me=S.players[NET.myId];
   $('hpb').firstChild.style.width=(me?me.hp:0)+'%';$('batb').firstChild.style.width=ME.bat+'%';$('stb').firstChild.style.width=ME.stam+'%';
   $('batb').style.opacity=ME.charging?(Math.sin(performance.now()/90)>0?1:.5):1;

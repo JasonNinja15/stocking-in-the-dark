@@ -277,7 +277,7 @@ function makeMonster2(m){if(m.ty===17)return makeJanitor();if(m.ty===15)return m
     if(others.length){const o=others[m.k%others.length],tag=makeTag(o.name,o.col||'#ccc');tag.position.y=2.1;g.add(tag)}return g}
   return null}
 function coldify(g){g.traverse(o=>{if(o.isMesh&&o.material===MAT.lurkSkin)o.material=MAT.coldSkin})}
-function loopFor(m){return m.ty===13?['breath',.9]:m.ty===14?['whisper',.5]:m.ty===5?['crinkle',1.2]:m.ty===6?['ice',1]:m.ty===12?['flutter',.6]:null}
+function loopFor(m){return m.ty===13?['breath',.9]:m.ty===14?['whisper',.5]:m.ty===5?['crinkle',1.2]:m.ty===6?['ice',1]:m.ty===12?['flutter',.6]:m.ty===15?['spBreath',1.1]:null}
 function animMonster2(v,dt,time){if(v.ty>=15){animMonster3(v,dt,time);return}const u=v.g.userData,t=time+v.ph,a=v.a;
   if(v.ty===4){const mv=a===2||a===4,sp=a===4?7:4.2;const p0=v.gp||0;v.gp=p0+(mv?dt*sp:0);
     u.legs.forEach((l,i)=>l.rotation.x=mv?Math.sin(v.gp+i*Math.PI)*.4:0);
@@ -453,8 +453,8 @@ const ADD_INTRO={fork:'The forklift is parked by the dock, just east of where yo
   conv:'The sorting conveyor is on the south wall, behind you as you start. Set its lever to the colour of the next parcel to reach the end.',
   base:'The freight elevator is on the west wall, past Bay A. Ten damaged returns wait in the basement. They can\'t be shelved: feed them to the shredder down there.',
   gen:'The generator is on the west wall near the roof ladder. If the power fails, it keeps the lights and the charger running while it has fuel.',
-  amrs:'The AMR-S pad is on the dock, west of the charger. Put a box on it (E) and the robot shelves it on a free bottom or middle shelf.',
-  amrl:'The AMR-L pad is on the dock, east of the charger. Set a pallet on it with the forklift (G) and the robot puts it on a free top shelf.',
+  amrs:'The AMR-S robot works on its own: it fetches loose boxes off the floor and from docked trucks and shelves them on the furthest free low shelf. You can also put a box on its pad (E), on the dock west of the charger.',
+  amrl:'The AMR-L robot fetches pallets on its own, off the floor and from the truck doors, and lifts them onto the furthest free top shelf. The forklift can also set one on its pad (G), east of the charger.',
   heat:'The heater is high on the east wall. The warehouse now takes an extra night to go cold between spells.',
   bayc:'Bay C is open in the north-west corner. Its refrigerated trucks bring more boxes, and more frozen crates if you have cold storage.'};
 function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const fresh=(S.adds||[]).filter(k=>!seen.has(k));if(!fresh.length)return;
@@ -478,7 +478,7 @@ function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)retu
   const byPrice=list=>list.sort((a,b)=>a.g-b.g||priceOf(a.k)-priceOf(b.k)).map(x=>x.h).join('');
   const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>({k,g:0,h:k==='cart'?card(k,it,nCart>=maxCart,`<div class="tag">${crew>1?'the crew has':'you have'} ${nCart} of ${maxCart}${crew>1?'':' (two in a crew)'}</div>`)
     :card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)}));
-  $('shopAdds').innerHTML=byPrice(Object.entries(ADDS).map(([k,it])=>({k,g:0,h:card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)})).concat(teamShop));
+  $('shopAdds').innerHTML=byPrice(Object.entries(ADDS).filter(([k,it])=>owned(k)||!it.night||S.night+1>=it.night).map(([k,it])=>({k,g:0,h:card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)})).concat(teamShop));
   $('shopItems').innerHTML=byPrice(Object.entries(SHOP).filter(([k,it])=>!it.team&&(!it.needs||me.up[it.needs])).map(([k,it])=>{const have=it.once?!!me.up[k]:(me.inv[k]||0);
     const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
     return{k,g:it.once?0:1,h:card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${where?` · ${where}`:''}</div>`:where?`<div class="tag">${where}</div>`:'')}}));

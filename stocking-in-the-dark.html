@@ -1586,6 +1586,8 @@ function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.create
   else if(kind==='belt'){const f=filt('lowpass',300);osc('sawtooth',48).connect(f);amp(f,.4);const n=filt('bandpass',900,3);ns().connect(n);const a=amp(n,.15);lfoTo(a.gain,6,.1,'square')}
   else if(kind==='lift'){const f=filt('lowpass',220);osc('sawtooth',62).connect(f);osc('sawtooth',63.5).connect(f);amp(f,.5);const n=filt('bandpass',500,2);ns().connect(n);amp(n,.2)}
   else if(kind==='gen'){const f=filt('lowpass',380);osc('sawtooth',30).connect(f);osc('square',60).connect(f);const a=amp(f,.4);lfoTo(a.gain,15,.12);const n=filt('lowpass',600);ns().connect(n);amp(n,.15)}
+  else if(kind==='spBreath'){ // the long-legged thing breathing through the holes along its body: a slow, airy wheeze over a deep drone
+    const f=filt('bandpass',1900,2.2);ns().connect(f);const a=amp(f,.22);lfoTo(a.gain,.42,.2);lfoTo(f.frequency,.21,500);const l=filt('lowpass',70);osc('sawtooth',29).connect(l);const b=amp(l,.5);lfoTo(b.gain,.42,.22)}
   else if(kind==='cart'){ // casters on concrete: a fast clatter over a low rumble
     const f=filt('bandpass',2300,2.5);ns().connect(f);const a=amp(f,.22);lfoTo(a.gain,21,.2,'square');lfoTo(a.gain,3.3,.08);const l=filt('lowpass',240);ns().connect(l);const b=amp(l,.55);lfoTo(b.gain,8,.2,'square')}
   else if(kind==='flare'){const f=filt('bandpass',3500,.8);ns().connect(f);const a=amp(f,.4);lfoTo(a.gain,9,.12)}
@@ -2015,8 +2017,8 @@ const ADDS={
   bayc:{name:'Bay C',price:500,q:10,time:60,desc:'A third dock, for refrigerated trailers.'},
   heat:{name:'Warehouse Heater',price:250,q:0,time:0,desc:'A gas heater high on the east wall. The warehouse holds its warmth an extra night between cold spells.'},
   medkit:{name:'Medkit Upgrade',price:300,q:0,time:0,desc:'A bigger first-aid cabinet: the crew can buy a third first-aid refill each night.'},
-  amrs:{name:'Autonomous Mobile Robot S',price:2000,q:0,time:0,desc:'A small robot with a pad on the dock near the bays. Put a box on the pad and it drives it to a free bottom or middle shelf and shelves it, one box at a time. Slow, and it stops for anyone in its way.'},
-  amrl:{name:'Autonomous Mobile Robot L',price:5000,q:0,time:0,desc:'A big pallet robot with a pad on the dock. Set a pallet on the pad with the forklift and it carries it to a free top shelf and lifts it in, one pallet at a time. Trucks bring pallets a little more often.'}};
+  amrs:{name:'Autonomous Mobile Robot S',price:2000,q:0,time:0,night:7,desc:'A small robot that shelves boxes on its own: it fetches loose boxes off the floor and from docked trucks, or takes one you put on its pad, and shelves each on the furthest free bottom or middle shelf. Slow, one box at a time, and it stops for anyone in its way.'},
+  amrl:{name:'Autonomous Mobile Robot L',price:5000,q:0,time:0,night:9,desc:'A big pallet robot that fetches pallets on its own, off the floor or from the truck doors (or takes one the forklift sets on its pad), and lifts each onto the furthest free top shelf. One pallet at a time. Trucks bring pallets a little more often.'}};
 const SHOP={
   fl2:{name:'Better flashlight',price:150,once:true,desc:'Brighter, wider beam. The battery lasts twice as long.'},
   shake:{name:'Shake flashlight',price:100,once:true,key:'R',desc:'Hold R to shake your flashlight and charge it anywhere. Anything listening hears it.'},
@@ -2059,6 +2061,7 @@ function addExtras(){let q=0,t=0;for(const k of S.adds){q+=ADDS[k].q;t+=ADDS[k].
 function nightSetup(){const ex=addExtras();S.extra=ex.t;S.t=-S.extra;
   S.aidLeft=2+(S.aidBonus||0);S.aidBonus=0;
   S.lamps=LAMPS.map((L,i)=>L.dead&&!S.fixed.includes(i)?0:1);
+  for(const b of S.boxes)if(b.amr)b.amr=0; // (whatever a robot had on its deck at 6 AM is just a box on the floor now)
   S.parcels=[];S.pallets=[];S.flares=[];S.cold={door:0,open:false,t:0};S.conv={sel:S.conv?S.conv.sel:0,next:12,jam:false};
   S.elev={lvl:0,st:'idle',t:0,gate:1,stall:false,stallDone:false,hl:0,ht:0,pass:[],step:0};S.gen={fuel:100,out:false};S.yard=null;S.amr=['s','l'].filter(k=>owned('amr'+k)).map(k=>({k,x:AMR[k].x,z:AMR[k].z,ry:Math.PI,st:'home',load:-1,slot:-1,t:0,path:null,rep:0,stop:0}));for(const b of S.boxes)if(b.amr){b.amr=1;b.x=AMR.s.x;b.z=AMR.s.z;b.y=owned('amrs')?AMR.s.deck:0}S.rg=null;S.stash=true;HOST.rgT=0;S.chill=null;HOST.frzT=0;HOST.chillAt=coldNight(S.night)?(SHIFT_END-S.extra)/2:Infinity;S.paN=0;S.outage=false;
   HOST.outageAt=S.night>=3&&Math.random()<Math.min(.6,.22+.07*S.night)*diffEv()?rand(SHIFT_END*.12,SHIFT_END*.8):1e9;
@@ -2086,6 +2089,7 @@ function shopAct(pid,a){const p=S.players[pid];if(!p)return;
   if(a.a!=='buy'||S.phase!=='shop')return;const k=a.k;
   const no=m=>emit({e:'msg',m,p:pid});
   if(isTeam(k)){const it=ADDS[k]||SHOP[k];if(ADDS[k]&&owned(k))return no('Already built.');
+    if(it.night&&S.night+1<it.night&&!(ADDS[k]&&owned(k)))return no(`Not sold until night ${it.night}.`);
     if(k==='cart'&&(S.carts||[]).length>=cartMax())return no(cartMax()>1?'The crew already has two carts.':'You already have a cart.');
     if(k==='aid'&&(S.aidBonus||0)>=aidCap())return no('The cabinet is already stocked for tomorrow.');
     const tv=S.tvotes||(S.tvotes={}),v=tv[k]||(tv[k]=[]);if(v.includes(pid)){tv[k]=v.filter(x=>x!==pid);return}
@@ -2378,13 +2382,36 @@ function fixVent(p){if(!S.chill||!nearPos(p,VENT.x,VENT.z,3.4))return;const was=
 // Each waits on its pad on the dock. Load it (a box on the S pad by hand, a pallet on the L pad with the forklift) and
 // it picks a free shelf (bottom or middle for S, top for L), drives there slowly down the aisles, lifts the load in,
 // shelves it, and comes back. One load at a time. It stops for anyone standing in front of it.
-const AMR_ST=['home','go','lift','back'];
-const AMR_LIFT=1.8;
+// With nothing on its pad, each robot also goes looking for work on its own: the small one fetches a loose box off the
+// floor or from just inside a docked trailer, the big one a pallet off the floor or from a trailer door. Either way
+// it shelves the load on the free shelf furthest from its pad, so the near shelves stay free for the crew.
+const AMR_ST=['home','go','lift','back','fetch','grab'];
+const AMR_LIFT=1.8,AMR_GRAB=1.1;
 const amrAt=A=>(S.amr||[]).some(r=>r.k===(A===AMR.s?'s':'l')&&r.st==='home');
-// a free shelf for a robot's load, nearest the pad first, and the aisle spot in front of it
-function amrSlot(r){const A=AMR[r.k],taken=new Set((S.amr||[]).map(o=>o.slot));let best=null,bd=1e9;
+// a free shelf for a robot's load, furthest from its pad, and the aisle spot in front of it
+function amrSlot(r){const A=AMR[r.k],taken=new Set((S.amr||[]).map(o=>o.slot));let best=null,bd=-1;
   for(const s of SLOTS){if(s.old||s.cold||!slotOn(s)||s.box!==-1||taken.has(s.id))continue;if(r.k==='s'?s.y>2:s.y<2)continue;
-    const d=Math.hypot(s.x-A.x,s.z-A.z);if(d<bd){const ap=amrAisle(s,r.x,r.z);if(ap){bd=d;best={s,ap}}}}return best}
+    const d=Math.hypot(s.x-A.x,s.z-A.z);if(d>bd){const ap=amrAisle(s,r.x,r.z);if(ap){bd=d;best={s,ap}}}}return best}
+// where a robot parks to reach into a docked trailer at bay i
+const amrDoor=i=>({x:BAYS[i].x,z:WH.z0+1.5});
+const amrFree=(x,z)=>{if(x<WH.x0+1||x>WH.x1-1||z<WH.z0+1||z>WH.z1-1)return false;const [i,j]=cellOf(x,z);return!GRID.blk[j*GRID.nx+i]};
+// something worth fetching: the nearest loose load on the floor, or the front of a docked trailer (never frozen crates
+// or returns, never a load another robot or a person already has)
+function amrFind(r){const A=AMR[r.k],busy=new Set((S.amr||[]).filter(o=>o!==r&&o.ft).map(o=>o.ft.kind+o.ft.id));let best=null,bd=1e9;
+  const consider=(ft,x,z)=>{if(busy.has(ft.kind+ft.id))return;const d=Math.hypot(x-r.x,z-r.z);if(d<bd){bd=d;best={...ft,x,z}}};
+  const docked=i=>bayOn(i)&&S.trucks[i].st===2&&!S.trucks[i].reject&&S.trucks[i].door>=.75;
+  if(r.k==='s'){for(const b of S.boxes){if(b.amr||b.fz||b.ret||b.h)continue;
+      if(b.st===3&&b.y<.05&&amrFree(b.x,b.z)&&!inCold(b))consider({kind:'floor',id:b.id},b.x,b.z);}
+    BAYS.forEach((B,i)=>{if(!docked(i))return;const front=S.boxes.filter(b=>b.st===0&&b.bay===i&&!b.fz&&!b.ret&&!b.amr).sort((a,b)=>b.z-a.z||b.y-a.y)[0];
+      if(front){const d=amrDoor(i);consider({kind:'truck',id:front.id,bay:i},d.x,d.z)}})}
+  else{for(const p of S.pallets){if(p.amr||p.st===2||p.st===1)continue;const f=S.fork;if(f&&f.pal===p.id)continue;
+      if(p.st===3&&amrFree(p.x,p.z))consider({kind:'floor',id:p.id},p.x,p.z);
+      else if(p.st===0&&docked(p.bay)){const d=amrDoor(p.bay);consider({kind:'truck',id:p.id,bay:p.bay},d.x,d.z)}}}
+  return best}
+// is what it set out for still there to take?
+function amrStill(r){const ft=r.ft;if(!ft)return null;
+  if(r.k==='s'){const b=S.boxes.find(x=>x.id===ft.id);if(!b||b.amr||b.h||b.st===1||b.st===2||b.st===4)return null;if(ft.kind==='floor'?b.st!==3:b.st!==0)return null;return b}
+  const p=S.pallets.find(x=>x.id===ft.id);if(!p||p.amr||p.st===1||p.st===2||(S.fork&&S.fork.pal===p.id))return null;if(ft.kind==='floor'?p.st!==3:p.st!==0)return null;return p}
 function amrAisle(s,fx,fz){const free=(x,z)=>{const [i,j]=cellOf(x,z);return!GRID.blk[j*GRID.nx+i]&&x>WH.x0+1&&x<WH.x1-1&&z>WH.z0+1&&z<WH.z1-1};
   const c=[[s.x,s.z-1.4],[s.x,s.z+1.4]].filter(([x,z])=>free(x,z)).sort((a,b)=>Math.hypot(a[0]-fx,a[1]-fz)-Math.hypot(b[0]-fx,b[1]-fz));return c[0]?{x:c[0][0],z:c[0][1]}:null}
 function amrDrive(r,tx,tz,sp,dt){r.rep-=dt;if(r.rep<=0||!r.path){r.rep=.8;r.path=astar(r.x,r.z,tx,tz)}let px=tx,pz=tz;
@@ -2404,8 +2431,22 @@ function amrUpdate(dt){for(const r of S.amr||[]){const A=AMR[r.k];
   case 'home':{r.ry=angLerp(r.ry,Math.PI,dt*2);
     // something waiting on the pad?
     const w=r.k==='s'?S.boxes.find(b=>b.st===3&&b.amr===1&&Math.hypot(b.x-A.x,b.z-A.z)<1):S.pallets.find(p=>p.st===3&&p.amr===1&&Math.hypot(p.x-A.x,p.z-A.z)<1.2);
-    if(!w)break;const sl=amrSlot(r);if(!sl){if((r.t-=dt)<=0){r.t=8;emit({e:'msg',m:`${A.name}: no free ${r.k==='s'?'lower':'top'} shelf to take it to.`})}break}
+    if(!w){ // nothing on the pad: go and find something, every couple of seconds while there's a free shelf for it
+      if((r.look=(r.look||0)-dt)>0||S.phase!=='play')break;r.look=2;if(!amrSlot(r))break;const ft=amrFind(r);if(!ft)break;
+      r.ft=ft;r.path=null;r.st='fetch';r.t=0;emit({e:'amrGo',k:r.k,x:r.x,z:r.z});break}
+    const sl=amrSlot(r);if(!sl){if((r.t-=dt)<=0){r.t=8;emit({e:'msg',m:`${A.name}: no free ${r.k==='s'?'lower':'top'} shelf to take it to.`})}break}
     w.amr=2;w.y=A.deck;r.load=w.id;r.slot=sl.s.id;r.goal=sl.ap;r.path=null;r.st='go';if(r.k==='s')S.bver++;emit({e:'amrGo',k:r.k,x:r.x,z:r.z});break}
+  // off to pick something up: drive up to it (or to the trailer door), then load it on the deck
+  case 'fetch':{const it=amrStill(r);if(!it){r.ft=null;r.st='back';r.path=null;break}
+    const reach=r.ft.kind==='truck'?.3:(r.k==='l'?1.1:.75);if(amrDrive(r,r.ft.x,r.ft.z,A.speed,dt)<reach){r.st='grab';r.t=0;r.ry=r.ft.kind==='truck'?Math.PI:r.ry}
+    if((r.t+=dt)>60){r.ft=null;r.st='back';r.path=null}break}
+  case 'grab':{const it=amrStill(r);if(!it){r.ft=null;r.st='back';break}r.t+=dt;if(r.t<AMR_GRAB)break;
+    const sl=amrSlot(r);if(!sl){r.ft=null;r.st='back';break}
+    if(r.k==='s'){const b=it,bay=b.st===0?b.bay:-1;
+      if(b.m){r.ft=null;r.st='back';unboxMimic(b,'run');emit({e:'amrBeep',x:r.x,z:r.z});break} // a mimic: it jumps off the deck and runs
+      b.st=3;b.amr=2;b.h='';b.s=-1;b.x=r.x;b.z=r.z;b.y=A.deck;delete b.bay;if(bay>=0)settleTruck(bay);S.bver++}
+    else{const p=it;p.st=3;p.amr=2;p.x=r.x;p.z=r.z;p.y=A.deck;p.ry=r.ry}
+    emit({e:'pick',p:'',x:r.x,y:A.deck,z:r.z});r.load=it.id;r.slot=sl.s.id;r.goal=sl.ap;r.path=null;r.ft=null;r.st='go';r.t=0;break}
   case 'go':{if(!load){r.st='back';break}carry();const s=SLOTS[r.slot];
     if(s.box!==-1){const sl=amrSlot(r);if(!sl){r.st='back';break}r.slot=sl.s.id;r.goal=sl.ap;r.path=null} // someone filled it first
     if(amrDrive(r,r.goal.x,r.goal.z,A.speed,dt)<.25){r.st='lift';r.t=0;r.ry=Math.atan2(s.x-r.x,s.z-r.z)}break}
@@ -3357,7 +3398,7 @@ function syncMonsters(dt,time){const live=new Set();
     if(!v){const g=makeMonster2(m)||(m.ty===0?makeMimic(m.k,m.v,m.f):m.ty===1?makeLurker():m.ty===3?makeCrawler():makeStalker());if(m.ty===1&&m.k===1)coldify(g);g.position.set(m.x,m.y,m.z);g.rotation.y=m.ry;ROOT.add(g);
       v={g,ty:m.ty,lp:null,ph:Math.random()*10,a:0,fade:1};MV.set(m.id,v)}
     if(AU.ready&&!v.lp&&(m.ty===1||m.ty===2))v.lp=loop(m.ty===1?'breath':'whisper',{x:m.x,y:1.5,z:m.z},m.ty===1?1.3:1);
-    if(AU.ready&&loopFor(m)){const [kind,vol]=loopFor(m);if(!v.l2)v.l2=loop(kind,{x:m.x,y:1,z:m.z},vol);v.l2.pos({x:v.g.position.x,y:v.g.position.y+1,z:v.g.position.z});v.l2.set(m.ty===12||m.a===2?1:0,.15)}
+    if(AU.ready&&loopFor(m)){const [kind,vol]=loopFor(m);if(!v.l2)v.l2=loop(kind,{x:m.x,y:1,z:m.z},vol);v.l2.pos({x:v.g.position.x,y:v.g.position.y+1,z:v.g.position.z});v.l2.set(m.ty===12||m.a===2?1:m.ty===15?.45:0,.15)}
     if(AU.ready&&m.ty===1){if(!v.gr)v.gr=loop('growl',{x:m.x,y:1.6,z:m.z},1.4);v.gr.pos({x:v.g.position.x,y:1.6,z:v.g.position.z});v.gr.set(m.a===1?1:0,.12)} // growls for as long as the light is on it
     const g=v.g;if(Math.hypot(g.position.x-m.x,g.position.z-m.z,g.position.y-m.y)>3){g.position.set(m.x,m.y,m.z)}
     else{g.position.x=damp(g.position.x,m.x,15,dt);g.position.z=damp(g.position.z,m.z,15,dt);g.position.y=damp(g.position.y,m.y,15,dt)}
@@ -3490,6 +3531,8 @@ function big(a,b,d=4){const el=$('big');el.innerHTML=`${a}<small>${b||''}</small
 function fmtClock(t){let mins=Math.floor(t/HOUR*60);if(mins<0)mins+=1440;const h=Math.floor(mins/60)%24,m=mins%60;return`${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`}
 const mmss=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 function hud(dt){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0;bigT-=dt;if(bigT<=0)$('big').style.opacity=0;
+  // on a short screen (a phone held sideways) the big night card and a message can land on top of each other: put the message just under the card
+  {const te=$('toast'),be=$('big');if(toastT>0&&bigT>0){if(!te.style.top){const b=be.getBoundingClientRect(),t=te.getBoundingClientRect();if(t.bottom>b.top&&t.top<b.bottom)te.style.top=Math.round(b.bottom+8)+'px'}}else if(te.style.top&&bigT<=0)te.style.top=''}
   const me=S.players[NET.myId];
   $('hpb').firstChild.style.width=(me?me.hp:0)+'%';$('batb').firstChild.style.width=ME.bat+'%';$('stb').firstChild.style.width=ME.stam+'%';
   $('batb').style.opacity=ME.charging?(Math.sin(performance.now()/90)>0?1:.5):1;
@@ -3978,7 +4021,7 @@ function makeMonster2(m){if(m.ty===17)return makeJanitor();if(m.ty===15)return m
     if(others.length){const o=others[m.k%others.length],tag=makeTag(o.name,o.col||'#ccc');tag.position.y=2.1;g.add(tag)}return g}
   return null}
 function coldify(g){g.traverse(o=>{if(o.isMesh&&o.material===MAT.lurkSkin)o.material=MAT.coldSkin})}
-function loopFor(m){return m.ty===13?['breath',.9]:m.ty===14?['whisper',.5]:m.ty===5?['crinkle',1.2]:m.ty===6?['ice',1]:m.ty===12?['flutter',.6]:null}
+function loopFor(m){return m.ty===13?['breath',.9]:m.ty===14?['whisper',.5]:m.ty===5?['crinkle',1.2]:m.ty===6?['ice',1]:m.ty===12?['flutter',.6]:m.ty===15?['spBreath',1.1]:null}
 function animMonster2(v,dt,time){if(v.ty>=15){animMonster3(v,dt,time);return}const u=v.g.userData,t=time+v.ph,a=v.a;
   if(v.ty===4){const mv=a===2||a===4,sp=a===4?7:4.2;const p0=v.gp||0;v.gp=p0+(mv?dt*sp:0);
     u.legs.forEach((l,i)=>l.rotation.x=mv?Math.sin(v.gp+i*Math.PI)*.4:0);
@@ -4154,8 +4197,8 @@ const ADD_INTRO={fork:'The forklift is parked by the dock, just east of where yo
   conv:'The sorting conveyor is on the south wall, behind you as you start. Set its lever to the colour of the next parcel to reach the end.',
   base:'The freight elevator is on the west wall, past Bay A. Ten damaged returns wait in the basement. They can\'t be shelved: feed them to the shredder down there.',
   gen:'The generator is on the west wall near the roof ladder. If the power fails, it keeps the lights and the charger running while it has fuel.',
-  amrs:'The AMR-S pad is on the dock, west of the charger. Put a box on it (E) and the robot shelves it on a free bottom or middle shelf.',
-  amrl:'The AMR-L pad is on the dock, east of the charger. Set a pallet on it with the forklift (G) and the robot puts it on a free top shelf.',
+  amrs:'The AMR-S robot works on its own: it fetches loose boxes off the floor and from docked trucks and shelves them on the furthest free low shelf. You can also put a box on its pad (E), on the dock west of the charger.',
+  amrl:'The AMR-L robot fetches pallets on its own, off the floor and from the truck doors, and lifts them onto the furthest free top shelf. The forklift can also set one on its pad (G), east of the charger.',
   heat:'The heater is high on the east wall. The warehouse now takes an extra night to go cold between spells.',
   bayc:'Bay C is open in the north-west corner. Its refrigerated trucks bring more boxes, and more frozen crates if you have cold storage.'};
 function introAdds(){const seen=GAME.seenAdds||(GAME.seenAdds=new Set());const fresh=(S.adds||[]).filter(k=>!seen.has(k));if(!fresh.length)return;
@@ -4179,7 +4222,7 @@ function renderShop(force){if(!S)return;const me=S.players[NET.myId];if(!me)retu
   const byPrice=list=>list.sort((a,b)=>a.g-b.g||priceOf(a.k)-priceOf(b.k)).map(x=>x.h).join('');
   const teamShop=Object.entries(SHOP).filter(([k,it])=>it.team).map(([k,it])=>({k,g:0,h:k==='cart'?card(k,it,nCart>=maxCart,`<div class="tag">${crew>1?'the crew has':'you have'} ${nCart} of ${maxCart}${crew>1?'':' (two in a crew)'}</div>`)
     :card(k,it,false,`<div class="tag">the cabinet has ${S.aidBonus||0} extra tomorrow (${aidCap()} at most)</div>`)}));
-  $('shopAdds').innerHTML=byPrice(Object.entries(ADDS).map(([k,it])=>({k,g:0,h:card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)})).concat(teamShop));
+  $('shopAdds').innerHTML=byPrice(Object.entries(ADDS).filter(([k,it])=>owned(k)||!it.night||S.night+1>=it.night).map(([k,it])=>({k,g:0,h:card(k,it,owned(k),`<div class="tag">${it.q||it.time?`+${it.q} boxes to quota · +${it.time} s of shift`:'no extra work'}</div>`)})).concat(teamShop));
   $('shopItems').innerHTML=byPrice(Object.entries(SHOP).filter(([k,it])=>!it.team&&(!it.needs||me.up[it.needs])).map(([k,it])=>{const have=it.once?!!me.up[k]:(me.inv[k]||0);
     const where=!it.key?'':typeof it.key==='number'?'on the hotbar':`key ${it.key}`;
     return{k,g:it.once?0:1,h:card(k,it,it.once&&have,!it.once&&have?`<div class="tag">you have ${have}${where?` · ${where}`:''}</div>`:where?`<div class="tag">${where}</div>`:'')}}));
@@ -4215,15 +4258,26 @@ function grabNote(){if(!ME.grab)return"";const gm=grabber();if(gm&&gm.ty===17)re
   return`<span class="warnline">IT HAS YOU</span><br>Mash <kbd>E</kbd> to break free <span class="meter"><i style="width:${Math.round(k*100)}%"></i></span>`}
 // ===================================================================== the two later creatures (models, animation, sound)
 Object.assign(SFX,{
-  // the long-legged thing hears something: one long, very deep voice, more chest than throat
-  spVoice(pos){if(!AU.ready)return;const d=dest(pos,{rev:.7,gain:1.5,ref:7,roll:.8});
-    voice(d,{dur:2.6,f0:46,f1:31,jit:.03,vib:.025,vibF:3,rasp:14,raspD:.55,v:'oo',v2:'aw',noise:.12,sub:1,drive:3,g:.85,a:.25,rel:1});
-    tone(d,{f:38,f2:27,dur:2.4,a:.3,g:.45});nz(d,{t:.1,dur:2.2,a:.4,g:.12,type:'lowpass',f:180,f2:90})},
-  // one leg tip touching down
-  spTap(pos){if(!AU.ready)return;const d=dest(pos,{rev:.35,gain:.6,ref:3});nz(d,{dur:.05,g:.35,f:1500,q:3});tone(d,{f:160,f2:90,dur:.08,g:.18})},
-  // the legs coming down hard
+  // The long-legged thing is no person and has no voice. Everything it makes is shell and air: a rasp of plates
+  // rubbed together (the way crickets call, but the size of a car), mandibles clacking, joints creaking, and air
+  // wheezing in and out of holes along its body.
+  // It hears something: the plates rasp faster and higher over a deep hollow drone from the body, then three clacks.
+  spVoice(pos){if(!AU.ready)return;const d=dest(pos,{rev:.7,gain:1.6,ref:7,roll:.8});
+    let t=0;for(let i=0;i<64;i++){const k=i/64;t+=lerp(.034,.017,k)*rand(.85,1.15);nz(d,{t,dur:.013,a:.001,g:(.16+.22*Math.sin(k*Math.PI))*rand(.7,1),f:lerp(2100,3300,k)*rand(.9,1.1),q:7})}
+    tone(d,{type:'sawtooth',f:33,f2:44,dur:t+.3,a:.25,g:.22});tone(d,{type:'triangle',f:66,f2:88,dur:t+.2,a:.3,g:.12}); // the body resonating like a drum
+    nz(d,{dur:t,a:.3,g:.07,type:'highpass',f:4800}); // breath hissing out of the spiracles
+    for(let i=0;i<3;i++){const c=t+.12+i*.13;nz(d,{t:c,dur:.03,g:.55,f:1700,q:5});tone(d,{t:c,f:420,f2:180,dur:.06,g:.2})}},
+  // mandibles working while it waits and listens: a short run of uneven clicks
+  spChitter(pos){if(!AU.ready)return;const d=dest(pos,{rev:.45,gain:1,ref:4});let t=0;
+    for(let i=0,n=randi(5,9);i<n;i++){t+=rand(.028,.075);nz(d,{t,dur:.016,g:rand(.14,.26),f:rand(1700,2700),q:6})}nz(d,{t:t+.04,dur:.12,g:.05,f:3600,q:2})},
+  // a leg joint flexing: a dry, rising creak, like an old hinge made of horn
+  spCreak(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:.8,ref:3.5});const f=rand(120,170);
+    tone(d,{type:'sawtooth',f,f2:f*rand(1.6,2.1),dur:rand(.25,.4),a:.05,g:.035});nz(d,{dur:.35,a:.05,g:.1,f:rand(650,800),f2:rand(1000,1250),q:14})},
+  // one leg tip touching down: a hard, hollow tick of shell on concrete
+  spTap(pos){if(!AU.ready)return;const d=dest(pos,{rev:.35,gain:.65,ref:3});nz(d,{dur:.02,g:.32,f:4200,q:6});tone(d,{type:'triangle',f:950,f2:620,dur:.04,g:.08});tone(d,{f:120,f2:70,dur:.07,g:.14})},
+  // the legs coming down hard: a heavy thud and the shell cracking against the floor
   spStomp(pos){if(!AU.ready)return;const d=dest(pos,{rev:.6,gain:1.5,ref:8,roll:.7});tone(d,{f:70,f2:30,dur:.55,a:.004,g:.8});nz(d,{dur:.3,a:.003,g:.55,type:'lowpass',f:500,f2:120});
-    for(let i=0;i<4;i++)nz(d,{t:i*.045,dur:.06,g:.3,f:1300,q:2})},
+    for(let i=0;i<5;i++)nz(d,{t:i*.035,dur:.03,g:.32,f:rand(2400,3600),q:4});tone(d,{type:'triangle',t:.02,f:340,f2:150,dur:.12,g:.12})},
   // the auditor's scanner: a short two-note beep
   audBeep(pos){if(!AU.ready)return;const d=dest(pos,{rev:.4,gain:.7,ref:3});tone(d,{type:'square',f:1860,dur:.07,g:.12});tone(d,{type:'square',f:1240,t:.11,dur:.09,g:.12})},
   // the error tone when it marks someone, loud and wrong
@@ -4255,6 +4309,8 @@ function animSpider(v,dt,time){const g=v.g,u=g.userData,a=v.a,ry=g.rotation.y,c=
   const vx=(gx-(v.px??gx))/Math.max(dt,1e-3),vz=(gz-(v.pz??gz))/Math.max(dt,1e-3);v.px=gx;v.pz=gz;
   const low=gy<2.6,stomp=a===3;v.stT=stomp?(v.stT||0)+dt:0;const near=Math.hypot(gx-ME.x,gz-ME.z)<22;
   let stepping=u.legs.filter(l=>l.st>=0).length;
+  // its mandibles work while it stands and listens (and now and then as it walks)
+  if(near&&!stomp){v.chT=(v.chT??rand(1,3))-dt*(a===0?1:.4);if(v.chT<=0){v.chT=rand(2.2,5.5);SFX.spChitter({x:gx,y:gy-.3,z:gz})}}
   u.body.rotation.z=damp(u.body.rotation.z,stomp?Math.sin(v.stT*18)*.06:0,10,dt);u.body.position.y=stomp?Math.abs(Math.sin(v.stT*9))*-.15:damp(u.body.position.y,0,6,dt);
   u.head.rotation.x=damp(u.head.rotation.x,a===0?Math.sin(time*.8)*.15:a===2?.2:.05,4,dt);u.head.rotation.y=a===0?Math.sin(time*.5+v.ph)*.3:damp(u.head.rotation.y,0,3,dt);
   u.legs.forEach((l,i)=>{const R=low?2.6:4.1,lead=.32;
@@ -4262,7 +4318,7 @@ function animSpider(v,dt,time){const g=v.g,u=g.userData,a=v.a,ry=g.rotation.y,c=
     if(!l.foot){l.foot={x:ix,z:iz}}
     // a leg whose foot would come down on a rack (or anything else) folds up into the body, and they all fold in to crouch
     const blocked=insideAny(ix,iz,.12)||insideAny(l.foot.x,l.foot.z,.05);l.r=damp(l.r,low?.72:blocked?1:0,blocked?7:4,dt);
-    if(l.st<0&&!stomp){const far=Math.hypot(ix-l.foot.x,iz-l.foot.z);if((far>1.25||(blocked&&far>.3))&&stepping<4&&(i%2)===((Math.floor(time*3.3)+(i>>1))%2)){l.st=0;l.from={...l.foot};stepping++}}
+    if(l.st<0&&!stomp){const far=Math.hypot(ix-l.foot.x,iz-l.foot.z);if((far>1.25||(blocked&&far>.3))&&stepping<4&&(i%2)===((Math.floor(time*3.3)+(i>>1))%2)){l.st=0;l.from={...l.foot};stepping++;if(near&&Math.random()<.12)SFX.spCreak({x:gx,y:gy,z:gz})}}
     let fy=0;if(l.st>=0){l.st+=dt/(a===2?.2:.3);const k=Math.min(1,l.st);l.foot.x=lerp(l.from.x,ix,k);l.foot.z=lerp(l.from.z,iz,k);fy=Math.sin(k*Math.PI)*.9;
       if(k>=1){l.st=-1;if(near&&l.r<.5&&Math.random()<.5)SFX.spTap({x:l.foot.x,y:0,z:l.foot.z})}}
     if(stomp){fy=Math.max(0,Math.sin(v.stT*9+(i%2)*Math.PI))*1.5;l.foot.x=damp(l.foot.x,ix,6,dt);l.foot.z=damp(l.foot.z,iz,6,dt)}

@@ -241,6 +241,8 @@ function loop(kind,pos,vol=1){if(!AU.ready)return null;const C=AU.ctx,g=C.create
   else if(kind==='belt'){const f=filt('lowpass',300);osc('sawtooth',48).connect(f);amp(f,.4);const n=filt('bandpass',900,3);ns().connect(n);const a=amp(n,.15);lfoTo(a.gain,6,.1,'square')}
   else if(kind==='lift'){const f=filt('lowpass',220);osc('sawtooth',62).connect(f);osc('sawtooth',63.5).connect(f);amp(f,.5);const n=filt('bandpass',500,2);ns().connect(n);amp(n,.2)}
   else if(kind==='gen'){const f=filt('lowpass',380);osc('sawtooth',30).connect(f);osc('square',60).connect(f);const a=amp(f,.4);lfoTo(a.gain,15,.12);const n=filt('lowpass',600);ns().connect(n);amp(n,.15)}
+  else if(kind==='spBreath'){ // the long-legged thing breathing through the holes along its body: a slow, airy wheeze over a deep drone
+    const f=filt('bandpass',1900,2.2);ns().connect(f);const a=amp(f,.22);lfoTo(a.gain,.42,.2);lfoTo(f.frequency,.21,500);const l=filt('lowpass',70);osc('sawtooth',29).connect(l);const b=amp(l,.5);lfoTo(b.gain,.42,.22)}
   else if(kind==='cart'){ // casters on concrete: a fast clatter over a low rumble
     const f=filt('bandpass',2300,2.5);ns().connect(f);const a=amp(f,.22);lfoTo(a.gain,21,.2,'square');lfoTo(a.gain,3.3,.08);const l=filt('lowpass',240);ns().connect(l);const b=amp(l,.55);lfoTo(b.gain,8,.2,'square')}
   else if(kind==='flare'){const f=filt('bandpass',3500,.8);ns().connect(f);const a=amp(f,.4);lfoTo(a.gain,9,.12)}
